@@ -3,35 +3,101 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold
 import pickle
 from IPython.display import display
 import optuna.integration.lightgbm as lgb
+import optuna
 import lightgbm as lgbm
 import time
 import numpy as np
-from sklearn.model_selection import GroupKFold
 import matplotlib.pyplot as plt
 import gc
 import warnings
+from gensim.models.doc2vec import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
+import keras
+from keras.models import Sequential
+from keras.layers import Input, Dense, Dropout, BatchNormalization
+from keras.wrappers.scikit_learn import KerasRegressor
+import tensorflow as tf
+from keras.callbacks import EarlyStopping
+import sys
+import category_encoders as ce
 
 warnings.simplefilter('ignore')
 
+optuna.logging.disable_default_handler()
+
 # 開催場所番号
+# field = 2
+# field = 6
+# field = 9
 field = 2
 
 # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
 #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
 #  '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
 
+# 距離差, 父馬, フィールドと場所の変化のTarget Encoding がよい test11
+
 # 学習済みモデルを保存するファイルネーム
-file_name = ""
+# file_name = "hakodate"
+tuner_name = "tokyo"
+file_name = 'tokyo'
+# file_name2 = 'tyukyo'
+# file_name3 = 'tokyo'
+# file_name4 = 'hanshin'
+# file_name5 = 'nakayama'
+
+
+# ファイル数
+file_num = 5
 
 # ファイルパス
-csv_path = "./csv/tokyo_2012-2023.csv" # 学習に使うcsvデータのパス
+csv_path = f"./csv/{file_name}_2012-2024.csv" # 学習に使うcsvデータのパス
+# csv_path2 = f"./csv/{file_name2}_2012-2024.csv" # 学習に使うcsvデータのパス
+# csv_path3 = f"./csv/{file_name3}_2012-2024.csv" # 学習に使うcsvデータのパス
+# csv_path4 = f"./csv/{file_name4}_2012-2024.csv" # 学習に使うcsvデータのパス
+# csv_path5 = f"./csv/{file_name5}_2012-2024.csv" # 学習に使うcsvデータのパス
 horse_path = "./pickle-dict/horse_jra.pkl" # 父馬のマッピング用辞書のパス
 femal_horse_path = "./pickle-dict/femal_horse_jra.pkl" # 母父馬のマッピング用辞書のバス
 jockey_path = "./pickle-dict/jockey_jra.pkl" # 騎手のマッピング用辞書のパス
-tuner_path = f"./pickle-tuner/{file_name}" # 学習済みモデルを保存する場所
+tuner_path = f"./pickle-tuner/{tuner_name}test70_" # 学習済みモデルを保存する場所
+fname = "./pickle-dict/corpus.pkl"
+
+# 関数
+def Target_encording(df, column, target):
+    tem = pd.DataFrame()
+    df_tem = pd.DataFrame()
+    df_ind = pd.DataFrame()
+    dfs = [df.iloc[i:i+int(len(df.index)/5)+1, :] for i in range(0, len(df.index), int(len(df.index) / 5) + 1)]
+
+    for i in range(5):
+        df_tem = dfs[i].copy()
+        df_ind = dfs.copy()
+        del df_ind[i]
+        df_ind = pd.concat([dfs[0], dfs[1], dfs[2], dfs[3]], axis=0)
+        d = df_ind.groupby(column)[target].mean()
+        dict = d.to_dict()
+        df_tem[column] = pd.to_numeric(df_tem[column].map(dict), errors='coerce')
+        tem = pd.concat([tem, df_tem], axis=0)
+    
+    return tem
+
+# def reg_model():
+#     model = Sequential()
+#     model.add(Dense(X, input_dim=X, activation='relu'))
+#     model.add(Dense(unit, activation='relu'))
+#     # model.add(Dense(int(unit * (2 / 3)), activation='relu'))
+#     model.add(Dense(1))
+#     # model.add(Dense(18, activation='softmax'))
+
+#     # compile model
+#     # model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), metrics=['accuracy'])
+#     model.compile(loss=tf.keras.losses.mean_squared_error, optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), metrics=['mse'])
+#     return model
 
 # データフレーム生成
 df = pd.DataFrame()
@@ -44,23 +110,38 @@ pd.set_option("display.max_columns", None)
 
 # csvファイル読み込み(スクレイピングしない場合)
 df = pd.read_csv(csv_path, index_col=0)
+print(df.columns)
+# df['場所'] = 3
 
-# スクレイピング
-# for year in range(2012, 2024):
+# name_list = [csv_path2, csv_path3, csv_path4, csv_path5]
+# num_list = [9, 2, 4, 1]
+
+# for i, k in zip(name_list, num_list):
+#     df2 = pd.read_csv(i, index_col=0)
+#     df2['場所'] = k
+#     df = pd.concat([df, df2])
+
+# ヘッダー
+# headers = {'User-Agent': 'Mozilla/5.0'}
+
+# # スクレイピング
+# for year in range(2012, 2025):
 #     for number in range(1, 6):
-#         for day in range(1, 10):
+#         for day in range(1, 13):
 #             for race_no in range(1, 13):
-#                 race_id = '{}06{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
+#                 race_id = '{}10{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
 #                 url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
 #                 url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
 #                 try:
-#                     df_result = pd.read_html(url_race)[0]
-#                     df_past = pd.read_html(url_past)[0]
-#                     r = requests.get(url_race)
-#                     soup = BeautifulSoup(r.content, 'html.parser')
+#                     response_race = requests.get(url_race, headers=headers)
+#                     response_past = requests.get(url_past, headers=headers)
+#                     df_result = pd.read_html(response_race.content)[0]
+#                     df_past = pd.read_html(response_past.content)[0]
+#                     soup = BeautifulSoup(response_race.content, 'html.parser')
 #                     data1 = soup.find('div', class_='RaceData01').text
 #                     data2 = soup.find('div', class_='RaceData02').text
 #                     data3 = soup.find('tr', class_='Umatan').text
+#                     data4 = soup.find('h1', class_='RaceName').text
 #                     a = data2[data2.find('新馬')+0: data2.find('新馬')+2]
 #                     # if int(data2[data2.find('サラ系')+3: data2.find('サラ系')+4]) == 2:
 #                     #     continue
@@ -71,17 +152,20 @@ df = pd.read_csv(csv_path, index_col=0)
 #                     df_result_past['フィールド'] = data1[data1.find('/')+2: data1.find('/')+3]
 #                     df_result_past['馬場'] = data1[data1.find('馬場')+3: data1.find('馬場')+4]
 #                     df_result_past['出走頭数'] = data2[data2.find('頭')-2: data2.find('頭')+0]
+#                     # df_result_past['牡牝'] = data2[data2.find('牝'):data2.find('牝')+1]
 #                     df_result_past['馬単'] = data3
+#                     df_result_past['レース名'] = data4.replace('\n', '')
 #                     print(url_race)
 #                     time.sleep(1)
 #                 except:
 #                     continue
 #                 df_result_past['レースID'] = race_id
 #                 df = pd.concat([df, df_result_past])
+#                 # print(df)
 
 # # 結果をcsvに保存
 # df.to_csv(csv_path, na_rep='NaN')
-
+# sys.exit()
 # 辞書作成(各コースの平均タイム)
 speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, '122001': 133.8, '125001': 153.5, '136001': 227.0,
               '112002': 71.0, '118002': 113.8, '124002': 154.2, '125002': 162.5, '214001': 81.0, '216001': 93.9, '218001': 106.9, '220001': 120.3,
@@ -97,30 +181,58 @@ speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, 
               '920001': 120.9, '922001': 134.7, '912002': 71.2, '914002': 83.8, '918002': 111.0, '919002': 119.4, '1012001': 69.0,
               '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8}
 
+# df = df[df['レースID'] < 202200000000]
+
 df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+
+# display(df['文章リスト'].head(1))
 
 # 新たなカラムを作成
 df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
 df['間隔'] = df['馬名_y'].str.extract(r'(\d+)', expand=True)
 df['母父馬'] = df['馬名_y'].str.extract(r'(\(\D+\))', expand=True)
 
+# df['文章リスト'] = df['父馬'] + ' ' + '今走' + df['レース名'] + df['フィールド'] + df['距離'].astype(str) + df['馬場'] + ' ' + '前走' + df['前走'].fillna('欠走') \
+#     + ' ' + '2走' + df['2走'].fillna('欠走') + ' ' + '3走' + df['3走'].fillna('欠走') + ' ' + '4走' + \
+#     + df['4走'].fillna('欠走') + ' ' + '5走' + df['5走'].fillna('欠走')
+
 # 血統pickle作成
-# horse_mapping = dict(zip(df['父馬'].unique().tolist(), range(1, len(df['父馬'].unique().tolist()) + 1)))
-# with open(horse_path, "wb") as jd:
-#     pickle.dump(horse_mapping, jd)
-# femal_house_mapping = dict(zip(df['母父馬'].unique().tolist(), range(1, len(df['父馬'].unique().tolist()) + 1)))
+# femal_house_mapping = dict(zip(df['母父馬'].unique().tolist(), range(1, len(df['母父馬'].unique().tolist()) + 1)))
 # with open("femal_horse_path", "wb") as jd:
 #      pickle.dump(femal_house_mapping, jd)
+# horse_mapping = dict(zip(df['父馬'].unique().tolist(), range(1, len(df['父馬'].unique().tolist()) + 1)))
+
+# with open(horse_path, "wb") as jd:
+#     pickle.dump(horse_mapping, jd)
+
 
 # 血統pickle呼び出し
 with open(horse_path, mode="rb") as f:
     horse_mapping = pickle.load(f)
-with open(femal_horse_path, mode="rb") as f:
-    femal_horse_mapping = pickle.load(f)
+# with open(femal_horse_path, mode="rb") as f:
+#     femal_horse_mapping = pickle.load(f)
+
+# for name, num in zip(df['父馬'].unique().tolist(), range(1, len(df['父馬'].unique().tolist()) + 1)):
+#     horse_mapping.setdefault(name, len(horse_mapping)+1)
+
+# with open(horse_path, "wb") as jd:
+#     pickle.dump(horse_mapping, jd)
+
+# 目的変数作成
+f_ranking = {1: 10, 2: 5, 3: 3, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0,
+             '1': 10, '2': 5, '3': 3, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0, '16': 0, '17': 0, '18': 0}
+
+# f_ranking = {1: 25, 2: 20, 3: 15, 4: 14, 5: 13, 6: 12, 7: 11, 8: 10, 9: 9, 10: 8, 11: 7, 12: 6, 13: 5, 14: 4, 15: 3, 16: 2, 17: 1, 18: 0,
+#              '1': 25, '2': 20, '3': 15, '4': 14, '5': 13, '6': 12, '7': 11, '8': 10, '9': 9, '10': 8, '11': 7, '12': 6, '13': 5, '14': 4, '15': 3, '16': 2, '17': 1, '18': 0}
+
+df['rank'] = df['着順'].map(f_ranking)
 
 # マッピング
-df['父馬'] = df['父馬'].map(horse_mapping)
-df['母父馬'] = df['母父馬'].map(femal_horse_mapping)
+df['父馬'] = pd.to_numeric(df['父馬'].map(horse_mapping), errors='coerce')
+df['母父馬'] = pd.to_numeric(df['母父馬'].map(horse_mapping), errors='coerce')
+# df['血統'] = pd.to_numeric((df['父馬'] * 10).astype(str) + df['母父馬'].astype(str), errors='coerce')
+
+# display(df['血統'])
 
 # 馬単の配当を抽出
 df['馬単'] = df['馬単'].str.replace(',', '')
@@ -162,7 +274,10 @@ df = df.drop(['前走'], axis=1)
 df_split = df_split.drop(['日付'], axis=1)
 
 # 4角コーナー通過順のみに
-df_split['1コーナー通過順'] = df_split['1コーナー通過順'].str[-4:-1].astype(float)
+df_split['1コーナー通過順'] = df_split['1コーナー通過順'].str[-4:-1].apply(lambda x : x if x != ' ' else None)
+df_split['1コーナー通過順'] = df_split['1コーナー通過順'].astype(float).abs()
+
+# display(df_split['1コーナー通過順'].value_counts())
 
 # クラス別に分類
 df_split['1クラス'] = 0
@@ -185,7 +300,7 @@ condition_mapping = {'良': 1, '稍': 2, '重': 3, '不': 4}
 df_split['1馬場'] = df_split['1馬場'].map(condition_mapping)
 df['馬場'] = df['馬場'].map(condition_mapping)
 
-df_split['1着差'] = df_split['1着差'].astype(float) + (df_split['1クラス'].astype(int) * 0.3)
+df_split['1着差'] = df_split['1着差'].astype(float) + (df_split['1クラス'].astype(int) * 0.5)
 
 # 騎手のユニーク値から辞書をつくる
 jockey_mapping = {}
@@ -195,17 +310,26 @@ with open(jockey_path, mode="rb") as f:
     jockey_mapping = pickle.load(f)
 
 # 既存の騎手リストに追加する場合
-# for name, num in zip(df['騎手'].unique().tolist(), range(1, len(df['騎手'].unique().tolist()) + 1)):
-#     jockey_mapping.setdefault(name, num)
+for name, num in zip(df['騎手'].unique().tolist(), range(1, len(df['騎手'].unique().tolist()) + 1)):
+    jockey_mapping.setdefault(name, len(jockey_mapping)+1)
 
-# 騎手pickle保存
-# with open(jockey_path, "wb") as jd:
-#     pickle.dump(jockey_mapping, jd)
+# # 騎手pickle保存
+with open(jockey_path, "wb") as jd:
+    pickle.dump(jockey_mapping, jd)
 
 # 文字列から数値に変換する
 df_split['1騎手'] = df_split['1騎手'].map(jockey_mapping)
 df['騎手'] = df['騎手'].map(jockey_mapping)
 
+df['勝率'] = 0
+df['勝率'] = df['勝率'].mask(pd.to_numeric(df['着順'], errors='coerce') == 1, 1)
+
+d = df.groupby('騎手')['勝率'].mean()
+dict = d.to_dict()
+df['騎手'] = pd.to_numeric(df['騎手'].map(dict), errors='coerce')
+
+with open(f'./pickle-dict/jwin_dict{field}.pkl', "wb") as dd:
+    pickle.dump(dict, dd)
 
 # タイムを秒表記にする
 base_time = pd.to_datetime('00:00.0', format='%M:%S.%f')
@@ -233,28 +357,71 @@ df_split['1後3F'] = df_split['1後3F'].mask((df_split['1フィールド'] == 2)
 df_split['1後3F'] = df_split['1後3F'].mask((df_split['1フィールド'] == 3) & df_split['1後3F'].notna() & df_split['1距離'].notna(), df_split['1後3F'].astype(float) / (0.36 + (df_split['1距離'].astype(float) * 1.5 / 100000)))
 
 # 人気を裏切ったかどうか
-df_split['1人気'] = df_split['1人気'].replace('', np.nan)
-df_split['1過去着順'] = df_split['1過去着順'].replace('', np.nan)
-df_split['1出走馬数'] = df_split['1出走馬数'].replace('', np.nan)
-df_split['1人気差'] = float('nan')
-df_split['1人気差'] = df_split['1人気差'].mask(df_split['1人気'].notna() & df_split['1過去着順'].notna() & df_split['1出走馬数'].notna(), (df_split['1人気'].astype(float) - df_split['1過去着順'].astype(float)) / df_split['1出走馬数'].astype(float))
+# df_split['1人気'] = df_split['1人気'].replace('', np.nan)
+# df_split['1過去着順'] = df_split['1過去着順'].replace('', np.nan)
+# df_split['1出走馬数'] = df_split['1出走馬数'].replace('', np.nan)
+# df_split['1人気差'] = float('nan')
+# df_split['1人気差'] = df_split['1人気差'].mask(df_split['1人気'].notna() & df_split['1過去着順'].notna() & df_split['1出走馬数'].notna(), (df_split['1人気'].astype(float) - df_split['1過去着順'].astype(float)) / df_split['1出走馬数'].astype(float))
 
-# 条件の変化
+# df_split['人気増減'] = df_split['1人気'].astype(float) - df['人気'].astype(float)
+
+# # 条件の変化
+# df_split['1距離差'] = df['距離'].astype(float) - df_split['1距離'].astype(float)
+# df_split['1場所変化'] = 1
+# df_split['1場所変化'] = df_split['1場所変化'].mask(df_split['1場所'] == field, 0)
+# df_split['1フィールド変化'] = 1
+# df_split['1フィールド変化'] = df_split['1フィールド変化'].mask(df_split['1フィールド'] == df['フィールド'], 0)
+
 df_split['1距離差'] = df['距離'].astype(float) - df_split['1距離'].astype(float)
-df_split['1場所変化'] = 0
-df_split['1場所変化'] = df_split['1場所変化'].mask(df_split['1場所'] == field, 1)
-df_split['1フィールド変化'] = 0
-df_split['1フィールド変化'] = df_split['1フィールド変化'].mask(df_split['1フィールド'] == df['フィールド'], 1)
+df_split['1場所変化'] = df_split['1場所'] - field
+df_split['1フィールド変化'] = df_split['1フィールド'] - df['フィールド']
+
+# df_split['1フィールド変化*スピード指数'] = df_split['1フィールド変化'] * df_split['1スピード指数']
+# df_split['1場所変化*スピード指数'] = df_split['1場所変化'] * df_split['1スピード指数']
+# df_split['1距離差*スピード指数'] = df_split['1距離差'] * df_split['1スピード指数']
+# df_split['1コーナー*3F'] = df_split['1コーナー通過順'] * df_split['1後3F']
+# df_split['馬番差'] = (df['出走頭数'].astype(float) / df['馬番'].astype(float)) - (df_split['1出走馬数'].astype(float) / df_split['1馬番'].astype(float))
+# df_split['騎手変化'] = 1
+# df_split['騎手変化'] = df_split['騎手変化'].mask(df_split['1騎手'] == df['騎手'], 0)
+# df_split['騎手変化*スピード指数'] = df_split['騎手変化'] * df_split['1スピード指数']
+
+
+# # df_split['1フィールド変化'] = 0
+# # df_split['1フィールド変化'] = df_split['1フィールド変化'].mask(df_split['1フィールド'] == df['フィールド'], 1)
+# df_split['1馬番差'] = (df['出走頭数'].astype(float) / df['馬番'].astype(float)) - (df_split['1出走馬数'].astype(float) / df_split['1馬番'].astype(float))
+# df_split['1騎手変化'] = 1
+# df_split['1騎手変化'] = df_split['1騎手変化'].mask(df_split['1騎手'] == df['騎手'], 0)
+
 
 # 不要なカラムを削除
-df_split = df_split.drop(['1人気', '1レース名', '1タイム', '1騎手', '1出走馬数', '1馬番', '1斤量', '1馬体重', '1体重増減', '1距離','1騎手', '1馬場', '1フィールド', '1場所', '1過去着順', '1クラス'], axis=1)
-df = df.drop(['騎手', '馬場', '馬番', '出走頭数', '性', '斤量'], axis=1)
+# df_split = df_split.drop(['1人気', '1レース名', '1タイム', '1出走馬数', '1馬番', '1斤量', '1馬体重', '1体重増減', '1距離','1騎手', '1馬場', '1フィールド', '1場所'], axis=1)
+df_split = df_split.drop(['1レース名', '1騎手'], axis=1)
+# df = df.drop(['騎手', '馬場', '馬番', '出走頭数', '性', '斤量'], axis=1)
 
 # 特徴量削減
 sou = '1'
 
 # 今走と前走を結合
 df_all = pd.concat([df, df_split], axis=1)
+
+# target encording
+# クエリListを作成
+id_count = df_all['レースID'].value_counts(sort=False)
+n_list = id_count.values.tolist()
+
+n_list = n_list[:-1]
+n = 0
+df_all['平均クラス'] = np.nan
+df_all['平均ペース'] = np.nan
+for i in n_list:
+    n += i
+    df_all.iloc[n-i:n, df_all.columns.get_loc('平均クラス')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1クラス')].mean().astype(int)
+    df_all.iloc[n-i:n, df_all.columns.get_loc('平均ペース')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1コーナー通過順')].mean()
+
+df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
+df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
+
+# df_all = df_all.drop(['平均クラス', '平均ペース'], axis=1)
 
 ######################################################################################
 # 以降2~5走の処理
@@ -301,7 +468,9 @@ while True:
     for k, v in class_dict.items():
         df_split[sou+'クラス'] = df_split[sou+'クラス'].mask(df_split[sou+'レース名'].str.contains(k, na=False), v)
 
-    df_split[sou+'着差'] = df_split[sou+'着差'].astype(float) + (df_split[sou+'クラス'].astype(int) * 0.3)
+    # df_split[sou+'クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_split[sou+'クラス'].astype(str) + df_split[sou+'過去着順'].astype(str), errors='coerce')
+
+    df_split[sou+'着差'] = df_split[sou+'着差'].astype(float) + (df_split[sou+'クラス'].astype(int) * 0.5)
 
     # 上がり3Fを指数化
     df_split[sou+'後3F'] = df_split[sou+'後3F'].mask((df_split[sou+'フィールド'] == 1) & df_split[sou+'後3F'].notna() & df_split[sou+'距離'].notna(), df_split[sou+'後3F'].astype(float) / (0.94 + (df_split[sou+'距離'].astype(float) / 20000)))
@@ -309,21 +478,31 @@ while True:
     df_split[sou+'後3F'] = df_split[sou+'後3F'].mask((df_split[sou+'フィールド'] == 3) & df_split[sou+'後3F'].notna() & df_split[sou+'距離'].notna(), df_split[sou+'後3F'].astype(float) / (0.36 + (df_split[sou+'距離'].astype(float) * 1.5 / 100000)))
 
     # 人気を裏切ったかどうか
-    df_split[sou+'人気'] = df_split[sou+'人気'].replace('', np.nan)
-    df_split[sou+'過去着順'] = df_split[sou+'過去着順'].replace('', np.nan)
-    df_split[sou+'出走馬数'] = df_split[sou+'出走馬数'].replace('', np.nan)
-    df_split[sou+'人気差'] = float('nan')
-    df_split[sou+'人気差'] = df_split[sou+'人気差'].mask(df_split[sou+'人気'].notna() & df_split[sou+'過去着順'].notna() & df_split[sou+'出走馬数'].notna(), (df_split[sou+'人気'].astype(float) - df_split[sou+'過去着順'].astype(float)) / df_split[sou+'出走馬数'].astype(float))
+    # df_split[sou+'人気'] = df_split[sou+'人気'].replace('', np.nan)
+    # df_split[sou+'過去着順'] = df_split[sou+'過去着順'].replace('', np.nan)
+    # df_split[sou+'出走馬数'] = df_split[sou+'出走馬数'].replace('', np.nan)
+    # df_split[sou+'人気差'] = float('nan')
+    # df_split[sou+'人気差'] = df_split[sou+'人気差'].mask(df_split[sou+'人気'].notna() & df_split[sou+'過去着順'].notna() & df_split[sou+'出走馬数'].notna(), (df_split[sou+'人気'].astype(float) - df_split[sou+'過去着順'].astype(float)) / df_split[sou+'出走馬数'].astype(float))
 
-    # 条件の変化
-    df_split[sou+'距離差'] = df['距離'].astype(float) - df_split[sou+'距離'].astype(float)
-    df_split[sou+'場所変化'] = 0
-    df_split[sou+'場所変化'] = df_split[sou+'場所変化'].mask(df_split[sou+'場所'] == field, 1)
-    df_split[sou+'フィールド変化'] = 0
-    df_split[sou+'フィールド変化'] = df_split[sou+'フィールド変化'].mask(df_split[sou+'フィールド'] == df['フィールド'], 1)
+    # # # 条件の変化
+    # df_split[sou+'距離差'] = df['距離'].astype(float) - df_split[sou+'距離'].astype(float)
+    # df_split[sou+'場所変化'] = df_split[sou+'場所'] - field
+    # df_split[sou+'フィールド変化'] = df_split[sou+'フィールド'] - df['フィールド']
+    # # df_split['1フィールド変化'] = 0
+    # # df_split['1フィールド変化'] = df_split['1フィールド変化'].mask(df_split['1フィールド'] == df['フィールド'], 1)
+    # df_split[sou+'馬番差'] = (df['出走頭数'].astype(float) / df['馬番'].astype(float)) - (df_split[sou+'出走馬数'].astype(float) / df_split[sou+'馬番'].astype(float))
+    # df_split[sou+'騎手変化'] = 1
+    # df_split[sou+'騎手変化'] = df_split[sou+'騎手変化'].mask(df_split[sou+'騎手'] == df['騎手'], 0)
+
+    # df_split[sou+'距離差'] = df['距離'].astype(float) - df_split[sou+'距離'].astype(float)
+    # df_split[sou+'場所変化'] = 0
+    # df_split[sou+'場所変化'] = df_split[sou+'場所変化'].mask(df_split[sou+'場所'] == field, 1)
+    # df_split[sou+'フィールド変化'] = 0
+    # df_split[sou+'フィールド変化'] = df_split[sou+'フィールド変化'].mask(df_split[sou+'フィールド'] == df['フィールド'], 1)
 
     # 不要なカラムを削除
-    df_split = df_split.drop([sou+'人気', sou+'レース名', sou+'場所', sou+'フィールド', sou+'馬場', sou+'距離', sou+'タイム', sou+'出走馬数', sou+'馬番', sou+'騎手', sou+'斤量', sou+'馬体重', sou+'体重増減', sou+'過去着順', sou+'クラス'], axis=1)
+    # df_split = df_split.drop([sou+'レース名', sou+'騎手',sou+'場所',sou+'フィールド',sou+'馬場',sou+'タイム',sou+'出走馬数', sou+'馬番',sou+'馬体重', sou+'体重増減',sou+'斤量'], axis=1)
+    df_split = df_split.drop([sou+'レース名', sou+'騎手'], axis=1)
 
     # 今走と過去走を結合
     df_all = pd.concat([df_all, df_split], axis=1)
@@ -338,58 +517,316 @@ while True:
         sou = '5'
     count += 1
 
+# df_all['人気増減'] = df_all['人気増減'].fillna(df_all['2人気'].astype(float) - df_all['人気'].astype(float))
+
+# 表現学習
+# vecter = []
+# df_all['No'] = range(1, len(df_all.index) + 1)
+# trainings = [TaggedDocument(words = data.split(),tags = [i]) for data,i in zip(df_all['文章リスト'].tolist(), df_all['No'])]
+
+# # トレーニング
+# m = Doc2Vec(documents=trainings, dm=1, vector_size=100, window=5, min_count=1, workers=4, epochs=20)
+
+# m.save(fname)
+
+# # for i in range(len(df_all.index)):
+# #     vecter.append(m.infer_vector(df_all.iloc[i, df_all.columns.get_loc('文章リスト')].split()))
+
+# for i in range(len(df_all.index)):
+#     vecter.append(m.infer_vector(df_all.iloc[i, df_all.columns.get_loc('文章リスト')].split(), epochs=20))
+
+# vecter = pd.DataFrame(vecter)
+
+# es = EarlyStopping(monitor='mse', patience=1)
+# estimator = KerasRegressor(build_fn=reg_model, batch_size=16, verbose=1, epochs=10000, callbacks=[es])
+# reg_model().summary()
+
+# estimator.fit(vecter, df_all['rank'])
+# y_pred = estimator.predict(X_test)
+
+# df_all = pd.concat([df_all, vecter], axis=1)
+
+# display(df_all.columns.values)
+
+# Target Encording
+# df_all['2騎手変化'] = 1
+# df_all['2騎手変化'] = df_all['騎手変化'].mask(df_all['2騎手'] == df_all['騎手'], 0)
+
+# print(df_all[['1距離差', '1場所変化', '1フィールド変化', '1コーナー通過順', '騎手変化']].isnull().sum())
+# df_all.fillna({f'1距離差': df_all[f'2距離差'], f'1場所変化': df_all['2場所'] - field, f'1フィールド変化': df_all['2フィールド'] - df_all['フィールド'], '騎手変化': df_all['2騎手変化']}, inplace=True)
+
+df_test = df_all[df_all['レースID'] >= 202000000000].copy()
+df_all = df_all[df_all['レースID'] < 202000000000]
+
+# d = df_all.groupby('1距離差')['rank'].mean()
+# dict = d.to_dict()
+# df_test['1距離差'] = pd.to_numeric(df_test['1距離差'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/kyori_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# d = df_all.groupby('1場所変化')['rank'].mean()
+# dict = d.to_dict()
+# df_test['1場所変化'] = pd.to_numeric(df_test['1場所変化'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/basyo_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# d = df_all.groupby('1フィールド変化')['rank'].mean()
+# dict = d.to_dict()
+# df_test['1フィールド変化'] = pd.to_numeric(df_test['1フィールド変化'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/field_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# # d = df_all.groupby('1コーナー通過順')['rank'].mean()
+# # dict = d.to_dict()
+# # with open(f'./pickle-dict/corner_dict{field}.pkl', "wb") as dd:
+# #     pickle.dump(dict, dd)
+# d = df_all.groupby('1騎手変化')['rank'].mean()
+# dict = d.to_dict()
+# df_test['1騎手変化'] = pd.to_numeric(df_test['1騎手変化'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/jhenka_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# d = df_all.groupby('人気増減')['rank'].mean()
+# dict = d.to_dict()
+# df_test['人気増減'] = pd.to_numeric(df_test['人気増減'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/ninkizougen_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# d = df_all.groupby('1人気差')['rank'].mean()
+# dict = d.to_dict()
+# with open(f'./pickle-dict/1ninkisa_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# d = df_all.groupby('騎手')['rank'].mean()
+# dict = d.to_dict()
+# with open(f'./pickle-dict/jokey_leading_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# # d = df_all.groupby('血統')['rank'].mean()
+# # dict = d.to_dict()
+# # with open(f'./pickle-dict/brad_dict{field}.pkl', "wb") as dd:
+# #     pickle.dump(dict, dd)
+# d = df_all.groupby('1クラス差')['rank'].mean()
+# dict = d.to_dict()
+# df_test['1クラス差'] = pd.to_numeric(df_test['1クラス差'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/1class_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+d = df_all.groupby('父馬')['rank'].mean()
+dict = d.to_dict()
+df_test['父馬'] = pd.to_numeric(df_test['父馬'].astype(float).map(dict), errors='coerce')
+with open(f'./pickle-dict/sire_dict{field}.pkl', "wb") as dd:
+    pickle.dump(dict, dd)
+# d = df_all.groupby('母父馬')['rank'].mean()
+# dict = d.to_dict()
+# df_test['母父馬'] = pd.to_numeric(df_test['母父馬'].astype(float).map(dict), errors='coerce')
+# with open(f'./pickle-dict/bms_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# # d = df_all.groupby('1スピード指数')['rank'].mean()
+# # dict = d.to_dict()
+# # with open(f'./pickle-dict/speed_dict{field}.pkl', "wb") as dd:
+# #     pickle.dump(dict, dd)
+
+# for i in range(2, 6):
+# # #     d = df_all.groupby(f'{i}クラス差')['rank'].mean()
+# # #     dict = d.to_dict()
+# # #     with open(f'./pickle-dict/{i}class_dict{field}.pkl', "wb") as dd:
+# # #         pickle.dump(dict, dd)
+#     d = df_all.groupby(f'{i}距離差')['rank'].mean()
+#     dict = d.to_dict()
+#     df_test[f'{i}距離差'] = pd.to_numeric(df_test[f'{i}距離差'].astype(float).map(dict), errors='coerce')
+#     with open(f'./pickle-dict/{i}kyori_dict{field}.pkl', "wb") as dd:
+#         pickle.dump(dict, dd)
+#     d = df_all.groupby(f'{i}場所変化')['rank'].mean()
+#     dict = d.to_dict()
+#     df_test[f'{i}場所変化'] = pd.to_numeric(df_test[f'{i}場所変化'].astype(float).map(dict), errors='coerce')
+#     with open(f'./pickle-dict/{i}basyo_dict{field}.pkl', "wb") as dd:
+#         pickle.dump(dict, dd)
+#     d = df_all.groupby(f'{i}フィールド変化')['rank'].mean()
+#     dict = d.to_dict()
+#     df_test[f'{i}フィールド変化'] = pd.to_numeric(df_test[f'{i}フィールド変化'].astype(float).map(dict), errors='coerce')
+#     with open(f'./pickle-dict/{i}field_dict{field}.pkl', "wb") as dd:
+#         pickle.dump(dict, dd)
+# #     d = df_all.groupby(f'{i}人気差')['rank'].mean()
+# #     dict = d.to_dict()
+# #     with open(f'./pickle-dict/{i}ninkisa_dict{field}.pkl', "wb") as dd:
+# #         pickle.dump(dict, dd)
+# #     d = df_all.groupby(f'{i}騎手変化')['rank'].mean()
+# #     dict = d.to_dict()
+# #     with open(f'./pickle-dict/{i}jhenka_dict{field}.pkl', "wb") as dd:
+# #             pickle.dump(dict, dd)
+# #     df_all = Target_encording(df_all, str(i)+'クラス差', 'rank')
+    # df_all = Target_encording(df_all, str(i)+'距離差', 'rank')
+    # df_all = Target_encording(df_all, str(i)+'場所変化', 'rank')
+    # df_all = Target_encording(df_all, str(i)+'フィールド変化', 'rank')
+#     df_all = Target_encording(df_all, str(i)+'騎手変化', 'rank')
+
+# df_all = Target_encording(df_all, '1距離差', 'rank')
+# df_all = Target_encording(df_all, '1場所変化', 'rank')
+# df_all = Target_encording(df_all, '1フィールド変化', 'rank')
+# df_all = Target_encording(df_all, '1コーナー通過順', 'rank')
+# df_all = Target_encording(df_all, '1騎手変化', 'rank')
+# print(df_all[['1距離差', '1場所変化', '1フィールド変化', '1コーナー通過順', '騎手変化']].isnull().sum())
+# display(df_all['1距離差'])
+# df_all = Target_encording(df_all, '1スピード指数', 'rank')
+# df_all = Target_encording(df_all, '1人気差', 'rank')
+# df_all = Target_encording(df_all, '騎手', 'rank')
+# df_all = Target_encording(df_all, '血統', 'rank')
+# df_all = Target_encording(df_all, '1クラス差', 'rank')
+df_all = Target_encording(df_all, '父馬', 'rank')
+# df_all = Target_encording(df_all, '人気増減', 'rank')
+# df_all = Target_encording(df_all, '母父馬', 'rank')
+
+df_all = pd.concat([df_all, df_test], axis=0)
+
+# display(df_all[['1距離差', '1場所変化', '1フィールド変化', '1コーナー通過順', '騎手変化', '1スピード指数', '1人気差', '騎手', '血統', '1クラス差', '父馬', '母父馬']].head(40))
+
+
 # 着順から文字列を排除
 indexNames = df_all[(df_all['着順'] != '中止') & (df_all['着順'] != '除外') & (df_all['着順'] != '取消') & (df_all['着順'] != '失格') & (df_all['着順'] != '未定')]
 df_all = indexNames
 
+# 着差とスピード指数のbest, avカラム作成
+df_all['best着差'] = df_all.loc[:, ['1着差', '2着差', '3着差', '4着差', '5着差']].astype(float).min(axis=1)
+df_all['bestスピード指数'] = df_all.loc[:, ['1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数']].max(axis=1)
+
+df_all['av着差'] = df_all.loc[:, ['1着差', '2着差', '3着差', '4着差', '5着差']].astype(float).mean(axis=1)
+df_all['avスピード指数'] = df_all.loc[:, ['1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数']].mean(axis=1)
+
 # df_all から Nan を各列の中央値に置換する
-df_all = df_all.drop(['2走', '3走', '4走', '5走', 'フィールド', '距離'], axis=1)
+# df_all = df_all.drop(['2走', '3走', '4走', '5走', 'フィールド', '距離', '1過去着順', '2過去着順', '3過去着順', '4過去着順', '5過去着順', '父馬', '母父馬', '1コーナー通過順', '間隔','1着差', '2着差', '3着差', '4着差', '5着差','1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数'], axis=1)
+# df_all = df_all.drop(['2走', '3走', '4走', '5走', 'フィールド', '距離', '1過去着順', '2過去着順', '3過去着順', '4過去着順', '5過去着順', '馬場', '出走頭数', '間隔','1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数', '平均クラス'], axis=1)
+# df_all = df_all.drop(['2走', '3走', '4走', '5走', '母父馬', '騎手', '1コーナー通過順', 'レース名'], axis=1)
 
-for i in range(1,5):
-    k = i + 1
-    df_all.fillna({f'{i}後3F': df_all[f'{k}後3F'], f'{i}着差': df_all[f'{k}着差'], f'{i}人気差': df_all[f'{k}人気差'], f'{i}距離差': df_all[f'{k}距離差'],
-                f'{i}場所変化': df_all[f'{k}場所変化'], f'{i}フィールド変化': df_all[f'{k}フィールド変化'], f'{i}スピード指数': df_all[f'{k}スピード指数']}, inplace=True)
+# list_columns = ['場所', '過去着順', 'フィールド', '距離', 'タイム', '馬場', '出走馬数', '馬番', '人気', '騎手', '斤量', '後3F', '馬体重', '体重増減', '着差', '人気差', 'スピード指数']
 
-# 目的変数作成
-f_ranking = {1: 10, 2: 5, 3: 3, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0,
-             '1': 10, '2': 5, '3': 3, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0, '16': 0, '17': 0, '18': 0}
+df_all = df_all.drop(['2走', '3走', '4走', '5走', '母父馬', 'レース名', '勝率'], axis=1)
 
-df_all['rank'] = df_all['着順'].map(f_ranking)
+list_columns = ['場所', '過去着順', 'フィールド', '距離', 'タイム', '馬場', '出走馬数', '馬番', '人気',  '斤量', '後3F', '馬体重', '体重増減', '着差', 'スピード指数']
+
+
+# for i in range(1,5):
+#     k = i + 1
+#     for v in list_columns:
+#         df_all.fillna({f'{i}{v}': df_all[f'{k}{v}']}, inplace=True)
+#         df_all.fillna({f'{k}{v}': df_all[f'{i}{v}']}, inplace=True)
+
+    # df_all.fillna({f'{i}場所': df_all[f'{k}場所'], f'{i}過去着順': df_all[f'{k}後3F'], f'{i}後3F': df_all[f'{k}後3F'], f'{i}着差': df_all[f'{k}着差'], f'{i}人気差': df_all[f'{k}人気差'], f'{i}距離差': df_all[f'{k}距離差'],
+    #             f'{i}場所変化': df_all[f'{k}場所変化'], f'{i}フィールド変化': df_all[f'{k}フィールド変化'], f'{i}スピード指数': df_all[f'{k}スピード指数']}, inplace=True)
+
+print(df_all.isnull().sum())
+
+# 空白削除
+for i in df_all.columns:
+    df_all[i] = df_all[i].replace('', np.nan)
+
+# 上昇度カラム作成
+df_all['5過去着順'] = df_all['5過去着順'].astype(float)
+df_all['4過去着順'] = df_all['4過去着順'].astype(float)
+df_all['3過去着順'] = df_all['3過去着順'].astype(float)
+df_all['2過去着順'] = df_all['2過去着順'].astype(float)
+df_all['1過去着順'] = df_all['1過去着順'].astype(float)
+df_all['上昇度'] = (df_all['5過去着順'] - df_all['4過去着順']) + (df_all['4過去着順'] - df_all['3過去着順']) + (df_all['3過去着順'] - df_all['2過去着順']) + (df_all['2過去着順'] - df_all['1過去着順']) / (df_all[['1過去着順', '2過去着順', '3過去着順', '4過去着順', '5過去着順']].isnull().sum(axis=1) + 1)
+# df_all['上昇度'] = np.sign(df_all['5過去着順'] - df_all['4過去着順']) + np.sign(df_all['4過去着順'] - df_all['3過去着順']) + np.sign(df_all['3過去着順'] - df_all['2過去着順']) + np.sign(df_all['2過去着順'] - df_all['1過去着順'])
+
+# d = df_all.groupby(f'上昇度')['rank'].mean()
+# dict = d.to_dict()
+# with open(f'./pickle-dict/up_dict{field}.pkl', "wb") as dd:
+#     pickle.dump(dict, dd)
+# df_all = Target_encording(df_all, '上昇度', 'rank')
+
+# # 目的変数作成
+# f_ranking = {1: 20, 2: 18, 3: 16, 4: 15, 5: 14, 6: 13, 7: 12, 8: 11, 9: 10, 10: 9, 11: 8, 12: 7, 13: 6, 14: 5, 15: 4, 16: 3, 17: 2, 18: 1,
+#              '1': 20, '2': 18, '3': 16, '4': 15, '5': 14, '6': 13, '7': 12, '8': 11, '9': 10, '10': 9, '11': 8, '12': 7, '13': 6, '14': 5, '15': 4, '16': 3, '17': 2, '18': 1}
+
+# df_all['rank'] = df_all['着順'].map(f_ranking)
 df_all = df_all.replace('', '00000')  # ''をエラー検出文字に置換してくれる
 df_all = df_all.replace('未定', '00000')
 df_all = df_all[~df_all.apply(lambda s: s.str.contains('00000'), axis=1).any(axis=1)]  # エラー検出文字を入れた行以外を抽出
 df_all = df_all.astype(float)
 
 # label_gain設定用のリスト
-gain_list = [int(i) for i in range(1,15)]
+gain_list = [int(i) for i in range(1,30)]
 
 # 1着のみ単勝オッズを保有
 df_all['オッズ'] = df_all['単勝オッズ']
 df_all['単勝オッズ'] = df_all['単勝オッズ'].where(df_all['着順'].astype(int) == 1, 0)
 df_all['単勝オッズ'] = df_all['単勝オッズ'] * 100
 
+# カテゴリー変数の準備
+cat_list = ['馬番','フィールド','馬場','性','1場所','1フィールド','1馬場','1馬番','1コーナー通過順','2場所','2フィールド','2馬場','2馬番','3場所','3フィールド','3馬場','3馬番',
+            '4場所','4フィールド','4馬場','4馬番','5場所','5フィールド','5馬場','5馬番']
+
+# cat_list = ['父馬','騎手','馬番','フィールド','馬場','性','1場所','1フィールド','1馬場','1馬番','1コーナー通過順','2場所','2フィールド','2馬場','2馬番','3場所','3フィールド','3馬場','3馬番',
+#             '4場所','4フィールド','4馬場','4馬番','5場所','5フィールド','5馬場','5馬番']
+
+# df_all.loc[:, cat_list] = df_all.loc[:, cat_list].apply(lambda x: x - 1)
+# # df_all['1場所変化'] = df_all['1場所変化'] + 1
+# # df_all['1フィールド変化'] = df_all['1フィールド変化'] + 2
+# df_all['齢'] = df_all['齢'] - 2
+
+# dist_list = ['距離','1距離','2距離','3距離','4距離','5距離']
+
+# df_all.loc[:, dist_list] = df_all.loc[:,dist_list].mask(df_all.loc[:,dist_list] > 2700, 4)
+# df_all.loc[:,dist_list] = df_all.loc[:,dist_list].mask(df_all.loc[:,dist_list] > 2100, 3)
+# df_all.loc[:,dist_list] = df_all.loc[:,dist_list].mask(df_all.loc[:,dist_list] >= 1900, 2)
+# df_all.loc[:,dist_list] = df_all.loc[:,dist_list].mask(df_all.loc[:,dist_list] > 1300, 1)
+# df_all.loc[:,dist_list] = df_all.loc[:,dist_list].mask(df_all.loc[:,dist_list] >= 800, 0)
+
+# categorical_featureリスト
+# cat_list = ['父馬','騎手','馬番','距離','フィールド', '馬場','性', '齢','1場所','1フィールド','1距離','1馬場','1コーナー通過順','1クラス','1馬番', '1場所変化', '1フィールド変化',
+# '2場所','2フィールド','2距離','2クラス','2馬場','2馬番',
+# '3場所','3フィールド','3距離','3クラス','3馬場','3馬番',
+# '4場所','4フィールド','4距離','4クラス','4馬場','4馬番',
+# '5場所','5フィールド','5距離','5クラス','5馬場','5馬番']
+
+cat_list = ['馬番','距離','フィールド', '馬場','性', '齢','1場所','1フィールド','1距離','1馬場','1コーナー通過順','1クラス','1馬番',
+'2場所','2フィールド','2距離','2クラス','2馬場','2馬番',
+'3場所','3フィールド','3距離','3クラス','3馬場','3馬番',
+'4場所','4フィールド','4距離','4クラス','4馬場','4馬番',
+'5場所','5フィールド','5距離','5クラス','5馬場','5馬番']
+
+# print(df_all.loc[:, ['馬番','距離','フィールド', '馬場','性', '齢','1場所','1フィールド','1距離','1馬場','1コーナー通過順','1クラス','1馬番', '1場所変化', '1フィールド変化',
+# '2場所','2フィールド','2距離','2クラス','2馬場','2馬番',
+# '3場所','3フィールド','3距離','3クラス','3馬場','3馬番',
+# '4場所','4フィールド','4距離','4クラス','4馬場','4馬番',
+# '5場所','5フィールド','5距離','5クラス','5馬場','5馬番']].min())
+
+# print(df_all.loc[:, ['馬番','距離','フィールド', '馬場','性', '齢','1場所','1フィールド','1距離','1馬場','1コーナー通過順','1クラス','1馬番', '1場所変化', '1フィールド変化',
+# '2場所','2フィールド','2距離','2クラス','2馬場','2馬番',
+# '3場所','3フィールド','3距離','3クラス','3馬場','3馬番',
+# '4場所','4フィールド','4距離','4クラス','4馬場','4馬番',
+# '5場所','5フィールド','5距離','5クラス','5馬場','5馬番']].max())
+
+# ce_oe = ce.OrdinalEncoder(cols=cat_list,handle_unknown='impute')
+
+# #文字を序数に変換
+# df_all = ce_oe.fit_transform(df_all)
+
+# #値を1の始まりから0の始まりにする
+# for i in cat_list:
+#     df_all[i] = (df_all[i] - 1).astype(int)
+
+# print(type(df_all['馬番']), type(df_all['騎手']))
+
 # レース内の順序をシャッフル
 df_all = df_all.sample(frac=1)
 df_all = df_all.sort_values(['レースID'], ascending=True)
 
 # 2023のデータを分離
-SplitYear = 202200000000
-eval_year = 202100000000
-df_test = df_all[df_all['レースID'] >= SplitYear]
+# 2012-2018 学習データ, 2019 評価データ, 2020-2021 stacking, 2022-2023 テストデータ
+SplitYear = 202000000000
+eval_year = 201900000000
+df_test = df_all[df_all['レースID'] >= SplitYear].copy()
+df_test = df_test[df_test['レースID'] < 202200000000]
 df_all = df_all[df_all['レースID'] < SplitYear]
-df_eval = df_all[df_all['レースID'] >= eval_year]
+df_eval = df_all[df_all['レースID'] >= eval_year].copy()
 df_all = df_all[df_all['レースID'] < eval_year]
 
 # 説明変数,目的変数
-X = df_all.drop(['着順', 'rank', '人気', 'オッズ', '単勝オッズ', '馬単'], axis=1)
-X2 = df_test.drop(['着順', 'rank', '人気', 'オッズ', '単勝オッズ', '馬単'], axis=1)
+# '人気', 'オッズ'
+X = df_all.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
+X2 = df_test.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
 y = df_all[['rank', 'レースID', '着順', '単勝オッズ', '馬単']]
 y2 = df_test[['rank', 'レースID', 'オッズ', '着順', '単勝オッズ', '馬単']]
 
 # train, eval, testに分割
 X_train = X
 y_train = y
-X_eval = df_eval.drop(['着順', 'rank', '人気', '単勝オッズ', '馬単'], axis=1)
+X_eval = df_eval.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
+# X_eval = df_eval.drop(['着順', 'rank', '人気', '単勝オッズ', '馬単'], axis=1)
 y_eval = df_eval[['rank', 'レースID', '着順', '単勝オッズ', '馬単']]
 X_test = X2
 y_test = y2
@@ -447,21 +884,25 @@ y2 = y2.drop(['単勝オッズ'], axis=1)
 y2 = y2.drop(['馬単'], axis=1)
 
 # dataframeを値のみに
-X_train = X_train.values
-X_test = X_test.values
-X_eval = X_eval.values
-X2 = X2.values
-y_train = y_train.values
-y_test = y_test.values
-y_eval = y_eval.values
-y2 = y2.values
+display(list(X_train.columns.values))
+# X_train = X_train.values
+# X_test = X_test.values
+# X_eval = X_eval.values
+# X2 = X2.values
+# y_train = y_train.values
+# y_test = y_test.values
+# y_eval = y_eval.values
+# y2 = y2.values
 
 # 学習に使用するデータを設定
 lgb_train = lgb.Dataset(X_train, label=y_train, group=train_list)
 lgb_eval = lgb.Dataset(X_eval, label=y_eval, reference=lgb_train, group=eval_list)
 
 # パラメータ設定
-for seed in range(50):
+rate = 0.01
+srate = 0.01
+
+for seed in range(1, file_num+1):
     params = {
         'task': 'train',
         'boosting_type': 'gbdt',
@@ -470,7 +911,7 @@ for seed in range(50):
         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
         'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
         'label_gain': gain_list,
-        'learning_rate': 0.01,
+        'learning_rate': rate,
         'random_state': seed,
         'verbose_eval': 20,
         'early_stopping_round': 20,
@@ -490,7 +931,9 @@ for seed in range(50):
     tuner = lgb.LightGBMTunerCV(params,
                                 lgb_train,
                                 folds=GroupKFold(n_splits=3),
+                                # categorical_feature = cat_list,
                                 return_cvbooster=True,
+                                verbose_eval=False
                                 )
 
     # # ハイパーパラメータ探索の実行
@@ -512,7 +955,7 @@ for seed in range(50):
         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
         'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
         'label_gain': gain_list,
-        'learning_rate': 0.01,
+        'learning_rate': rate,
         'random_state': seed,
         'verbose_eval': 20,
         'early_stopping_round': 20,
@@ -524,7 +967,7 @@ for seed in range(50):
         'feature_fraction': best_params['feature_fraction'],
         'bagging_fraction': best_params['bagging_fraction'],
         'bagging_freq':  best_params['bagging_freq'],
-        'min_child_samples': best_params['min_child_samples']
+        'min_child_samples': best_params['min_child_samples'],
     }
 
     evals_result = {}
@@ -532,7 +975,8 @@ for seed in range(50):
                     lgb_train,  # トレーニングデータの指定
                     valid_names=['train', 'valid'],     # 学習経過で表示する名称
                     valid_sets=[lgb_train, lgb_eval],
-                    callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=True),
+                    # categorical_feature = cat_list,
+                    callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=False),
                                 lgbm.record_evaluation(evals_result)]
                     )
 
@@ -543,14 +987,51 @@ for seed in range(50):
     # テストデータの予測 (予測クラスを返す)
     y_pred = model.predict(X_test, group=test_list)
     y_test_id[f'result{seed}'] = y_pred
-
+print(len(test_list))
+#'''
 #################### stacking #######################
+# 説明変数追加
+temp = 0
 Z = y_test_id.iloc[:, 6:]
+Z['Average'] = Z.iloc[:, :].mean(axis=1)
 Z['レースID'] = y_test_id['レースID']
-w = y_test_id['rank']
+Z['rank'] = y_test_id['rank']
+Z = Z.sort_values(['レースID', 'Average'], ascending=[True, False])
 
-# # トレーニングデータ,テストデータの分割
-Z_train, Z_test, w_train, w_test = train_test_split(Z, w, test_size=0.20, shuffle=False)
+# クエリListを作成
+id_count = Z['レースID'].value_counts(sort=False)
+train2_list = id_count.values.tolist()
+
+n_list = train2_list[:-1]
+n = 0
+for i in n_list:
+    n += i
+    for k in range(1, 6):
+        mean_df = Z.iloc[n-i:n, Z.columns.get_loc(f'result{k}')].mean()
+        std_df = Z.iloc[n-i:n, Z.columns.get_loc(f'result{k}')].std()
+        Z.iloc[n-i:n, Z.columns.get_loc(f'result{k}')] = (Z.iloc[n-i:n, Z.columns.get_loc(f'result{k}')] - mean_df) / std_df
+
+Z['Average'] = Z.iloc[:, Z.columns.get_loc(f'result1'):Z.columns.get_loc(f'result5')+1].mean(axis=1)
+Z = Z.sort_values(['レースID', 'Average'], ascending=[True, False])
+
+Z['lower_diff'] = Z['Average'] - Z['Average'].shift(-1)
+Z['upper_diff'] = Z['Average'] - Z['Average'].shift(1)
+
+for i in train2_list:
+    Z.iat[i+temp-1, -2] = float('nan')
+    Z.iat[temp, -1] = float('nan')
+    temp += i
+
+# レース内の順序をシャッフル
+Z = Z.sample(frac=1)
+Z = Z.sort_values(['レースID'], ascending=True)
+
+# # トレーニングデータ,テストデータの分割202102011001
+# Z_train, Z_test = Z[Z['レースID'] < 202102011000], Z[Z['レースID'] >= 202102011000] # 函館
+# Z_train, Z_test = Z[Z['レースID'] < 202105040000], Z[Z['レースID'] >= 202105040000] # 東京
+# Z_train, Z_test = Z[Z['レースID'] < 202107040000], Z[Z['レースID'] >= 202107040000] # 中京
+Z_train, Z_test = Z.iloc[:int(len(Z) / 5), :], Z.iloc[int(len(Z) / 5):, :]
+w_train, w_test = Z_train['rank'], Z_test['rank']
 
 # クエリListを作成
 id_count = Z_train['レースID'].value_counts(sort=False)
@@ -560,20 +1041,23 @@ id_count = Z_test['レースID'].value_counts(sort=False)
 test2_list = id_count.values.tolist()
 
 # レースIDカラムを削除
-Z_train = Z_train.drop(['レースID'], axis=1)
-Z_test = Z_test.drop(['レースID'], axis=1)
+Z_train = Z_train.drop(['レースID', 'rank'], axis=1)
+Z_test = Z_test.drop(['レースID', 'rank'], axis=1)
+
+# print(Z_train.shape)
+# print(Z_test.shape)
 
 # カラム名削除
-Z_train = Z_train.values
-Z_test = Z_test.values
-w_train = w_train.values
-w_test = w_test.values
+# Z_train = Z_train.values
+# Z_test = Z_test.values
+# w_train = w_train.values
+# w_test = w_test.values
 
 # 学習に使用するデータを設定
 zlgb_train = lgb.Dataset(Z_train, label=w_train, group=train2_list)
 zlgb_test = lgb.Dataset(Z_test, label=w_test, reference=zlgb_train, group=test2_list)
 
-for seed in range(50):
+for seed in range(1, file_num+1):
     params = {
         'task': 'train',
         'boosting_type': 'gbdt',
@@ -582,7 +1066,7 @@ for seed in range(50):
         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
         'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
         'label_gain': gain_list,
-        'learning_rate': 0.01,
+        'learning_rate': srate,
         'random_state': seed,
         'verbose_eval': 20,
         'early_stopping_round': 20,
@@ -600,6 +1084,7 @@ for seed in range(50):
                                 zlgb_train,
                                 folds=GroupKFold(n_splits=3),
                                 return_cvbooster=True,
+                                verbose_eval=False
                                 )
 
     # # ハイパーパラメータ探索の実行
@@ -621,7 +1106,7 @@ for seed in range(50):
         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
         'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
         'label_gain': gain_list,
-        'learning_rate': 0.01,
+        'learning_rate': srate,
         'random_state': seed,
         'verbose_eval': 20,
         'early_stopping_round': 10,
@@ -633,7 +1118,7 @@ for seed in range(50):
         'feature_fraction': best_params['feature_fraction'],
         'bagging_fraction': best_params['bagging_fraction'],
         'bagging_freq':  best_params['bagging_freq'],
-        'min_child_samples': best_params['min_child_samples']
+        'min_child_samples': best_params['min_child_samples'],
     }
 
     evals_result = {}
@@ -641,7 +1126,7 @@ for seed in range(50):
                     zlgb_train,  # トレーニングデータの指定
                     valid_names=['train', 'valid'],     # 学習経過で表示する名称
                     valid_sets=[zlgb_train, zlgb_test],
-                    callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=True),
+                    callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=False),
                                 lgbm.record_evaluation(evals_result)]
                     )
     
@@ -651,10 +1136,10 @@ for seed in range(50):
         pickle.dump(model_s, mk)
 
 #####################################################
-
+#'''
 # seedの違う50モデルの平均を算出(stacking前のモデル)
 y_test_id['Average'] = y_test_id.iloc[:, 6:].mean(axis=1)
-y_test_id = y_test_id.sort_values(['レースID', 'Average'], ascending=[False, False])
+y_test_id = y_test_id.sort_values(['レースID', 'Average'], ascending=[True, False])
 
 # 予測スコアを標準化
 try:
@@ -670,11 +1155,12 @@ except:
 # 回収率計算
 plotlist = []
 holdlist = []
+holdlist2 = []
 countlist = []
 plotlist2 = []
 countlist2 = []
 # 単勝
-for k in range(0, 21):
+for k in range(0, 31):
     count = 0
     num = 0
     sum = 0
@@ -692,11 +1178,18 @@ for k in range(0, 21):
             sum_ += (y_test_id.iloc[num, 2]).astype(float)
             count_ += 1
         num += i
-    countlist.append(count)
-    plotlist.append(sum / (count * 100))
-    holdlist.append(threshold)
-    countlist2.append(count_)
-    plotlist2.append(sum_ / (count_ * 100))
+    try:
+        countlist.append(count)
+        plotlist.append(sum / (count * 100))
+        holdlist.append(threshold)
+    except:
+        pass
+    try:
+        countlist2.append(count_)
+        plotlist2.append(sum_ / (count_ * 100))
+        holdlist2.append(threshold)
+    except:
+        pass
 print(f"各閾値ごとの買い目点数(スコア差)\n{countlist}")
 print(f"各閾値ごとの回収率(スコア差)\n{plotlist}")
 plt.title('単勝(スコア差)')
@@ -705,5 +1198,5 @@ plt.show()
 print(f"各閾値ごとの買い目点数(スコアのみ)\n{countlist2}")
 print(f"各閾値ごとの回収率(スコアのみ)\n{plotlist2}")
 plt.title('単勝(スコアのみ)')
-plt.plot(holdlist, plotlist2)
+plt.plot(holdlist2, plotlist2)
 plt.show()
