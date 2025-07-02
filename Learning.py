@@ -31,16 +31,11 @@ warnings.simplefilter('ignore')
 optuna.logging.disable_default_handler()
 
 # 開催場所番号
-# field = 2
-# field = 6
-# field = 9
 field = 2
 
 # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
 #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
 #  '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
-
-# 距離差, 父馬, フィールドと場所の変化のTarget Encoding がよい test11
 
 # 学習済みモデルを保存するファイルネーム
 # file_name = "hakodate"
@@ -68,7 +63,7 @@ tuner_path = f"./pickle-tuner/{tuner_name}test70_" # 学習済みモデルを保
 fname = "./pickle-dict/corpus.pkl"
 
 # 関数
-def Target_encording(df, column, target):
+def target_encording(df, column, target):
     tem = pd.DataFrame()
     df_tem = pd.DataFrame()
     df_ind = pd.DataFrame()
@@ -86,18 +81,51 @@ def Target_encording(df, column, target):
     
     return tem
 
-# def reg_model():
-#     model = Sequential()
-#     model.add(Dense(X, input_dim=X, activation='relu'))
-#     model.add(Dense(unit, activation='relu'))
-#     # model.add(Dense(int(unit * (2 / 3)), activation='relu'))
-#     model.add(Dense(1))
-#     # model.add(Dense(18, activation='softmax'))
+# スクレイピング
+def scraping(csv_path):
+    # ヘッダー
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    for year in range(2012, 2025):
+        for number in range(1, 6):
+            for day in range(1, 13):
+                for race_no in range(1, 13):
+                    race_id = '{}10{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
+                    url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
+                    url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+                    try:
+                        response_race = requests.get(url_race, headers=headers)
+                        response_past = requests.get(url_past, headers=headers)
+                        df_result = pd.read_html(response_race.content)[0]
+                        df_past = pd.read_html(response_past.content)[0]
+                        soup = BeautifulSoup(response_race.content, 'html.parser')
+                        data1 = soup.find('div', class_='RaceData01').text
+                        data2 = soup.find('div', class_='RaceData02').text
+                        data3 = soup.find('tr', class_='Umatan').text
+                        data4 = soup.find('h1', class_='RaceName').text
+                        a = data2[data2.find('新馬')+0: data2.find('新馬')+2]
+                        if a == '新馬':
+                            continue
+                        df_result_past = pd.merge(df_result, df_past, on='馬番')
+                        df_result_past['距離'] = re.findall(r'\d+', data1)[2]
+                        df_result_past['フィールド'] = data1[data1.find('/')+2: data1.find('/')+3]
+                        df_result_past['馬場'] = data1[data1.find('馬場')+3: data1.find('馬場')+4]
+                        df_result_past['出走頭数'] = data2[data2.find('頭')-2: data2.find('頭')+0]
+                        df_result_past['馬単'] = data3
+                        df_result_past['レース名'] = data4.replace('\n', '')
+                        print(url_race)
+                        time.sleep(1)
+                    except:
+                        continue
+                    df_result_past['レースID'] = race_id
+                    df = pd.concat([df, df_result_past])
 
-#     # compile model
-#     # model.compile(loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), metrics=['accuracy'])
-#     model.compile(loss=tf.keras.losses.mean_squared_error, optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), metrics=['mse'])
-#     return model
+    # 結果をcsvに保存
+    df.to_csv(csv_path, na_rep='NaN')
+
+def create_unique_pickle(series, file_path):
+    mapping = dict(zip(series.unique().tolist(), range(1, len(series.unique().tolist()) + 1)))
+    with open(file_path, "wb") as jd:
+        pickle.dump(mapping, jd)
 
 # データフレーム生成
 df = pd.DataFrame()
@@ -111,61 +139,7 @@ pd.set_option("display.max_columns", None)
 # csvファイル読み込み(スクレイピングしない場合)
 df = pd.read_csv(csv_path, index_col=0)
 print(df.columns)
-# df['場所'] = 3
 
-# name_list = [csv_path2, csv_path3, csv_path4, csv_path5]
-# num_list = [9, 2, 4, 1]
-
-# for i, k in zip(name_list, num_list):
-#     df2 = pd.read_csv(i, index_col=0)
-#     df2['場所'] = k
-#     df = pd.concat([df, df2])
-
-# ヘッダー
-# headers = {'User-Agent': 'Mozilla/5.0'}
-
-# # スクレイピング
-# for year in range(2012, 2025):
-#     for number in range(1, 6):
-#         for day in range(1, 13):
-#             for race_no in range(1, 13):
-#                 race_id = '{}10{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
-#                 url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
-#                 url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
-#                 try:
-#                     response_race = requests.get(url_race, headers=headers)
-#                     response_past = requests.get(url_past, headers=headers)
-#                     df_result = pd.read_html(response_race.content)[0]
-#                     df_past = pd.read_html(response_past.content)[0]
-#                     soup = BeautifulSoup(response_race.content, 'html.parser')
-#                     data1 = soup.find('div', class_='RaceData01').text
-#                     data2 = soup.find('div', class_='RaceData02').text
-#                     data3 = soup.find('tr', class_='Umatan').text
-#                     data4 = soup.find('h1', class_='RaceName').text
-#                     a = data2[data2.find('新馬')+0: data2.find('新馬')+2]
-#                     # if int(data2[data2.find('サラ系')+3: data2.find('サラ系')+4]) == 2:
-#                     #     continue
-#                     if a == '新馬':
-#                         continue
-#                     df_result_past = pd.merge(df_result, df_past, on='馬番')
-#                     df_result_past['距離'] = re.findall(r'\d+', data1)[2]
-#                     df_result_past['フィールド'] = data1[data1.find('/')+2: data1.find('/')+3]
-#                     df_result_past['馬場'] = data1[data1.find('馬場')+3: data1.find('馬場')+4]
-#                     df_result_past['出走頭数'] = data2[data2.find('頭')-2: data2.find('頭')+0]
-#                     # df_result_past['牡牝'] = data2[data2.find('牝'):data2.find('牝')+1]
-#                     df_result_past['馬単'] = data3
-#                     df_result_past['レース名'] = data4.replace('\n', '')
-#                     print(url_race)
-#                     time.sleep(1)
-#                 except:
-#                     continue
-#                 df_result_past['レースID'] = race_id
-#                 df = pd.concat([df, df_result_past])
-#                 # print(df)
-
-# # 結果をcsvに保存
-# df.to_csv(csv_path, na_rep='NaN')
-# sys.exit()
 # 辞書作成(各コースの平均タイム)
 speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, '122001': 133.8, '125001': 153.5, '136001': 227.0,
               '112002': 71.0, '118002': 113.8, '124002': 154.2, '125002': 162.5, '214001': 81.0, '216001': 93.9, '218001': 106.9, '220001': 120.3,
@@ -185,16 +159,10 @@ speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, 
 
 df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
 
-# display(df['文章リスト'].head(1))
-
 # 新たなカラムを作成
 df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
 df['間隔'] = df['馬名_y'].str.extract(r'(\d+)', expand=True)
 df['母父馬'] = df['馬名_y'].str.extract(r'(\(\D+\))', expand=True)
-
-# df['文章リスト'] = df['父馬'] + ' ' + '今走' + df['レース名'] + df['フィールド'] + df['距離'].astype(str) + df['馬場'] + ' ' + '前走' + df['前走'].fillna('欠走') \
-#     + ' ' + '2走' + df['2走'].fillna('欠走') + ' ' + '3走' + df['3走'].fillna('欠走') + ' ' + '4走' + \
-#     + df['4走'].fillna('欠走') + ' ' + '5走' + df['5走'].fillna('欠走')
 
 # 血統pickle作成
 # femal_house_mapping = dict(zip(df['母父馬'].unique().tolist(), range(1, len(df['母父馬'].unique().tolist()) + 1)))
