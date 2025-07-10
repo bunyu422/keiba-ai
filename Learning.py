@@ -25,53 +25,9 @@ import tensorflow as tf
 from keras.callbacks import EarlyStopping
 import sys
 import category_encoders as ce
+import random
 
-warnings.simplefilter('ignore')
-
-optuna.logging.disable_default_handler()
-
-# 開催場所番号
-field = 2
-
-# {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
-#  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
-#  '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
-
-# 学習済みモデルを保存するファイルネーム
-tuner_name = "tokyo"
-file_name = 'tokyo'
-
-# ファイル数
-file_num = 5
-
-# ファイルパス
-csv_path = f"./csv/{file_name}_2012-2024.csv" # 学習に使うcsvデータのパス
-horse_path = "./pickle-dict/horse_jra.pkl" # 父馬のマッピング用辞書のパス
-femal_horse_path = "./pickle-dict/femal_horse_jra.pkl" # 母父馬のマッピング用辞書のバス
-jockey_path = "./pickle-dict/jockey_jra.pkl" # 騎手のマッピング用辞書のパス
-tuner_path = f"./pickle-tuner/{tuner_name}test_" # 学習済みモデルを保存する場所
-
-# 目的変数作成
-f_ranking = {1: 10, 2: 5, 3: 3, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0,
-            '1': 10, '2': 5, '3': 3, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0, '16': 0, '17': 0, '18': 0}
-
-nagoya_mapping = {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
-                    '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
-                    '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
-
-class_dict = {'GI': 1, 'GII': 2, 'GIII': 3, 'OP': 4, 'L': 4, '3勝': 5, '1600万下': 5, '1600下': 5, '2勝': 6, '1000万下': 6, '1000下': 6,
-                '1勝': 7, '500万下': 7, '500下': 7, '未勝利': 8, '新馬': 9}
-
-field_mapping = {'芝': 1, 'ダ': 2, '障': 3}
-
-condition_mapping = {'良': 1, '稍': 2, '重': 3, '不': 4}
-
-base_time = pd.to_datetime('00:00.0', format='%M:%S.%f')
-
-# label_gain設定用のリスト
-gain_list = [int(i) for i in range(1,30)]
-
-# 関数
+# ターゲットエンコーディング
 def target_encording(df, column, target):
     tem = pd.DataFrame()
     df_tem = pd.DataFrame()
@@ -89,6 +45,20 @@ def target_encording(df, column, target):
         tem = pd.concat([tem, df_tem], axis=0)
     
     return tem
+
+# floatに変換
+def convert_to_float_if_possible(df):
+    df_converted = df.copy()
+    for col in df.columns:
+        try:
+            # 変換を試みる（NaNは発生させたくないので errors='raise'）
+            converted = pd.to_numeric(df[col], errors='raise')
+            # print(col, converted.dtype)
+            if pd.api.types.is_float_dtype(converted):
+                df_converted[col] = converted
+        except:
+            pass  # 変換できなかった列は無視
+    return df_converted
 
 # スクレイピング
 def scraping(csv_path):
@@ -148,6 +118,7 @@ def return_pickle(file_path):
 
 # データの初期加工
 def df_first_processing(df):
+    df = df.copy()
     # 新たなカラムを作成
     df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
     df['間隔'] = df['馬名_y'].str.extract(r'(\d+)', expand=True)
@@ -156,9 +127,6 @@ def df_first_processing(df):
     # 血統pickle作成
     femal_mapping = create_unique_pickle(df['母父馬'], femal_horse_path)
     horse_mapping = create_unique_pickle(df['父馬'], horse_path)
-
-    
-    df['rank'] = df['着順'].map(f_ranking)
 
     # マッピング
     df['父馬'] = pd.to_numeric(df['父馬'].map(horse_mapping), errors='coerce')
@@ -213,14 +181,20 @@ def df_first_processing(df):
     # 「性齢」「馬体重（増減）」はいらないので消す
     df = df.drop(['性齢', '馬体重(増減)', '馬体重', '体重増減'], axis=1)
 
-# 2~5走前のデータを処理
+    df = convert_to_float_if_possible(df)
+
+    return df
+
+# 前走~5走前のデータを処理
 def df_big_past_processing(df):
+    df_all = df.copy()
     # 騎手の辞書を読み込み
     jockey_mapping = return_pickle(jockey_path)
 
     # 以降2~5走の処理
     for sou in range(1, 6):
-        if sou == 1:
+        sou = str(sou)
+        if int(sou) == 1:
             df_split = df['前走'].str.extract(r'(\d{4}.\d{2}.\d{2})\s(\w+)\s(\d*)(.*)([ダ|芝])(\d+).*(\d:\d{2}.\d)\s(\w)\s(\d*)頭\s(\d*)番\s(\d*)人\s(\w+)\s(\d{2}[.]\d)(.+)(\d{2}[.]\d).\s(\d{3}).([+-0]\d*).+\((-?\d*.\d{1})', expand=True)
         else:
             df_split = df[sou+'走'].str.extract(r'(\d{4}.\d{2}.\d{2})\s(\w+)\s(\d*)(.*)([ダ|芝])(\d+).*(\d:\d{2}.\d)\s(\w)\s(\d*)頭\s(\d*)番\s(\d*)人\s(\w+)\s(\d{2}[.]\d)(.+)(\d{2}[.]\d).\s(\d{3}).([+-0]\d*).+\((-?\d*.\d{1})', expand=True)
@@ -281,6 +255,7 @@ def df_big_past_processing(df):
         df_split[sou+'後3F'] = df_split[sou+'後3F'].mask((df_split[sou+'フィールド'] == 2) & df_split[sou+'後3F'].notna() & df_split[sou+'距離'].notna(), df_split[sou+'後3F'].astype(float) / (1.01 + (df_split[sou+'距離'].astype(float) / 20000)))
         df_split[sou+'後3F'] = df_split[sou+'後3F'].mask((df_split[sou+'フィールド'] == 3) & df_split[sou+'後3F'].notna() & df_split[sou+'距離'].notna(), df_split[sou+'後3F'].astype(float) / (0.36 + (df_split[sou+'距離'].astype(float) * 1.5 / 100000)))
 
+        # print(df_split[sou+'場所'].dtype, df_split[sou+'距離'].dtype, df_split[sou+'フィールド'].dtype, df['フィールド'].dtype, df['距離'].dtype)
         df_split[sou+'距離差'] = df['距離'].astype(float) - df_split[sou+'距離'].astype(float)
         df_split[sou+'場所変化'] = df_split[sou+'場所'] - field
         df_split[sou+'フィールド変化'] = df_split[sou+'フィールド'] - df['フィールド']
@@ -293,12 +268,14 @@ def df_big_past_processing(df):
         # 今走と過去走を結合
         df_all = pd.concat([df_all, df_split], axis=1)
 
-        if sou == 1:
+        if int(sou) == 1:
             past_level(df_all)
 
     return df_all
 
+# 過去走の平均クラスと平均ペースを算出
 def past_level(df_all):
+    df_all = df_all.copy()
     # クエリListを作成
     id_count = df_all['レースID'].value_counts(sort=False)
     n_list = id_count.values.tolist()
@@ -315,8 +292,11 @@ def past_level(df_all):
     df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
     df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
 
+    return df_all
+
 # テストデータを分離してターゲットエンコーディング
 def encording(df_all):
+    df_all = df_all.copy()
     df_test = df_all[df_all['レースID'] >= 202000000000].copy()
     df_all = df_all[df_all['レースID'] < 202000000000]
 
@@ -330,8 +310,11 @@ def encording(df_all):
 
     df_all = pd.concat([df_all, df_test], axis=0)
 
+    return df_all
+
 # 終盤のデータ加工
 def df_end_processing(df_all):
+    df_all = df_all.copy()
     # 着順から文字列を排除
     indexNames = df_all[(df_all['着順'] != '中止') & (df_all['着順'] != '除外') & (df_all['着順'] != '取消') & (df_all['着順'] != '失格') & (df_all['着順'] != '未定')]
     df_all = indexNames
@@ -343,7 +326,7 @@ def df_end_processing(df_all):
     df_all['av着差'] = df_all.loc[:, ['1着差', '2着差', '3着差', '4着差', '5着差']].astype(float).mean(axis=1)
     df_all['avスピード指数'] = df_all.loc[:, ['1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数']].mean(axis=1)
 
-    df_all = df_all.drop(['2走', '3走', '4走', '5走', '母父馬', 'レース名', '勝率'], axis=1)
+    df_all = df_all.drop(['前走', '2走', '3走', '4走', '5走', '母父馬', 'レース名', '勝率'], axis=1)
 
     print(df_all.isnull().sum())
 
@@ -363,16 +346,33 @@ def df_end_processing(df_all):
     df_all = df_all.replace('', '00000')  # ''をエラー検出文字に置換してくれる
     df_all = df_all.replace('未定', '00000')
     df_all = df_all[~df_all.apply(lambda s: s.str.contains('00000'), axis=1).any(axis=1)]  # エラー検出文字を入れた行以外を抽出
-    df_all = df_all.astype(float)
+    # df_all = df_all.astype(float)
 
     # 1着のみ単勝オッズを保有
     df_all['オッズ'] = df_all['単勝オッズ']
     df_all['単勝オッズ'] = df_all['単勝オッズ'].where(df_all['着順'].astype(int) == 1, 0)
     df_all['単勝オッズ'] = df_all['単勝オッズ'] * 100
 
+    df_all['rank'] = df_all['単勝オッズ']
+
     # レース内の順序をシャッフル
     df_all = df_all.sample(frac=1)
     df_all = df_all.sort_values(['レースID'], ascending=True)
+
+    # 型変換
+    df_all = convert_to_float_if_possible(df_all)
+    df_all['齢'] = pd.to_numeric(df_all['齢'], errors='coerce')
+
+    return df_all
+
+# label_gain作成
+def create_label_gain(df_all):
+    # ビン分割
+    gain_bins = [0, 200, 400, 800, 1600, 3200, 6400, 12800]  # 9つの範囲
+    df_all['rank'] = np.digitize(df_all['rank'], bins=gain_bins)  # → 0〜8 の整数ラベル
+    label_gain = [np.sqrt(x) for x in [0, 200, 400, 800, 1600, 3200, 6400, 12800, 25600]]
+
+    return label_gain
 
 # 1段階目の学習
 def first_train(df_all):
@@ -429,6 +429,8 @@ def first_train(df_all):
 
     # パラメータ設定
     rate = 0.01
+    lgb_train = lgb.Dataset(X_train, label=y_train, group=train_list)
+    lgb_eval = lgb.Dataset(X_eval, label=y_eval, reference=lgb_train, group=eval_list)
 
     for seed in range(1, file_num+1):
         params = {
@@ -437,7 +439,7 @@ def first_train(df_all):
             'objective': 'lambdarank',  # ←ここでランキング学習と指定！
             'metric': 'ndcg',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-            'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
+            'ndcg_eval_at': [1],  # 3連単を予測したい
             'label_gain': gain_list,
             'learning_rate': rate,
             'random_state': seed,
@@ -481,7 +483,7 @@ def first_train(df_all):
             'objective': 'lambdarank',  # ←ここでランキング学習と指定！
             'metric': 'ndcg',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-            'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
+            'ndcg_eval_at': [1],  # 3連単を予測したい
             'label_gain': gain_list,
             'learning_rate': rate,
             'random_state': seed,
@@ -517,7 +519,7 @@ def first_train(df_all):
         y_test_id[f'result{seed}'] = y_pred
     print(len(test_list))
 
-    return y_test_id
+    return y_test_id, test_list
 
 # スタッキング
 def stacking(y_test_id):
@@ -597,7 +599,7 @@ def stacking(y_test_id):
             'objective': 'lambdarank',  # ←ここでランキング学習と指定！
             'metric': 'ndcg',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-            'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
+            'ndcg_eval_at': [1],  # 3連単を予測したい
             'label_gain': gain_list,
             'learning_rate': srate,
             'random_state': seed,
@@ -637,7 +639,7 @@ def stacking(y_test_id):
             'objective': 'lambdarank',  # ←ここでランキング学習と指定！
             'metric': 'ndcg',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-            'ndcg_eval_at': [1,2,3],  # 3連単を予測したい
+            'ndcg_eval_at': [1],  # 3連単を予測したい
             'label_gain': gain_list,
             'learning_rate': srate,
             'random_state': seed,
@@ -668,38 +670,137 @@ def stacking(y_test_id):
         with open(f"{tuner_path}{seed}-stack.pickle", "wb") as mk:
             pickle.dump(model_s, mk)
 
+def sort(result, num):
+    result = result.copy()
+    result = result.sort_values(['レースID', f'result{num}'], ascending=[True, False])
+    result = result.reset_index(drop=True)
 
+    return result
 
-# データフレーム生成
-df = pd.DataFrame()
+def test(test_list, result):
+    result_list = []
+    for i in range(1, file_num+1):
+        result = sort(result, i)
+        sum = 0
+        hit = 0
+        count = 0
+        cursor = 0
 
-# 行を全表示（行の数）
-pd.set_option("display.max_rows", None)
+        for i in test_list:
+            sum += result.iloc[cursor, result.columns.get_loc('単勝オッズ')].astype(float)
+            if result.iloc[cursor, result.columns.get_loc('単勝オッズ')].astype(float) > 0:
+                hit += 1
+            count += 1
+            cursor += i
+        
+        result_list.append(sum / (count * 100))
+        print(f'回収率:{sum / (count * 100)}')
+        print(f'的中率:{hit / count}')
+    
+    mean_return = np.mean(result_list)
+    std_return = np.std(result_list)
 
-# 列を全表示（列の数）
-pd.set_option("display.max_columns", None)
+    print(f"平均回収率: {mean_return:.2%} ± {std_return:.2%}")
+    
 
-# csvファイル読み込み(スクレイピングしない場合)
-df = pd.read_csv(csv_path, index_col=0)
-print(df.columns)
+if __name__ == "__main__":
+    warnings.simplefilter('ignore')
 
-# 辞書作成(各コースの平均タイム)
-speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, '122001': 133.8, '125001': 153.5, '136001': 227.0,
-              '112002': 71.0, '118002': 113.8, '124002': 154.2, '125002': 162.5, '214001': 81.0, '216001': 93.9, '218001': 106.9, '220001': 120.3,
-              '224001': 145.8, '225001': 151.1, '234001': 213.6, '213002': 77.2, '214002': 83.5, '216002': 97.0, '221002': 130.5, '312001': 68.3,
-              '314001': 81.4, '316001': 94.0, '318001': 107.4, '320001': 120.4, '322001': 133.2, '324001': 145.9, '330001': 187.0,
-              '332001': 195.1, '312002': 71.4, '314002': 83.8, '318002': 111.3, '319002': 117.2, '412001': 68.3, '414001': 81.0,
-              '416001': 94.2, '418001': 106.5, '420001': 120.6, '422001': 133.2, '424001': 156.7, '426001': 159.5, '430001': 185.2, '412002': 70.7,
-              '414002': 83.6, '418002': 111.4, '420002': 124.5, '512001': 69.0, '515001': 89.5, '518001': 107.5, '520001': 121.6,
-              '526001': 161.6, '510002': 57.55, '517002': 103.8, '524002': 155.7, '610001': 57.7, '612001': 68.6, '618001': 107.6, '620001': 120.9, '626001': 161.6,
-              '610002': 58.20, '617002': 104.8, '624002': 154.7, '712001': 68.8, '718001': 108.0, '720001': 120.4, '726001': 141.3, '711502': 67.6,
-              '717002': 104.5, '724002': 155.2, '810001': 54.9, '812001': 69.0, '814001': 80.8, '816001': 93.7, '818001': 107.1, '820001': 120.0,
-              '822001': 134.1, '824001': 146.9, '812002': 70.7, '818002': 112.2, '825002': 161.4, '912001': 68.2, '914001': 81.1, '916001': 93.9,
-              '920001': 120.9, '922001': 134.7, '912002': 71.2, '914002': 83.8, '918002': 111.0, '919002': 119.4, '1012001': 69.0,
-              '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8}
+    optuna.logging.disable_default_handler()
 
-# df = df[df['レースID'] < 202200000000]
+    seed = 1
+    random.seed(seed)
+    np.random.seed(seed)
 
-df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+    # 開催場所番号
+    field = 2
 
-horse_mapping = create_unique_pickle(df['騎手'], jockey_path)
+    # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
+    #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
+    #  '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
+
+    # 学習済みモデルを保存するファイルネーム
+    tuner_name = "tokyo"
+    file_name = 'tokyo'
+
+    # ファイル数
+    file_num = 10
+
+    # ファイルパス
+    csv_path = f"./csv/{file_name}_2012-2024.csv" # 学習に使うcsvデータのパス
+    horse_path = "./pickle-dict/horse_jra.pkl" # 父馬のマッピング用辞書のパス
+    femal_horse_path = "./pickle-dict/femal_horse_jra.pkl" # 母父馬のマッピング用辞書のバス
+    jockey_path = "./pickle-dict/jockey_jra.pkl" # 騎手のマッピング用辞書のパス
+    tuner_path = f"./pickle-tuner/{tuner_name}test_" # 学習済みモデルを保存する場所
+
+    # 目的変数作成
+
+    # f_ranking = {1: 10, 2: 5, 3: 3, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0,
+    #             '1': 10, '2': 5, '3': 3, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0, '16': 0, '17': 0, '18': 0}
+
+    nagoya_mapping = {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
+                        '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
+                        '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
+
+    class_dict = {'GI': 1, 'GII': 2, 'GIII': 3, 'OP': 4, 'L': 4, '3勝': 5, '1600万下': 5, '1600下': 5, '2勝': 6, '1000万下': 6, '1000下': 6,
+                    '1勝': 7, '500万下': 7, '500下': 7, '未勝利': 8, '新馬': 9}
+
+    field_mapping = {'芝': 1, 'ダ': 2, '障': 3}
+
+    condition_mapping = {'良': 1, '稍': 2, '重': 3, '不': 4}
+
+    base_time = pd.to_datetime('00:00.0', format='%M:%S.%f')
+
+    # データフレーム生成
+    df = pd.DataFrame()
+
+    # 行を全表示（行の数）
+    pd.set_option("display.max_rows", None)
+
+    # 列を全表示（列の数）
+    pd.set_option("display.max_columns", None)
+
+    # csvファイル読み込み(スクレイピングしない場合)
+    df = pd.read_csv(csv_path, index_col=0)
+    print(df.columns)
+
+    # 辞書作成(各コースの平均タイム)
+    speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, '122001': 133.8, '125001': 153.5, '136001': 227.0,
+                '112002': 71.0, '118002': 113.8, '124002': 154.2, '125002': 162.5, '214001': 81.0, '216001': 93.9, '218001': 106.9, '220001': 120.3,
+                '224001': 145.8, '225001': 151.1, '234001': 213.6, '213002': 77.2, '214002': 83.5, '216002': 97.0, '221002': 130.5, '312001': 68.3,
+                '314001': 81.4, '316001': 94.0, '318001': 107.4, '320001': 120.4, '322001': 133.2, '324001': 145.9, '330001': 187.0,
+                '332001': 195.1, '312002': 71.4, '314002': 83.8, '318002': 111.3, '319002': 117.2, '412001': 68.3, '414001': 81.0,
+                '416001': 94.2, '418001': 106.5, '420001': 120.6, '422001': 133.2, '424001': 156.7, '426001': 159.5, '430001': 185.2, '412002': 70.7,
+                '414002': 83.6, '418002': 111.4, '420002': 124.5, '512001': 69.0, '515001': 89.5, '518001': 107.5, '520001': 121.6,
+                '526001': 161.6, '510002': 57.55, '517002': 103.8, '524002': 155.7, '610001': 57.7, '612001': 68.6, '618001': 107.6, '620001': 120.9, '626001': 161.6,
+                '610002': 58.20, '617002': 104.8, '624002': 154.7, '712001': 68.8, '718001': 108.0, '720001': 120.4, '726001': 141.3, '711502': 67.6,
+                '717002': 104.5, '724002': 155.2, '810001': 54.9, '812001': 69.0, '814001': 80.8, '816001': 93.7, '818001': 107.1, '820001': 120.0,
+                '822001': 134.1, '824001': 146.9, '812002': 70.7, '818002': 112.2, '825002': 161.4, '912001': 68.2, '914001': 81.1, '916001': 93.9,
+                '920001': 120.9, '922001': 134.7, '912002': 71.2, '914002': 83.8, '918002': 111.0, '919002': 119.4, '1012001': 69.0,
+                '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8}
+
+    # df = df[df['レースID'] < 202200000000]
+
+    df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+
+    #############################################ここから処理開始###############################################################
+    
+    # 今走の処理
+    df = df_first_processing(df)
+    # 過去走の処理
+    df_all = df_big_past_processing(df)
+    # 過去のレベル
+    df_all = past_level(df_all)
+    # 終了処理
+    df_all = df_end_processing(df_all)
+    # ラベリング
+    df_all = encording(df_all)
+    # ラベル分割
+    gain_list = create_label_gain(df_all)
+    # 学習
+    y_test_id, test_list = first_train(df_all)
+    # test
+    test(test_list, y_test_id)
+
+    # スタッキング
+    # stacking(y_test_id)
