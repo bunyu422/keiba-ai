@@ -27,6 +27,9 @@ import sys
 import category_encoders as ce
 import random
 
+def save_csv(path, df_all):
+    df_all.to_csv(path, na_rep='NaN')
+
 # ターゲットエンコーディング
 def target_encording(df, column, target):
     tem = pd.DataFrame()
@@ -54,7 +57,7 @@ def convert_to_float_if_possible(df):
             # 変換を試みる（NaNは発生させたくないので errors='raise'）
             converted = pd.to_numeric(df[col], errors='raise')
             # print(col, converted.dtype)
-            if pd.api.types.is_float_dtype(converted):
+            if pd.api.types.is_numeric_dtype(converted):
                 df_converted[col] = converted
         except:
             pass  # 変換できなかった列は無視
@@ -361,18 +364,24 @@ def df_end_processing(df_all):
 
     # 型変換
     df_all = convert_to_float_if_possible(df_all)
-    df_all['齢'] = pd.to_numeric(df_all['齢'], errors='coerce')
-
+    
     return df_all
 
 # label_gain作成
 def create_label_gain(df_all):
-    # ビン分割
-    gain_bins = [0, 200, 400, 800, 1600, 3200, 6400, 12800]  # 9つの範囲
-    df_all['rank'] = np.digitize(df_all['rank'], bins=gain_bins)  # → 0〜8 の整数ラベル
-    label_gain = [np.sqrt(x) for x in [0, 200, 400, 800, 1600, 3200, 6400, 12800, 25600]]
-
-    return label_gain
+    n_bins = 18
+    df_all = df_all.copy()
+    # 例）着順があるdfに対して、"gain"を相対スコアで計算
+    df_all['rank'] = df_all['着順'].apply(lambda r: 1 / r)  # 単純逆数
+    # 出走頭数で正規化してもよい
+    df_all['rank'] *= df_all['出走頭数'] / n_bins
+    # ランクをラベル化
+    bins = np.linspace(0, 1, df_all['rank'].nunique())  # ランクの境界値を計算
+    df_all['rank'] = np.digitize(df_all['rank'], bins, right=True) - 1
+    # gainを計算
+    label_gain = [np.sqrt(x) for x in range(0, df_all['rank'].max() + 1)]
+    
+    return df_all, label_gain
 
 # 1段階目の学習
 def first_train(df_all):
@@ -439,7 +448,7 @@ def first_train(df_all):
             'objective': 'lambdarank',  # ←ここでランキング学習と指定！
             'metric': 'ndcg',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-            'ndcg_eval_at': [1],  # 3連単を予測したい
+            'ndcg_eval_at': [1,3,5,10,18],  # 3連単を予測したい
             'label_gain': gain_list,
             'learning_rate': rate,
             'random_state': seed,
@@ -483,7 +492,7 @@ def first_train(df_all):
             'objective': 'lambdarank',  # ←ここでランキング学習と指定！
             'metric': 'ndcg',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-            'ndcg_eval_at': [1],  # 3連単を予測したい
+            'ndcg_eval_at': [1,3,5,10,18],  # 3連単を予測したい
             'label_gain': gain_list,
             'learning_rate': rate,
             'random_state': seed,
@@ -672,26 +681,43 @@ def stacking(y_test_id):
 
 def sort(result, num):
     result = result.copy()
-    result = result.sort_values(['レースID', f'result{num}'], ascending=[True, False])
+    result = result.sort_values(['レースID', f'score{num}'], ascending=[True, False])
     result = result.reset_index(drop=True)
 
     return result
 
-def test(test_list, result):
-    result_list = []
+def test(test_list, result, file_num):
+    
     for i in range(1, file_num+1):
-        result = sort(result, i)
+        # result = sort(result, i)
+        result_list = []
         sum = 0
         hit = 0
         count = 0
         cursor = 0
 
-        for i in test_list:
+        for k in test_list:
+            # スコア抽出
+            subset = result.iloc[cursor:cursor+k, result.columns.get_loc(f'result{i}')].values
+
+            # softmax 計算（安定化のため最大値を引く）
+            exp_scores = np.exp(subset - np.max(subset))
+            softmax_values = exp_scores / exp_scores.sum()
+
+            # 結果を DataFrame に格納（例として新しい列に）
+            result[f'softmax{i}'] = np.nan
+            result.iloc[cursor:cursor+k, result.columns.get_loc(f'softmax{i}')] = softmax_values 
+
+        # 期待値
+        result[f'score{i}'] = result['オッズ'] * result[f'softmax{i}']
+        cursor = 0
+        result = sort(result, i)
+        for v in test_list:
             sum += result.iloc[cursor, result.columns.get_loc('単勝オッズ')].astype(float)
             if result.iloc[cursor, result.columns.get_loc('単勝オッズ')].astype(float) > 0:
                 hit += 1
             count += 1
-            cursor += i
+            cursor += v
         
         result_list.append(sum / (count * 100))
         print(f'回収率:{sum / (count * 100)}')
@@ -793,14 +819,16 @@ if __name__ == "__main__":
     df_all = past_level(df_all)
     # 終了処理
     df_all = df_end_processing(df_all)
+    # csv
+    save_csv('./csv/df_all.csv', df_all)
     # ラベリング
     df_all = encording(df_all)
     # ラベル分割
-    gain_list = create_label_gain(df_all)
+    df_all, gain_list = create_label_gain(df_all)
     # 学習
     y_test_id, test_list = first_train(df_all)
     # test
-    test(test_list, y_test_id)
+    test(test_list, y_test_id, file_num)
 
     # スタッキング
     # stacking(y_test_id)
