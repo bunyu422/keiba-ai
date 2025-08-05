@@ -112,7 +112,7 @@ def create_unique_pickle(series, file_path):
     
     return mapping
 
-# 辞書作成
+# 辞書読み込み
 def return_pickle(file_path):
     with open(file_path, "rb") as jd:
         mapping = pickle.load(jd)
@@ -194,7 +194,7 @@ def df_big_past_processing(df):
     # 騎手の辞書を読み込み
     jockey_mapping = return_pickle(jockey_path)
 
-    # 以降2~5走の処理
+    # 以降1~5走の処理
     for sou in range(1, 6):
         sou = str(sou)
         if int(sou) == 1:
@@ -707,6 +707,8 @@ def test(test_list, result, file_num):
             # 結果を DataFrame に格納（例として新しい列に）
             result[f'softmax{i}'] = np.nan
             result.iloc[cursor:cursor+k, result.columns.get_loc(f'softmax{i}')] = softmax_values 
+
+            cursor += k
 
         # 期待値
         result[f'score{i}'] = result['オッズ'] * result[f'softmax{i}']
