@@ -210,48 +210,17 @@ class RaceDataset(Dataset):
 
     def __getitem__(self, idx):
         return (
-        self.X_groups[idx],         # [頭数, num_features]
-        self.y_groups[idx],         # [頭数]
-        self.cat_groups[idx],       # [頭数, num_cat_features]
-        self.context_num_groups[idx],  # [頭数, num_context_num_features]
-        self.context_cat_groups[idx],  # [頭数, num_context_cat_features]
-    )
+            self.X_groups[idx],       # [頭数, num_features]
+            self.y_groups[idx],       # [頭数]
+            self.cat_groups[idx],     # [頭数, num_cat_features]
+            self.context_num_groups[idx],  # [頭数, num_context_num_features]
+            self.context_cat_groups[idx],  # [頭数, num_context_cat_features]
+        )
 
-# collate_fn の追加
-def collate_fn(batch):
-    # 最大頭数（最大系列長）を取得
-    max_len = max(item["length"] for item in batch)
-
-    def pad_tensor(tensor, pad_len, pad_value=0):
-        pad_size = (0, 0, 0, pad_len - tensor.size(0))  # (dim2_pad, dim2_pad, dim1_pad, dim1_pad)
-        return nn.functional.pad(tensor, pad_size, value=pad_value)
-
-    x = torch.stack([pad_tensor(item["x"], max_len) for item in batch])
-    cat_x = torch.stack([pad_tensor(item["cat_x"], max_len) for item in batch])
-    y = torch.stack([pad_tensor(item["y"].unsqueeze(-1), max_len).squeeze(-1) for item in batch])
-    context_num = torch.stack([pad_tensor(item["context_num"], max_len) for item in batch])
-    context_cat = torch.stack([pad_tensor(item["context_cat"], max_len) for item in batch])
-
-    # Attention mask: 1 for actual data, 0 for padded
-    attention_mask = torch.tensor([
-        [1] * item["length"] + [0] * (max_len - item["length"]) for item in batch
-    ])
-
-    return x, y, cat_x, context_num, context_cat, attention_mask
-
-class SelfAttentionModule(nn.Module):
-    def __init__(self, input_dim, num_heads=2):
-        super().__init__()
-        self.attn = nn.MultiheadAttention(embed_dim=input_dim, num_heads=num_heads, batch_first=True)
-        self.norm = nn.LayerNorm(input_dim)
-
-    def forward(self, x):
-        attn_output, _ = self.attn(x, x, x)
-        return self.norm(attn_output + x)  # 残差接続
 
 # === 3. モデル定義 ===
 class ListNet(nn.Module):
-    def __init__(self, embedding_sizes, num_features, context_embedding_sizes, context_num_sizes, emb_dim=16, hidden_dim=64, attn_dim=128, num_heads=4):
+    def __init__(self, embedding_sizes, num_features, context_embedding_sizes, context_num_sizes, emb_dim=16, hidden_dim=64):
         super().__init__()
         self.embeddings = nn.ModuleList([
             nn.Embedding(num_classes, emb_dim) for num_classes in embedding_sizes
@@ -272,25 +241,13 @@ class ListNet(nn.Module):
             nn.Linear(hidden_dim, hidden_dim)
         )
 
-        # === Attention 追加 ===
-        # Attention前の次元（数値 + embedding + context）
-        self.raw_input_dim = num_features + len(embedding_sizes) * emb_dim + hidden_dim
-        self.input_projection = nn.Linear(self.raw_input_dim, attn_dim)  # Attention用に次元調整
-
-        self.attn = nn.MultiheadAttention(embed_dim=attn_dim, num_heads=num_heads, batch_first=True)
-
-        self.context_projection = nn.Linear(hidden_dim, attn_dim)
-
-        # 最終予測 MLP
         self.fc = nn.Sequential(
-            nn.Linear(attn_dim, 128),
-            # nn.BatchNorm1d(128),
-            nn.LayerNorm(128),
+            nn.Linear(num_features + len(embedding_sizes) * emb_dim + hidden_dim, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(128, 64),
-            # nn.BatchNorm1d(64),
-            nn.LayerNorm(64),
+            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(64, 1)
@@ -315,30 +272,9 @@ class ListNet(nn.Module):
         # 各馬に同じcontextを与える
         context_expand = context_out.expand(x.size(0), -1)  # [頭数, hidden_dim]
 
-        # # ========== 入力結合（数値 + emb + context） ==========
-        full_input = torch.cat([x, emb, context_expand], dim=1)  # [頭数, raw_input_dim]
-        x_proj = self.input_projection(full_input).unsqueeze(0)  # [1, 頭数, attn_dim]
-
-        # # ========== Self-Attention ==========
-        # attn_out, _ = self.attn(x_proj, x_proj, x_proj)          # [1, 頭数, attn_dim]
-        # attn_out = attn_out.squeeze(0)                           # [頭数, attn_dim]
-
-        # x_proj: [1, 頭数, attn_dim]
-        # context_out: [1, hidden_dim]
-        
-        context_proj = self.context_projection(context_out)  # [1, attn_dim]
-        context_proj = context_proj.unsqueeze(0)  # [1, 1, attn_dim]
-
-
-        x_with_context = torch.cat([x_proj, context_proj], dim=1)  # [1, 頭数+1, attn_dim]
-
-        attn_out, _ = self.attn(x_with_context, x_with_context, x_with_context)  # [1, 頭数+1, attn_dim]
-        attn_out = attn_out[:, :-1, :]  # context を除いた部分を出力とする
-        attn_out = attn_out.squeeze(0)  # [頭数, attn_dim] に変換
-        out = self.fc(attn_out).squeeze(-1)  # [頭数]
-        return out
-        # ========== 最終出力 ==========
-        return self.fc(attn_out).squeeze(-1)                     # [頭数]
+        # 最終結合
+        x = torch.cat([x, emb, context_expand], dim=1)
+        return self.fc(x).squeeze(-1)
 
 # === 4. Listwise loss ===
 def listnet_loss(preds, labels):
@@ -419,9 +355,9 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
     return val_df
 
 # テスト
-# val_df = pd.read_csv('./csv/tokyo_result_listnet_0.csv')  # または val データ専用ファイルを読み込む
+val_df = pd.read_csv('./csv/tokyo_result_listnet_0.csv')  # または val データ専用ファイルを読み込む
 
-# val_df_result = evaluate_model_on_val_df(val_df, model_path='./model/tokyo_listnet_0.pth', fold=0)
+val_df_result = evaluate_model_on_val_df(val_df, model_path='./model/tokyo_listnet_0.pth', fold=0)
 
 
 # === 5. KFold処理 ===
@@ -515,7 +451,6 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
-
         for X, y, cat_X, context_X, context_cat_X in train_loader:
             X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
             y_sum = y.detach().cpu().numpy().sum()
