@@ -577,6 +577,10 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
                 X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
                 preds = model(X, cat_X, context_X, context_cat_X)
                 loss = listnet_loss(preds, y)
+                # 回帰損失（勝率ラベルとの直接比較）
+                prob_preds = torch.softmax(preds, dim=0)
+                reg_loss = mse_loss_fn(prob_preds.squeeze(), y)
+                loss = loss + alpha * reg_loss
                 val_loss += loss.item()
 
         avg_train_loss = total_loss / len(train_loader)
