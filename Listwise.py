@@ -247,77 +247,77 @@ feature_cols = [col for col in feature_cols if col not in embedding_cols and col
 
 # === 2. Dataset定義 ===
 class RaceDataset(Dataset):
-    def __init__(self, X_groups, y_groups, cat_groups, context_num_groups, context_cat_groups, max_horses=18):
+    def __init__(self, X_groups, y_groups, cat_groups, context_num_groups, context_cat_groups):
         self.X_groups = X_groups
         self.y_groups = y_groups
         self.cat_groups = cat_groups
         self.context_num_groups = context_num_groups
         self.context_cat_groups = context_cat_groups
-        self.max_horses = max_horses
 
     def __len__(self):
         return len(self.X_groups)
 
     def __getitem__(self, idx):
-        X = self.X_groups[idx]
-        y = self.y_groups[idx]
-        cat = self.cat_groups[idx]
-        context_num = self.context_num_groups[idx]
-        context_cat = self.context_cat_groups[idx]
-
-        num_horses = X.shape[0]
-        pad_len = self.max_horses - num_horses
-
-        # パディング処理
-        if pad_len > 0:
-            X = torch.cat([X, torch.zeros(pad_len, X.shape[1])], dim=0)
-            y = torch.cat([y, torch.zeros(pad_len)], dim=0)
-            cat = torch.cat([cat, torch.zeros(pad_len, cat.shape[1], dtype=torch.long)], dim=0)
-            # contextはレース単位なのでパディング不要
-
-        # mask作成（True=有効馬, False=パディング馬）
-        mask = torch.zeros(self.max_horses, dtype=torch.bool)
-        mask[:num_horses] = True
-
-        # contextはレース単位の1行だけ返す（重複は不要なので最初の1行のみ抽出）
-        context_num_one = context_num[0].unsqueeze(0)  # shape: [1, context_num_dim]
-        context_cat_one = context_cat[0].unsqueeze(0)  # shape: [1, context_cat_dim]
-
-        return X, y, cat, context_num_one, context_cat_one, mask
+        return (
+            self.X_groups[idx],       # [頭数, num_features]
+            self.y_groups[idx],       # [頭数]
+            self.cat_groups[idx],     # [頭数, num_cat_features]
+            self.context_num_groups[idx],  # [頭数, num_context_num_features]
+            self.context_cat_groups[idx],  # [頭数, num_context_cat_features]
+        )
 
 
 # === 3. モデル定義 ===
-class RaceSelfAttention(nn.Module):
-    def __init__(self, hidden_dim, num_heads=4, dropout=0.3):
+class RankGateModel(nn.Module):
+    def __init__(self, horse_dim, context_dim, hidden_dim):
         super().__init__()
-        self.attn = nn.MultiheadAttention(
-            embed_dim=hidden_dim,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True
-        )
-        self.norm1 = nn.LayerNorm(hidden_dim)
-        self.ffn = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 2),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim * 2, hidden_dim)
-        )
-        self.norm2 = nn.LayerNorm(hidden_dim)
+        # 次元合わせ
+        self.horse_proj = nn.Linear(horse_dim, hidden_dim)
+        self.context_proj = nn.Linear(context_dim, hidden_dim)
+        # ゲーティング層（順位スコアを重み化）
+        self.gate_layer = nn.Linear(1, hidden_dim)  
+        # 最終出力
+        self.output_layer = nn.Linear(hidden_dim, 1)
 
-    def forward(self, x, mask=None):
-        # x: (batch_size, horses_per_race, hidden_dim)
-        if mask is not None and mask.dim() == 1:
-            mask = mask.unsqueeze(0)  # バッチ次元を追加
+    def forward(self, horse_features, context_features, rank_scores):
+        """
+        horse_features: [頭数, horse_dim]
+        context_features: [context_dim]
+        rank_scores: [頭数]（順位やスコア、低いほど良い）
 
-        attn_out, _ = self.attn(x, x, x, key_padding_mask=mask)
-        x = self.norm1(x + attn_out)
-        ffn_out = self.ffn(x)
-        x = self.norm2(x + ffn_out)
-        return x
+        例:
+        horse_features: 各馬の数値特徴
+        context_features: レース全体のコンテキスト
+        rank_scores: 過去成績から算出した順位や得点
+        """
+        # ---- 1. 順位スコア正規化 (min-maxで0〜1に) ----
+        # 小さい値（上位順位）ほど高いゲートになるよう逆転
+        min_r = rank_scores.min()
+        max_r = rank_scores.max()
+        norm_rank = 1 - (rank_scores - min_r) / (max_r - min_r + 1e-12)  # 1が最上位
+
+        # shapeを[頭数, 1]に変換
+        norm_rank = norm_rank.unsqueeze(1)
+
+        # ---- 2. 次元変換 ----
+        horse_emb = self.horse_proj(horse_features)            # [頭数, hidden_dim]
+        context_emb = self.context_proj(context_features)      # [hidden_dim]
+        context_expand = context_emb.unsqueeze(0).expand_as(horse_emb)
+
+        # ---- 3. ゲーティング加算 ----
+        # ゲート値（sigmoidで0〜1に）
+        gate = torch.sigmoid(self.gate_layer(norm_rank))       # [頭数, hidden_dim]
+
+        # contextをgateでスケーリングして加算
+        combined = horse_emb + gate * context_expand
+
+        # ---- 4. 出力層 ----
+        output = self.output_layer(F.relu(combined))           # [頭数, 1]
+
+        return output, norm_rank, gate
 
 class ListNet(nn.Module):
-    def __init__(self, embedding_sizes, num_features, context_embedding_sizes, context_num_sizes, emb_dim=16, hidden_dim=64, num_heads=4):
+    def __init__(self, embedding_sizes, num_features, context_embedding_sizes, context_num_sizes, emb_dim=16, hidden_dim=64):
         super().__init__()
         self.embeddings = nn.ModuleList([
             nn.Embedding(num_classes, emb_dim) for num_classes in embedding_sizes
@@ -342,8 +342,17 @@ class ListNet(nn.Module):
         horse_input_dim = num_features + len(embedding_sizes) * emb_dim
         self.horse_proj = nn.Linear(horse_input_dim, hidden_dim)
 
-        # 追加: レース内attention層
-        self.attention = RaceSelfAttention(hidden_dim, num_heads=num_heads)
+        # self.fc = nn.Sequential(
+        #     nn.Linear(num_features + len(embedding_sizes) * emb_dim + hidden_dim, 128),
+        #     nn.BatchNorm1d(128),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.3),
+        #     nn.Linear(128, 64),
+        #     nn.BatchNorm1d(64),
+        #     nn.ReLU(),
+        #     nn.Dropout(0.2),
+        #     nn.Linear(64, 1)
+        # )
 
         # fcの定義（context加算型）
         self.fc = nn.Sequential(
@@ -358,81 +367,70 @@ class ListNet(nn.Module):
             nn.Linear(64, 1)
         )
 
+
     # def forward(self, x, cat_X, context_num, context_cat):
     #     # 埋め込み層処理
     #     emb = [emb_layer(cat_X[:, i]) for i, emb_layer in enumerate(self.embeddings)]
-    #     emb = torch.cat(emb, dim=1)  # [頭数, emb_dim_total]
+    #     emb = torch.cat(emb, dim=1)
 
-    #     # 馬特徴（数値 + embedding）
-    #     horse_features = torch.cat([x, emb], dim=1)  # [頭数, num_features + emb_dim_total]
-
-    #     # ===== context処理 =====
-    #     # context embedding（1サンプル分）
+    #     # context embedding（1サンプルのみ使えばOK）
     #     context_emb = [emb_layer(context_cat[0, i]) for i, emb_layer in enumerate(self.context_embeddings)]
     #     context_emb = torch.cat(context_emb, dim=0)  # [emb_dim * num_context_cat_features]
 
     #     # context 数値特徴（1サンプル分）
     #     context_num = context_num[0]  # [num_context_num_features]
 
-    #     # 結合 → MLPでhidden_dimに変換
+    #     # 結合 → MLP
     #     context_all = torch.cat([context_num, context_emb], dim=0)  # [context_input_dim]
     #     context_out = self.context_fc(context_all.unsqueeze(0))  # [1, hidden_dim]
 
-    #     # contextを各馬に複製
-    #     context_expand = context_out.expand(horse_features.size(0), -1)  # [頭数, hidden_dim]
+    #     # 各馬に同じcontextを与える
+    #     context_expand = context_out.expand(x.size(0), -1)  # [頭数, hidden_dim]
 
-    #     # ===== contextを初期化ベクトルとして加算 =====
-    #     # horse_featuresとcontext_expandの次元を合わせる必要あり
-    #     if horse_features.size(1) != context_expand.size(1):
-    #         # 線形変換で合わせる
-    #         horse_features = self.horse_proj(horse_features)  # [頭数, hidden_dim]
+    #     # 最終結合
+    #     x = torch.cat([x, emb, context_expand], dim=1)
+    #     return self.fc(x).squeeze(-1)
 
-    #     horse_features = horse_features + context_expand  # 要素ごと加算
-
-    #     # ===== 最終出力 =====
-    #     return self.fc(horse_features).squeeze(-1)
-
-    def forward(self, x, cat_X, context_num, context_cat, mask=None):
-        """
-        x: (horses, num_features) 数値特徴
-        cat_X: (horses, num_cat_features) カテゴリ特徴
-        context_num: (1, num_context_num_features)
-        context_cat: (1, num_context_cat_features)
-        mask: (1, horses)  True=有効馬, False=パディング
-        """
-        # 馬カテゴリ埋め込み
+    def forward(self, x, cat_X, context_num, context_cat):
+        # 埋め込み層処理
         emb = [emb_layer(cat_X[:, i]) for i, emb_layer in enumerate(self.embeddings)]
-        emb = torch.cat(emb, dim=1)  # (horses, emb_dim_total)
-        # 馬特徴
-        horse_features = torch.cat([x, emb], dim=1)  # (horses, num_features + emb_dim_total)
-        horse_features = self.horse_proj(horse_features)  # (horses, hidden_dim)
+        emb = torch.cat(emb, dim=1)  # [頭数, emb_dim_total]
 
-        # contextカテゴリ埋め込み
+        # 馬特徴（数値 + embedding）
+        horse_features = torch.cat([x, emb], dim=1)  # [頭数, num_features + emb_dim_total]
+
+        # ===== context処理 =====
+        # context embedding（1サンプル分）
         context_emb = [emb_layer(context_cat[0, i]) for i, emb_layer in enumerate(self.context_embeddings)]
-        context_emb = torch.cat(context_emb, dim=0)  # (emb_dim_total,)
-        context_all = torch.cat([context_num[0], context_emb], dim=0)  # (context_input_dim,)
-        context_out = self.context_fc(context_all.unsqueeze(0))  # (1, hidden_dim)
+        context_emb = torch.cat(context_emb, dim=0)  # [emb_dim * num_context_cat_features]
 
-        # contextを全馬に加算
-        horse_features = horse_features + context_out.expand(horse_features.size(0), -1)
+        # context 数値特徴（1サンプル分）
+        context_num = context_num[0]  # [num_context_num_features]
 
-        # Attention適用
-        key_padding_mask = ~mask  # mask反転
+        # 結合 → MLPでhidden_dimに変換
+        context_all = torch.cat([context_num, context_emb], dim=0)  # [context_input_dim]
+        context_out = self.context_fc(context_all.unsqueeze(0))  # [1, hidden_dim]
 
-        horse_features = self.attention(horse_features.unsqueeze(0), mask=key_padding_mask)
-        horse_features = horse_features.squeeze(0)
-        horse_features = horse_features[mask]       # 有効馬のみ抽出
+        # contextを各馬に複製
+        context_expand = context_out.expand(horse_features.size(0), -1)  # [頭数, hidden_dim]
 
-        # 出力
+        # ===== contextを初期化ベクトルとして加算 =====
+        # horse_featuresとcontext_expandの次元を合わせる必要あり
+        if horse_features.size(1) != context_expand.size(1):
+            # 線形変換で合わせる
+            horse_features = self.horse_proj(horse_features)  # [頭数, hidden_dim]
+
+        horse_features = horse_features + context_expand  # 要素ごと加算
+
+        # ===== 最終出力 =====
         return self.fc(horse_features).squeeze(-1)
-
 
 # === 4. Listwise loss ===
 def listnet_loss(preds, labels):
     preds = preds - preds.max()
     P_z = torch.softmax(preds, dim=0)
     loss = -torch.sum(labels * torch.log(P_z + 1e-12))
-    loss = loss / labels.size(0)  # 頭数で割って平均化
+
     return loss
 
 def evaluate_model_on_val_df(val_df, model_path, fold=0):
@@ -591,45 +589,34 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
             ndcgs.append(score)
 
         return np.mean(ndcgs)
-    
-    def create_mask(cat_X, pad_value=-9999):
-        # cat_X: (horses, num_cat_features) のTensor
-        # パディング馬はcat_Xのカテゴリがすべてpad_value（例0）で埋まっている想定
-        # 全カラムがpad_valueならFalse(無効)、それ以外True(有効)
-        mask = (cat_X != pad_value).any(dim=1)  # (horses,)
-        return mask.unsqueeze(0)  # (1, horses)
 
     # モデル
     emb_dim = 16
     model = ListNet(embedding_sizes=embedding_sizes, num_features=len(feature_cols), context_embedding_sizes=context_embedding_sizes, context_num_sizes=len(context_num_cols), emb_dim=emb_dim)
     model.apply(init_weights)
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-4)
     # ハイパーパラメータ
-    patience = 5  # 何エポック改善がなければ終了するか
+    patience = 10  # 何エポック改善がなければ終了するか
     best_val_loss = float('inf')
     no_improve_count = 0
     best_model_weights = None
     mse_loss_fn = nn.MSELoss()
-    alpha = 0.5  # MSE の比率
+    alpha = 0.0  # MSE の比率
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
-        total_listnet_loss = 0
-        total_reg_loss = 0
-        for batch_idx, (X, y, cat_X, context_X, context_cat_X, mask) in enumerate(train_loader):
-            X, y, cat_X, context_X, context_cat_X, mask = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), mask[0].to(device)
+        for X, y, cat_X, context_X, context_cat_X in train_loader:
+            X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
             y_sum = y.detach().cpu().numpy().sum()
-
             # ランク損失
-            preds = model(X, cat_X, context_X, context_cat_X, mask)
-            y = y[mask]
-            net_loss = listnet_loss(preds, y)
+            preds = model(X, cat_X, context_X, context_cat_X)
+            loss = listnet_loss(preds, y)
 
             # 回帰損失（勝率ラベルとの直接比較）
             prob_preds = torch.softmax(preds, dim=0)
             reg_loss = mse_loss_fn(prob_preds.squeeze(), y)
-            loss = net_loss + alpha * reg_loss
+            loss = loss + alpha * reg_loss
 
             # 勾配計算
             optimizer.zero_grad()
@@ -645,26 +632,15 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
 
             optimizer.step()
             total_loss += loss.item()
-
-            total_listnet_loss += net_loss.item()
-            total_reg_loss += reg_loss.item()
-
-            # # バッチごとの損失ログ出力（例: 10バッチごとに表示）
-            # if (batch_idx + 1) % 10 == 0:
-            #     print(f"Epoch {epoch+1} Batch {batch_idx+1}/{len(train_loader)} - "
-            #         f"ListNet Loss: {net_loss.item():.6f}, Reg Loss: {reg_loss.item():.6f}")
-            #     pass
-        
         print(f"Epoch {epoch+1}: Train Loss: {total_loss:.4f}")
 
         # Validation
         model.eval()
         val_loss = 0.0
         with torch.no_grad():
-            for X, y, cat_X, context_X, context_cat_X, mask in val_loader:
-                X, y, cat_X, context_X, context_cat_X, mask = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), mask[0].to(device)
-                preds = model(X, cat_X, context_X, context_cat_X, mask)
-                y = y[mask]
+            for X, y, cat_X, context_X, context_cat_X in val_loader:
+                X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
+                preds = model(X, cat_X, context_X, context_cat_X)
                 loss = listnet_loss(preds, y)
                 # 回帰損失（勝率ラベルとの直接比較）
                 prob_preds = torch.softmax(preds, dim=0)
@@ -713,9 +689,9 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
     val_preds = []
     model.eval()
     with torch.no_grad():
-        for X, y, cat_X, context_X, context_cat_X, mask in val_loader:
-            X, y, cat_X, context_X, context_cat_X, mask = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), mask[0].to(device)
-            preds = model(X, cat_X, context_X, context_cat_X, mask).squeeze()
+        for X, y, cat_X, context_X, context_cat_X in val_loader:
+            X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
+            preds = model(X, cat_X, context_X, context_cat_X).squeeze()
             val_preds.extend(preds.cpu().numpy())
 
     # ラベルはval_dfのis_winを使用（val_loaderの順と同じと仮定）
@@ -730,9 +706,9 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
     # ------------------------
     test_scores = []
     with torch.no_grad():
-        for X, y, cat_X, context_X, context_cat_X, mask in test_loader:
-            X, y, cat_X, context_X, context_cat_X, mask = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), mask[0].to(device)
-            raw_pred = model(X, cat_X, context_X, context_cat_X, mask).squeeze().cpu().numpy()
+        for X, y, cat_X, context_X, context_cat_X in test_loader:
+            X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
+            raw_pred = model(X, cat_X, context_X, context_cat_X).squeeze().cpu().numpy()
             calibrated_pred = platt.predict_proba(np.array(raw_pred).reshape(-1, 1))[:, 1]
             test_scores.append(calibrated_pred)
 
