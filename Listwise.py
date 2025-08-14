@@ -64,9 +64,29 @@ df = evaluation.load_csv(csv_path)
 def append_col(df):
     df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
     df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
+    # ascending=True → 値が小さいほど小さい順位
+    # → 大きい数値ほど順位が大きくなる（方向性統一）
+    df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
+    df['av_speed_rank_num'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=True)
+    df['best後3F_rank_num'] = df.groupby('レースID')['best後3F'].rank(method='min', ascending=False)
+    df['av後3F_rank_num'] = df.groupby('レースID')['av後3F'].rank(method='min', ascending=False)
+
+    df['best_speed_rank_cat'] = df['best_speed_rank_num']
+    df['av_speed_rank_cat'] = df['av_speed_rank_num']
+    df['best後3F_rank_cat'] = df['best後3F_rank_num']
+    df['av後3F_rank_cat'] = df['av後3F_rank_num']
 
     feature_cols.append('best後3F')
     feature_cols.append('av後3F')
+    feature_cols.append('best_speed_rank_num')
+    feature_cols.append('av_speed_rank_num')
+    feature_cols.append('best後3F_rank_num')
+    feature_cols.append('av後3F_rank_num')
+
+    feature_category.append('best_speed_rank_cat')
+    feature_category.append('av_speed_rank_cat')
+    feature_category.append('best後3F_rank_cat')
+    feature_category.append('av後3F_rank_cat')
     
     return df
 
@@ -268,54 +288,6 @@ class RaceDataset(Dataset):
 
 
 # === 3. モデル定義 ===
-class RankGateModel(nn.Module):
-    def __init__(self, horse_dim, context_dim, hidden_dim):
-        super().__init__()
-        # 次元合わせ
-        self.horse_proj = nn.Linear(horse_dim, hidden_dim)
-        self.context_proj = nn.Linear(context_dim, hidden_dim)
-        # ゲーティング層（順位スコアを重み化）
-        self.gate_layer = nn.Linear(1, hidden_dim)  
-        # 最終出力
-        self.output_layer = nn.Linear(hidden_dim, 1)
-
-    def forward(self, horse_features, context_features, rank_scores):
-        """
-        horse_features: [頭数, horse_dim]
-        context_features: [context_dim]
-        rank_scores: [頭数]（順位やスコア、低いほど良い）
-
-        例:
-        horse_features: 各馬の数値特徴
-        context_features: レース全体のコンテキスト
-        rank_scores: 過去成績から算出した順位や得点
-        """
-        # ---- 1. 順位スコア正規化 (min-maxで0〜1に) ----
-        # 小さい値（上位順位）ほど高いゲートになるよう逆転
-        min_r = rank_scores.min()
-        max_r = rank_scores.max()
-        norm_rank = 1 - (rank_scores - min_r) / (max_r - min_r + 1e-12)  # 1が最上位
-
-        # shapeを[頭数, 1]に変換
-        norm_rank = norm_rank.unsqueeze(1)
-
-        # ---- 2. 次元変換 ----
-        horse_emb = self.horse_proj(horse_features)            # [頭数, hidden_dim]
-        context_emb = self.context_proj(context_features)      # [hidden_dim]
-        context_expand = context_emb.unsqueeze(0).expand_as(horse_emb)
-
-        # ---- 3. ゲーティング加算 ----
-        # ゲート値（sigmoidで0〜1に）
-        gate = torch.sigmoid(self.gate_layer(norm_rank))       # [頭数, hidden_dim]
-
-        # contextをgateでスケーリングして加算
-        combined = horse_emb + gate * context_expand
-
-        # ---- 4. 出力層 ----
-        output = self.output_layer(F.relu(combined))           # [頭数, 1]
-
-        return output, norm_rank, gate
-
 class ListNet(nn.Module):
     def __init__(self, embedding_sizes, num_features, context_embedding_sizes, context_num_sizes, emb_dim=16, hidden_dim=64):
         super().__init__()
@@ -391,7 +363,7 @@ class ListNet(nn.Module):
     #     x = torch.cat([x, emb, context_expand], dim=1)
     #     return self.fc(x).squeeze(-1)
 
-    def forward(self, x, cat_X, context_num, context_cat):
+    def forward(self, x, cat_X, context_num, context_cat, rank_scores=None):
         # 埋め込み層処理
         emb = [emb_layer(cat_X[:, i]) for i, emb_layer in enumerate(self.embeddings)]
         emb = torch.cat(emb, dim=1)  # [頭数, emb_dim_total]
@@ -420,7 +392,21 @@ class ListNet(nn.Module):
             # 線形変換で合わせる
             horse_features = self.horse_proj(horse_features)  # [頭数, hidden_dim]
 
-        horse_features = horse_features + context_expand  # 要素ごと加算
+        # ====== 順位スコア正規化（オプション） ======
+        if rank_scores is not None:
+            min_r = rank_scores.min()
+            max_r = rank_scores.max()
+            norm_rank = 1 - (rank_scores - min_r) / (max_r - min_r + 1e-12)  # 高順位ほど1に近い
+            norm_rank = norm_rank.unsqueeze(1)  # [頭数, 1]
+
+            # ====== ゲーティング加算 ======
+            gate = torch.sigmoid(nn.Linear(1, horse_features.size(1)).to(horse_features.device)(norm_rank))
+            horse_features = horse_features + gate * context_expand
+        else:
+            # 従来のcontext加算
+            horse_features = horse_features + context_expand
+
+        # horse_features = horse_features + context_expand  # 要素ごと加算
 
         # ===== 最終出力 =====
         return self.fc(horse_features).squeeze(-1)
@@ -602,7 +588,7 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
     no_improve_count = 0
     best_model_weights = None
     mse_loss_fn = nn.MSELoss()
-    alpha = 0.0  # MSE の比率
+    alpha = 1.0  # MSE の比率
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
@@ -610,7 +596,7 @@ for fold, (train_idx, val_idx) in enumerate(gkf.split(df, df[target_col], groups
             X, y, cat_X, context_X, context_cat_X = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device)
             y_sum = y.detach().cpu().numpy().sum()
             # ランク損失
-            preds = model(X, cat_X, context_X, context_cat_X)
+            preds = model(X, cat_X, context_X, context_cat_X, y)
             loss = listnet_loss(preds, y)
 
             # 回帰損失（勝率ラベルとの直接比較）
