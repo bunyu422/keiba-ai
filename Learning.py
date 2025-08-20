@@ -822,7 +822,7 @@ if __name__ == "__main__":
     # 終了処理
     df_all = df_end_processing(df_all)
     # csv
-    save_csv('./csv/df_all.csv', df_all)
+    save_csv('./csv/df_all_2.csv', df_all)
     # ラベリング
     df_all = encording(df_all)
     # ラベル分割
