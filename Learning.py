@@ -71,7 +71,7 @@ def scraping(csv_path):
         for number in range(1, 6):
             for day in range(1, 13):
                 for race_no in range(1, 13):
-                    race_id = '{}10{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
+                    race_id = '{}06{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
                     url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
                     url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
                     try:

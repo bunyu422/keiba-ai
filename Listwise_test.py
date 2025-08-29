@@ -37,7 +37,7 @@ def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col=
     sel = sel.drop_duplicates(subset=[race_col], keep="first")
     return sel
 
-def pick_score_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col="レースID", T=0.1):
+def pick_score_max_per_race(df, race_col="レースID", T=0.1):
     """レースごとにEV最大の馬を1頭だけ抽出（EV = p * odds）。"""
     df = df.copy()
 

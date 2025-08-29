@@ -157,6 +157,67 @@ def set_id(id_list, skip_list):
         count+=1
     return race_id
             
+def set_info(url_race, id_list):
+    time_list = []
+    dict_race = []
+
+    # ブラウザを起動する
+    with webdriver.Chrome(options=options) as driver:
+        locations = []
+        place_list = []
+        race_id = []
+        # ブラウザでアクセスする
+        driver.get(url_race)
+
+        # 要素を取得
+        el = driver.find_elements(By.CLASS_NAME, "RaceList_DataTitle")
+        for i in el:
+
+            # smallタグを取り除いたテキストだけ抜き出す
+            text = i.get_attribute("innerText")
+
+            # innerText は「3回\n 新潟 \n1日目」となるので strip/split で調整
+            parts = text.split()
+            # => ['3回', '新潟', '1日目']
+
+            location = parts[1]  # "新潟"
+
+            locations.append(location)
+
+            print(location)
+
+
+
+        # tableを取得(js反映)
+        el=driver.find_elements(By.CLASS_NAME, "ItemTitle") #classでテーブルを指定
+
+        for num, i in enumerate(el):
+            text = i.text.strip()  # 要素のテキストを取得
+            if "新馬" not in text:
+                # 「新馬」が含まれていない要素だけ処理
+                print("対象:", text)
+                # ここに処理を書く
+                dict_race.append(num)
+                # tableを取得(js反映)
+
+        el=driver.find_elements(By.CLASS_NAME, "RaceList_Itemtime") #classでテーブルを指定
+
+        for i in range(len(el)):
+            if i+1 in dict_race:
+                time_list.append((dt.strptime(el[i].text, '%H:%M') - timedelta(minutes=3)).strftime("%H:%M"))
+
+        for num, i in enumerate(locations, start=1):
+            for k in range(sum(1 for x in dict_race if x <= 12*num and x > 12*(num-1))):
+                place_list.append(i)
+                race_id.append(f'{i}{str(k+1).zfill(2)}')
+
+        race_l = []
+        for i in dict_race:
+            race_l.append(i % 12 + 1)
+    
+    return time_list, place_list, race_l, race_id
+
+
 # ブラウザ立ち上げ
 options = Options()
 # options = webdriver.FirefoxOptions()
@@ -205,20 +266,10 @@ driver.get(url)
 # schedule.every().day.at(startTime).do(job1)
 
 # 購入レース指定
-num_place= 3
-skip_list = [i for i in range(13,25)]
 id_list = [2025060202,2025090102,2025100112]
-num_list = [12,0,12]
-name_list = ['中山', '阪神', '小倉']
 url_race = 'https://race.netkeiba.com/top/race_list.html?kaisai_date=20250302'
 
-timeList = set_time(skip_list, url_race)
-
-keibajouList = set_keibajo(num_list, name_list)
-
-race_id = set_id(id_list, skip_list)
-
-RList = set_RList(skip_list, num_place)
+timeList, keibajouList, RList, race_id = set_info(url_race)
 
 for n in range(len(timeList)):
     schedule.every().day.at(timeList[n]).do(job,n1=keibajouList[n],n2=RList[n],n3=race_id[n])
