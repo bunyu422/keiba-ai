@@ -1,5 +1,6 @@
 import copy
 import pickle
+import joblib
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
@@ -17,6 +18,8 @@ import torch.nn.functional as F
 import optuna.integration.lightgbm as lgb
 import optuna
 import lightgbm as lgbm
+from sklearn.model_selection import StratifiedGroupKFold
+
 
 # 行・列ともに省略せず全て表示する設定
 pd.set_option('display.max_rows', None)
@@ -27,11 +30,11 @@ n_splits = 5
 num_epochs = 1000
 batch_size = 1  # 1レースずつ処理
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-place = '2'
+place = '1'
 
-common_cols = ['距離', 'フィールド', '馬場', '出走頭数', '平均クラス', '平均ペース']
+common_cols = ['距離', 'フィールド', '馬場', '場所', '出走頭数', '平均クラス', '平均ペース']
 
-context_cat_cols = ['フィールド', '馬場', '出走頭数']
+context_cat_cols = ['フィールド', '馬場', '出走頭数', '場所']
 context_num_cols = ['距離', '平均クラス', '平均ペース']
 
 numeric_diff_cols = ['1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数',
@@ -49,7 +52,7 @@ inversion_cols = ['人気', '齢', '間隔', '1着差', '2着差', '3着差', '4
                 '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
                 'best着差', 'av着差']
 
-feature_category = ['距離', 'フィールド', '馬場', '出走頭数', '馬番', '性', '父馬',
+feature_category = ['馬番', '性', '父馬',
                     '1場所', '2場所', '3場所', '4場所', '5場所', '1フィールド', '2フィールド', '3フィールド', '4フィールド', '5フィールド',
                     '1距離', '2距離', '3距離', '4距離', '5距離',
                     '1馬場', '2馬場', '3馬場', '4馬場', '5馬場','1コーナー通過順', '2コーナー通過順', '3コーナー通過順', '4コーナー通過順', '5コーナー通過順',
@@ -58,10 +61,41 @@ diff_category_place = ['1場所変化', '2場所変化', '3場所変化', '4場�
 
 diff_category_field = ['1フィールド変化', '2フィールド変化', '3フィールド変化', '4フィールド変化', '5フィールド変化']
 
+# 東京用
+# place = '2'
+# common_cols = ['距離', 'フィールド', '馬場', '出走頭数', '平均クラス', '平均ペース']
+
+# context_cat_cols = ['フィールド', '馬場', '出走頭数']
+# context_num_cols = ['距離', '平均クラス', '平均ペース']
+
+# numeric_diff_cols = ['1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数',
+#                     '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', 
+#                     'best着差', 'bestスピード指数', 'best後3F', 'av着差', 'avスピード指数', 'av後3F', '斤量']
+
+# scale_cols = ['1着差', '2着差', '3着差', '4着差', '5着差', '1タイム', '2タイム', '3タイム', '4タイム', '5タイム',
+#             '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
+#             '斤量', '1斤量', '2斤量', '3斤量', '4斤量', '5斤量', '父馬_te', '間隔', '1馬体重', '2馬体重', '3馬体重', '4馬体重', '5馬体重',
+#             '1体重増減', '2体重増減', '3体重増減', '4体重増減', '5体重増減', '1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数',
+#             'best着差', 'bestスピード指数', 'av着差', 'avスピード指数', '上昇度', '1クラス差', '1ペース差']
+
+# inversion_cols = ['人気', '齢', '間隔', '1着差', '2着差', '3着差', '4着差', '5着差', '1タイム', '2タイム', '3タイム', '4タイム', '5タイム',
+#                 '1人気', '2人気', '3人気', '4人気', '5人気', 
+#                 '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
+#                 'best着差', 'av着差']
+
+# feature_category = ['距離', 'フィールド', '馬場', '出走頭数', '馬番', '性', '父馬',
+#                     '1場所', '2場所', '3場所', '4場所', '5場所', '1フィールド', '2フィールド', '3フィールド', '4フィールド', '5フィールド',
+#                     '1距離', '2距離', '3距離', '4距離', '5距離',
+#                     '1馬場', '2馬場', '3馬場', '4馬場', '5馬場','1コーナー通過順', '2コーナー通過順', '3コーナー通過順', '4コーナー通過順', '5コーナー通過順',
+#                     '1出走馬数', '2出走馬数', '3出走馬数', '4出走馬数', '5出走馬数', '1馬番', '2馬番', '3馬番', '4馬番', '5馬番']
+# diff_category_place = ['1場所変化', '2場所変化', '3場所変化', '4場所変化', '5場所変化']
+
+# diff_category_field = ['1フィールド変化', '2フィールド変化', '3フィールド変化', '4フィールド変化', '5フィールド変化']
+
 embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
-csv_path = './csv/df_all.csv'
+csv_path = './csv/df_all_nakayama.csv'
 df = evaluation.load_csv(csv_path)
 # print(df.columns.values)
 # print(df.head(10))
@@ -155,7 +189,7 @@ def race_feature(df):
         df[col] = df[col].cat.codes
     
     for col in diff_category_place:
-        df[col] = df[col].astype(str) + '->' + place
+        df[col] = df[col].astype(str) + '->' + df['場所'].astype(str)
         # 1. カラムをカテゴリ型に変換
         df[col] = df[col].astype('category')
 
@@ -181,14 +215,14 @@ def inversion(df):
 
 
 # ランク予測
-eval_rank(df)
+# eval_rank(df)
 
 # === 1. データの前提 ===
 # 1着の馬だけ 1、それ以外 0 の one-hot ターゲットを作成
 # df['win_prob'] = (df['着順'] == 1).astype(float)
 
 # rankから経験的勝率を計算する
-df['pred_rank'] = df.groupby('レースID')['score'].rank(method='first', ascending=False)
+# df['pred_rank'] = df.groupby('レースID')['score'].rank(method='first', ascending=False)
 
 # 2. 実着順が1着（勝利）かどうかのフラグを作成（仮に '着順' カラムがあると仮定）
 df['is_win'] = (df['着順'] == 1).astype(int)
@@ -820,6 +854,7 @@ def embedding_init():
 
 group_col = 'レースID'
 target_col = 'smooth_rel'
+field = 'nakayama'
 feature_cols = []
 
 
@@ -856,6 +891,26 @@ if __name__ == '__main__':
 
         train_df = trainval_df.iloc[train_idx]
         val_df = trainval_df.iloc[val_idx]
+
+    # ---- 外側: trainval/test = 8:2 ----
+    # sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
+
+    # for fold, (trainval_idx, test_idx) in enumerate(
+    #     sgkf.split(df, y=df["場所"], groups=df[group_col])
+    # ):
+    #     # if fold == 0:
+    #     #     continue
+    #     trainval_df = df.iloc[trainval_idx]
+    #     test_df = df.iloc[test_idx]
+
+    #     # ---- 内側: train/val = 6:2 (trainvalの中で) ----
+    #     sgkf_inner = StratifiedGroupKFold(n_splits=4, shuffle=True, random_state=42)
+    #     inner_train_idx, val_idx = next(
+    #         sgkf_inner.split(trainval_df, y=trainval_df["場所"], groups=trainval_df[group_col])
+    #     )
+
+    #     train_df = trainval_df.iloc[inner_train_idx]
+    #     val_df = trainval_df.iloc[val_idx]
 
         # # 予測順位ごとの勝率
         # win_stats = train_df.groupby('pred_rank').apply(
@@ -906,7 +961,7 @@ if __name__ == '__main__':
 
         # === 4. 特徴量エンコーディング ===
 
-        feature_cols = [col for col in df.columns if col not in ['レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        feature_cols = [col for col in df.columns if col not in ['Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 
         # === 6. 特徴量エンコーディング ===
         train_df = train_df.copy()
@@ -915,7 +970,7 @@ if __name__ == '__main__':
 
         
         train_df, sire_mapping = target_encoding(train_df, '父馬', target_col)
-        with open(f'./pickle-dict/sire_dict{place}_fold{fold}.pkl', "wb") as dd:
+        with open(f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl', "wb") as dd:
                 pickle.dump(sire_mapping, dd)
 
         # val/test は train 全体の mapping を使う
@@ -943,6 +998,16 @@ if __name__ == '__main__':
         embedding_cols = feature_category + diff_category_place + diff_category_field
 
         feature_cols = [col for col in feature_cols if col not in embedding_cols and col not in common_cols]
+        # joblib.dump(feature_cols, "./pickle-dict/feature_cols.pkl")
+        # joblib.dump(embedding_cols, "./pickle-dict/embedding_cols.pkl")
+        # joblib.dump(context_num_cols, "./pickle-dict/context_num_cols.pkl")
+        # joblib.dump(context_cat_cols, "./pickle-dict/context_cat_cols.pkl")
+
+        # print(f"feature_cols: {feature_cols}")
+        # print(f"embedding_cols: {embedding_cols}")
+        # print(f"context_num_cols: {context_num_cols}")
+        # print(f"context_cat_cols: {context_cat_cols}")
+        
 
         X_train_groups, y_train_groups, cat_train_groups, context_train_num_groups, context_train_cat_groups, win_train_groups, payout_train_groups, = group_by_race(train_df)
         X_val_groups, y_val_groups, cat_val_groups, context_val_num_groups, context_val_cat_groups, win_val_groups, payout_val_groups = group_by_race(val_df)
@@ -956,8 +1021,8 @@ if __name__ == '__main__':
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
         test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-        embedding_sizes = [train_df[col].nunique() + 1 for col in embedding_cols]  # 各カテゴリ列のクラス数
-        context_embedding_sizes = [train_df[col].nunique() + 1 for col in context_cat_cols]  # 各カテゴリ列のクラス数
+        embedding_sizes = [train_df[col].nunique() + 5 for col in embedding_cols]  # 各カテゴリ列のクラス数
+        context_embedding_sizes = [train_df[col].nunique() + 5 for col in context_cat_cols]  # 各カテゴリ列のクラス数
 
         # モデル
         emb_dim = 16
@@ -966,7 +1031,7 @@ if __name__ == '__main__':
         model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-4)
         # ハイパーパラメータ
-        patience = 7  # 何エポック改善がなければ終了するか
+        patience = 20  # 何エポック改善がなければ終了するか
         best_val_loss = float('inf')
         no_improve_count = 0
         best_model_weights = None
@@ -1119,11 +1184,11 @@ if __name__ == '__main__':
         print(f"的中率: {hit_count / len(top):.2%}")
         print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-        val_df.to_csv(f'./csv/tokyo_result_ranknet2_val_{fold}.csv', index=False)
-        test_df.to_csv(f'./csv/tokyo_result_ranknet2_test_{fold}.csv', index=False)
+        val_df.to_csv(f'./csv/{field}_result_ranknet_val_{fold}.csv', index=False)
+        test_df.to_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv', index=False)
 
         # モデルを保存
-        torch.save(model.state_dict(), f'./model/tokyo_ranknet2_{fold}.pth')
+        torch.save(model.state_dict(), f'./model/{field}_ranknet_{fold}.pth')
 
 
     # ['着順' '馬番' '斤量' '騎手' '人気' '単勝オッズ' '距離' 'フィールド' '馬場' '出走頭数' '馬単' 'レースID'

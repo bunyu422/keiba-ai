@@ -64,14 +64,15 @@ def convert_to_float_if_possible(df):
     return df_converted
 
 # スクレイピング
-def scraping(csv_path):
+def scraping(csv_path, no):
+    df = pd.DataFrame()
     # ヘッダー
     headers = {'User-Agent': 'Mozilla/5.0'}
     for year in range(2012, 2025):
         for number in range(1, 6):
             for day in range(1, 13):
                 for race_no in range(1, 13):
-                    race_id = '{}06{}{}{}'.format(str(year), str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
+                    race_id = '{}{}{}{}{}'.format(str(year), no, str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
                     url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
                     url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
                     try:
@@ -178,7 +179,7 @@ def df_first_processing(df):
     dict = d.to_dict()
     df['騎手'] = pd.to_numeric(df['騎手'].map(dict), errors='coerce')
 
-    with open(f'./pickle-dict/jwin_dict{field}.pkl', "wb") as dd:
+    with open(f'./pickle-dict/jwin_dict_{field_name}.pkl', "wb") as dd:
         pickle.dump(dict, dd)
 
     # 「性齢」「馬体重（増減）」はいらないので消す
@@ -741,7 +742,8 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 2
+    field = 1
+    field_name = 'nakayama'
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
     #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
@@ -749,7 +751,7 @@ if __name__ == "__main__":
 
     # 学習済みモデルを保存するファイルネーム
     tuner_name = "tokyo"
-    file_name = 'tokyo'
+    file_name = 'nakayama'
 
     # ファイル数
     file_num = 10
@@ -789,8 +791,35 @@ if __name__ == "__main__":
     pd.set_option("display.max_columns", None)
 
     # csvファイル読み込み(スクレイピングしない場合)
+    # csv_files = [
+    #     './csv/nakayama_2012-2024.csv',
+    #     './csv/tokyo_2012-2024.csv',
+    #     './csv/kyoto_2012-2024.csv',
+    #     './csv/hanshin_2012-2024.csv',
+    #     './csv/sapporo_2012-2024.csv',
+    #     './csv/hakodate_2012-2024.csv',
+    #     './csv/hukushima_2012-2024.csv',
+    #     './csv/nigata_2012-2024.csv',
+    #     './csv/chukyo_2012-2024.csv',
+    #     './csv/kokura_2012-2024.csv'
+    # ]
+
+    # dfs = []
+    # for i, path in enumerate(csv_files, start=1):
+    #     df_fold = pd.read_csv(path, index_col=0)
+    #     df_fold['場所'] = i
+    #     dfs.append(df_fold)
+    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
+
+    # df = pd.concat(dfs, ignore_index=True)
+
+    # # 京都改修前削除
+    # df = df.drop(df[(df["場所"] == 3) & (df["レースID"].astype(int) < 202308010101)].index)
+
+
     df = pd.read_csv(csv_path, index_col=0)
-    print(df.columns)
+    df['場所'] = field
+    # print(df.columns)
 
     # 辞書作成(各コースの平均タイム)
     speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, '122001': 133.8, '125001': 153.5, '136001': 227.0,
@@ -822,7 +851,7 @@ if __name__ == "__main__":
     # 終了処理
     df_all = df_end_processing(df_all)
     # csv
-    save_csv('./csv/df_all_2.csv', df_all)
+    save_csv(f'./csv/df_all_{field_name}.csv', df_all)
     # ラベリング
     df_all = encording(df_all)
     # ラベル分割

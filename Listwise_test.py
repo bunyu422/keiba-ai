@@ -477,7 +477,7 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
     # val_df['log_odds'] = np.log(val_df['オッズ'] + 1)
     for i in range(1, 21):
         # T = 0.1 * i  # 例：温度を0.5に設定（小さいほど尖る）
-        T = 0.1
+        T = 1.0
         softmax_T = make_softmax_with_temperature(T)
 
         val_df['softmax_score'] = val_df.groupby('レースID')['pred_score'].transform(softmax_T)
@@ -567,13 +567,13 @@ if __name__ == '__main__':
     #     './csv/tokyo_result_ranknet_4.csv'
     # ]
 
-    csv_files = [
-        './csv/tokyo_result_ranknet2_test_0.csv',
-        './csv/tokyo_result_ranknet2_test_1.csv',
-        './csv/tokyo_result_ranknet2_test_2.csv',
-        './csv/tokyo_result_ranknet2_test_3.csv',
-        './csv/tokyo_result_ranknet2_test_4.csv'
-    ]
+    # csv_files = [
+    #     './csv/tokyo_result_ranknet2_test_0.csv',
+    #     './csv/tokyo_result_ranknet2_test_1.csv',
+    #     './csv/tokyo_result_ranknet2_test_2.csv',
+    #     './csv/tokyo_result_ranknet2_test_3.csv',
+    #     './csv/tokyo_result_ranknet2_test_4.csv'
+    # ]
 
     # csv_files = [
     #     './csv/tokyo_result_lambdarank_test_0.csv',
@@ -583,14 +583,14 @@ if __name__ == '__main__':
     #     './csv/tokyo_result_lambdarank_test_4.csv'
     # ]
 
-    dfs = []
-    for i, path in enumerate(csv_files):
-        df_fold = pd.read_csv(path)
-        df_fold['fold'] = i
-        dfs.append(df_fold)
-        print(f"レース数: {len(df_fold['レースID'].unique())}")
+    # dfs = []
+    # for i, path in enumerate(csv_files):
+    #     df_fold = pd.read_csv(path)
+    #     df_fold['fold'] = i
+    #     dfs.append(df_fold)
+    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
 
-    df = pd.concat(dfs, ignore_index=True)
+    # df = pd.concat(dfs, ignore_index=True)
     # print(df.head(20))
 
     # csv_files = [
@@ -609,14 +609,22 @@ if __name__ == '__main__':
     #     './csv/tokyo_result_ranknet_val_4.csv'
     # ]
 
-    # dfs = []
-    # for i, path in enumerate(csv_files):
-    #     df_fold = pd.read_csv(path)
-    #     df_fold['fold'] = i
-    #     dfs.append(df_fold)
-    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
+    csv_files = [
+        './csv/nakayama_result_ranknet_test_0.csv',
+        './csv/nakayama_result_ranknet_test_1.csv',
+        './csv/nakayama_result_ranknet_test_2.csv',
+        './csv/nakayama_result_ranknet_test_3.csv',
+        './csv/nakayama_result_ranknet_test_4.csv'
+    ]
 
-    # df_val = pd.concat(dfs, ignore_index=True)
+    dfs = []
+    for i, path in enumerate(csv_files):
+        df_fold = pd.read_csv(path)
+        df_fold['fold'] = i
+        dfs.append(df_fold)
+        print(f"レース数: {len(df_fold['レースID'].unique())}")
+
+    df = pd.concat(dfs, ignore_index=True)
     # df_val = df_val.copy()
     # df_val['is_win'] = (df_val['着順'] == 1).astype(int)
 
@@ -625,7 +633,7 @@ if __name__ == '__main__':
     # print(params_df)   # foldごとの選ばれたパラメータ
 
 
-    # df = pd.read_csv('./csv/tokyo_result_ranknet_0.csv')  # または val データ専用ファイルを読み込む
+    # df = pd.read_csv('./csv/all_result_ranknet_test_0.csv')  # または val データ専用ファイルを読み込む
     # # レース数出力
     # print(f"レース数: {len(df['レースID'].unique())}")
     
