@@ -30,7 +30,6 @@ n_splits = 5
 num_epochs = 1000
 batch_size = 1  # 1レースずつ処理
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-place = '1'
 
 common_cols = ['距離', 'フィールド', '馬場', '場所', '出走頭数', '平均クラス', '平均ペース']
 
@@ -95,10 +94,16 @@ diff_category_field = ['1フィールド変化', '2フィールド変化', '3フ
 embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
-csv_path = './csv/df_all_nakayama.csv'
+###########################モデルごとに変更が必要############################
+csv_path = './csv/df_all_tokyo.csv'
+field = 'tokyo'
+###########################################################################
+
 df = evaluation.load_csv(csv_path)
-# print(df.columns.values)
-# print(df.head(10))
+group_col = 'レースID'
+target_col = 'smooth_rel'
+feature_cols = []
+df['is_win'] = (df['着順'] == 1).astype(int)
 
 def append_col(df):
     df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
@@ -225,7 +230,7 @@ def inversion(df):
 # df['pred_rank'] = df.groupby('レースID')['score'].rank(method='first', ascending=False)
 
 # 2. 実着順が1着（勝利）かどうかのフラグを作成（仮に '着順' カラムがあると仮定）
-df['is_win'] = (df['着順'] == 1).astype(int)
+
 
 # 3. 予測順位ごとに勝率を集計
 # 出走頭数ビン
@@ -852,11 +857,6 @@ def embedding_init():
     emb = feature_category + diff_category_place + diff_category_field
     return emb
 
-group_col = 'レースID'
-target_col = 'smooth_rel'
-field = 'nakayama'
-feature_cols = []
-
 
 if __name__ == '__main__':
 
@@ -971,7 +971,7 @@ if __name__ == '__main__':
         
         train_df, sire_mapping = target_encoding(train_df, '父馬', target_col)
         with open(f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl', "wb") as dd:
-                pickle.dump(sire_mapping, dd)
+            pickle.dump(sire_mapping, dd)
 
         # val/test は train 全体の mapping を使う
         val_df['父馬_te'] = val_df['父馬'].map(sire_mapping).fillna(-1)
@@ -998,6 +998,12 @@ if __name__ == '__main__':
         embedding_cols = feature_category + diff_category_place + diff_category_field
 
         feature_cols = [col for col in feature_cols if col not in embedding_cols and col not in common_cols]
+        
+        feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+        embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+        context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+        context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
         # joblib.dump(feature_cols, "./pickle-dict/feature_cols.pkl")
         # joblib.dump(embedding_cols, "./pickle-dict/embedding_cols.pkl")
         # joblib.dump(context_num_cols, "./pickle-dict/context_num_cols.pkl")

@@ -610,11 +610,11 @@ if __name__ == '__main__':
     # ]
 
     csv_files = [
-        './csv/nakayama_result_ranknet_test_0.csv',
-        './csv/nakayama_result_ranknet_test_1.csv',
-        './csv/nakayama_result_ranknet_test_2.csv',
-        './csv/nakayama_result_ranknet_test_3.csv',
-        './csv/nakayama_result_ranknet_test_4.csv'
+        './csv/tokyo_result_ranknet_test_0.csv',
+        './csv/tokyo_result_ranknet_test_1.csv',
+        './csv/tokyo_result_ranknet_test_2.csv',
+        './csv/tokyo_result_ranknet_test_3.csv',
+        './csv/tokyo_result_ranknet_test_4.csv'
     ]
 
     dfs = []
