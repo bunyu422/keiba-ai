@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 import time
 import schedule
+import Listwise_func
 import function
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
@@ -54,25 +55,28 @@ def job(n1,n2,n3):#n1は競馬場を文字列型で上のリストから選ん�
     buyList = None
     
     if n1 == '中京':
-        buyList = function.chukyo(n3, odds)
+        pass
 
     elif n1 == '中山':
-        buyList = function.nakayama(n3, odds)
+        buyList = Listwise_func.nakayama(n3, odds)
 
     elif n1 == '東京':
-        buyList = function.tokyo(n3, odds)
+        buyList = Listwise_func.tokyo(n3, odds)
     
     elif n1 == '京都':
-        buyList = function.kyoto(n3, odds)
+        pass
+
+    elif n1 == '阪神':
+        buyList = Listwise_func.hanshin(n3, odds)
 
     elif n1 == '新潟':
-        buyList = function.nigata(n3, odds)
+        pass
     
     elif n1 == '福島':
-        buyList = function.hukushima(n3, odds)
+        pass
     
     elif n1 == '小倉':
-        buyList = function.kokura(n3, odds)
+        pass
 
 
     if buyList is None:
@@ -186,16 +190,26 @@ def set_info(url_race, id_list):
 
             print(location)
 
+        # RaceList_DataList を全て取得
+        blocks = driver.find_elements(By.CLASS_NAME, "RaceList_DataList")
 
+        for num, block in enumerate(blocks):
+            # 各ブロック内の RaceList_DataTitle を取得
+            titles = block.find_elements(By.CLASS_NAME, "ItemTitle")
+            
+            for race_num, title in enumerate(titles, start=1):
+                text = title.text.strip()  # 要素のテキストを取得
+                if "新馬" not in text:
+                    race_id.append(f'{id_list[num]}{str(race_num).zfill(2)}')
 
         # tableを取得(js反映)
         el=driver.find_elements(By.CLASS_NAME, "ItemTitle") #classでテーブルを指定
 
-        for num, i in enumerate(el):
+        for num, i in enumerate(el, start=1):
             text = i.text.strip()  # 要素のテキストを取得
             if "新馬" not in text:
                 # 「新馬」が含まれていない要素だけ処理
-                print("対象:", text)
+                # print("対象:", text)
                 # ここに処理を書く
                 dict_race.append(num)
                 # tableを取得(js反映)
@@ -209,11 +223,11 @@ def set_info(url_race, id_list):
         for num, i in enumerate(locations, start=1):
             for k in range(sum(1 for x in dict_race if x <= 12*num and x > 12*(num-1))):
                 place_list.append(i)
-                race_id.append(f'{i}{str(k+1).zfill(2)}')
 
         race_l = []
         for i in dict_race:
-            race_l.append(i % 12 + 1)
+            race_l.append((i-1) % 12 + 1)
+        
     
     return time_list, place_list, race_l, race_id
 
@@ -266,10 +280,11 @@ driver.get(url)
 # schedule.every().day.at(startTime).do(job1)
 
 # 購入レース指定
-id_list = [2025060202,2025090102,2025100112]
-url_race = 'https://race.netkeiba.com/top/race_list.html?kaisai_date=20250302'
+id_list = [2025060401,2025090401,2025010205]
+url_race = 'https://race.netkeiba.com/top/race_list.html?kaisai_date=20250906'
 
-timeList, keibajouList, RList, race_id = set_info(url_race)
+timeList, keibajouList, RList, race_id = set_info(url_race, id_list)
+print(timeList, keibajouList, RList, race_id)
 
 for n in range(len(timeList)):
     schedule.every().day.at(timeList[n]).do(job,n1=keibajouList[n],n2=RList[n],n3=race_id[n])
@@ -287,8 +302,8 @@ while isWorking:
         time.sleep(60)#何秒ごとに処理を実行するかを入力
     except Exception as e:
         driver.save_screenshot(f'./{ datetime.datetime.now()}.png')
-        exit()
+        # exit()
         # logging.exception("What is doing when exception happens.")
         # with open('log.txt', 'a') as o:
         #     print(logging.exception("What is doing when exception happens."), file=o)
-        # job1()
+        job1()

@@ -27,14 +27,17 @@ def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col=
 
     df['softmax_score'] = df.groupby('レースID')['pred_score'].transform(softmax_T)
     df['expected_value'] = df['softmax_score'] * df['オッズ']
+    
 
     # df["expected_value"] = df[p_col] * df[odds_col]
     # EV最大のindexを取る（同値があると複数返ることがあるので最後に重複排除）
     idx = df.groupby(race_col)["expected_value"].idxmax()
     sel = df.loc[idx].copy()
+    
     # 念のため race 重複排除（理論上不要だが安全策）
     sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
     sel = sel.drop_duplicates(subset=[race_col], keep="first")
+    
     return sel
 
 def pick_score_max_per_race(df, race_col="レースID", T=0.1):
@@ -610,11 +613,11 @@ if __name__ == '__main__':
     # ]
 
     csv_files = [
-        './csv/tokyo_result_ranknet_test_0.csv',
-        './csv/tokyo_result_ranknet_test_1.csv',
-        './csv/tokyo_result_ranknet_test_2.csv',
-        './csv/tokyo_result_ranknet_test_3.csv',
-        './csv/tokyo_result_ranknet_test_4.csv'
+        './csv/hanshin_result_ranknet_test_0.csv',
+        './csv/hanshin_result_ranknet_test_1.csv',
+        './csv/hanshin_result_ranknet_test_2.csv',
+        './csv/hanshin_result_ranknet_test_3.csv',
+        './csv/hanshin_result_ranknet_test_4.csv'
     ]
 
     dfs = []

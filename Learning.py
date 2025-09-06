@@ -121,7 +121,10 @@ def return_pickle(file_path):
     return mapping
 
 # データの初期加工
-def df_first_processing(df, basyo, type='推論'):
+def df_first_processing(df, name, type='推論'):
+    horse_path = f"./pickle-dict/horse_jra_{name}.pkl" # 父馬のマッピング用辞書のパス
+    jockey_path = f"./pickle-dict/jockey_jra_{name}.pkl" # 騎手のマッピング用辞書のパス
+
     df = df.copy()
     # 新たなカラムを作成
     df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
@@ -181,27 +184,14 @@ def df_first_processing(df, basyo, type='推論'):
         dict = d.to_dict()
         df['騎手'] = pd.to_numeric(df['騎手'].map(dict), errors='coerce')
 
-        with open(f'./pickle-dict/jwin_dict_{field_name}.pkl', "wb") as dd:
+        with open(f'./pickle-dict/jwin_dict_{name}.pkl', "wb") as dd:
             pickle.dump(dict, dd)
     else:
-        jockey_mapping = create_unique_pickle(df['騎手'], jockey_path)
+        jockey_mapping = return_pickle(jockey_path)
         df['騎手'] = df['騎手'].map(jockey_mapping)
 
-        df['勝率'] = 0
-        df['勝率'] = df['勝率'].mask(pd.to_numeric(df['着順'], errors='coerce') == 1, 1)
-
-        d = df.groupby('騎手')['勝率'].mean()
-        dict = d.to_dict()
-        df['騎手'] = pd.to_numeric(df['騎手'].map(dict), errors='coerce')
-
-        with open(f'./pickle-dict/jwin_dict_{field_name}.pkl', "wb") as dd:
-            pickle.dump(dict, dd)
-
-        # jockey_mapping = return_pickle(jockey_path)
-        # df['騎手'] = df['騎手'].map(jockey_mapping)
-
-        # j_win = return_pickle(f'./pickle-dict/jwin_dict_{basyo}.pkl')
-        # df['騎手'] = df['騎手'].map(j_win)
+        j_win = return_pickle(f'./pickle-dict/jwin_dict_{name}.pkl')
+        df['騎手'] = df['騎手'].map(j_win)
 
     
 
@@ -213,7 +203,9 @@ def df_first_processing(df, basyo, type='推論'):
     return df
 
 # 前走~5走前のデータを処理
-def df_big_past_processing(df):
+def df_big_past_processing(df, name, field_num):
+    jockey_path = f"./pickle-dict/jockey_jra_{name}.pkl" # 騎手のマッピング用辞書のパス
+
     df_all = df.copy()
     # 騎手の辞書を読み込み
     jockey_mapping = return_pickle(jockey_path)
@@ -284,7 +276,7 @@ def df_big_past_processing(df):
 
         # print(df_split[sou+'場所'].dtype, df_split[sou+'距離'].dtype, df_split[sou+'フィールド'].dtype, df['フィールド'].dtype, df['距離'].dtype)
         df_split[sou+'距離差'] = df['距離'].astype(float) - df_split[sou+'距離'].astype(float)
-        df_split[sou+'場所変化'] = df_split[sou+'場所'] - field
+        df_split[sou+'場所変化'] = df_split[sou+'場所'] - field_num
         df_split[sou+'フィールド変化'] = df_split[sou+'フィールド'] - df['フィールド']
 
         # 不要なカラムを削除
@@ -301,23 +293,30 @@ def df_big_past_processing(df):
     return df_all
 
 # 過去走の平均クラスと平均ペースを算出
-def past_level(df_all):
+def past_level(df_all, type='推論'):
     df_all = df_all.copy()
-    # クエリListを作成
-    id_count = df_all['レースID'].value_counts(sort=False)
-    n_list = id_count.values.tolist()
+    if type != '推論':
+        # クエリListを作成
+        id_count = df_all['レースID'].value_counts(sort=False)
+        n_list = id_count.values.tolist()
 
-    n_list = n_list[:-1]
-    n = 0
-    df_all['平均クラス'] = np.nan
-    df_all['平均ペース'] = np.nan
-    for i in n_list:
-        n += i
-        df_all.iloc[n-i:n, df_all.columns.get_loc('平均クラス')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1クラス')].mean().astype(int)
-        df_all.iloc[n-i:n, df_all.columns.get_loc('平均ペース')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1コーナー通過順')].mean()
+        n_list = n_list[:-1]
+        n = 0
+        df_all['平均クラス'] = np.nan
+        df_all['平均ペース'] = np.nan
+        for i in n_list:
+            n += i
+            df_all.iloc[n-i:n, df_all.columns.get_loc('平均クラス')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1クラス')].mean().astype(int)
+            df_all.iloc[n-i:n, df_all.columns.get_loc('平均ペース')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1コーナー通過順')].mean()
 
-    df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
-    df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
+        df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
+        df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
+    else:
+        df_all['平均クラス'] = df_all['1クラス'].mean().astype(int)
+        df_all['平均ペース'] = df_all['1コーナー通過順'].mean()
+
+        df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
+        df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
 
     return df_all
 
@@ -340,11 +339,12 @@ def encording(df_all):
     return df_all
 
 # 終盤のデータ加工
-def df_end_processing(df_all):
+def df_end_processing(df_all, type='推論'):
     df_all = df_all.copy()
-    # 着順から文字列を排除
-    indexNames = df_all[(df_all['着順'] != '中止') & (df_all['着順'] != '除外') & (df_all['着順'] != '取消') & (df_all['着順'] != '失格') & (df_all['着順'] != '未定')]
-    df_all = indexNames
+    if type != '推論':
+        # 着順から文字列を排除
+        indexNames = df_all[(df_all['着順'] != '中止') & (df_all['着順'] != '除外') & (df_all['着順'] != '取消') & (df_all['着順'] != '失格') & (df_all['着順'] != '未定')]
+        df_all = indexNames
 
     # 着差とスピード指数のbest, avカラム作成
     df_all['best着差'] = df_all.loc[:, ['1着差', '2着差', '3着差', '4着差', '5着差']].astype(float).min(axis=1)
@@ -355,7 +355,7 @@ def df_end_processing(df_all):
 
     df_all = df_all.drop(['前走', '2走', '3走', '4走', '5走', 'レース名', '勝率'], axis=1, errors='ignore')
 
-    print(df_all.isnull().sum())
+    # print(df_all.isnull().sum())
 
     # 空白削除
     for i in df_all.columns:
@@ -375,16 +375,17 @@ def df_end_processing(df_all):
     df_all = df_all[~df_all.apply(lambda s: s.str.contains('00000'), axis=1).any(axis=1)]  # エラー検出文字を入れた行以外を抽出
     # df_all = df_all.astype(float)
 
-    # 1着のみ単勝オッズを保有
-    df_all['オッズ'] = df_all['単勝オッズ']
-    df_all['単勝オッズ'] = df_all['単勝オッズ'].where(df_all['着順'].astype(int) == 1, 0)
-    df_all['単勝オッズ'] = df_all['単勝オッズ'] * 100
+    if type != '推論':
+        # 1着のみ単勝オッズを保有
+        df_all['オッズ'] = df_all['単勝オッズ']
+        df_all['単勝オッズ'] = df_all['単勝オッズ'].where(df_all['着順'].astype(int) == 1, 0)
+        df_all['単勝オッズ'] = df_all['単勝オッズ'] * 100
 
-    df_all['rank'] = df_all['単勝オッズ']
+        df_all['rank'] = df_all['単勝オッズ']
 
-    # レース内の順序をシャッフル
-    df_all = df_all.sample(frac=1)
-    df_all = df_all.sort_values(['レースID'], ascending=True)
+        # レース内の順序をシャッフル
+        df_all = df_all.sample(frac=1)
+        df_all = df_all.sort_values(['レースID'], ascending=True)
 
     # 型変換
     df_all = convert_to_float_if_possible(df_all)
@@ -755,9 +756,6 @@ def test(test_list, result, file_num):
     print(f"平均回収率: {mean_return:.2%} ± {std_return:.2%}")
     
 
-horse_path = "./pickle-dict/horse_jra.pkl" # 父馬のマッピング用辞書のパス
-femal_horse_path = "./pickle-dict/femal_horse_jra.pkl" # 母父馬のマッピング用辞書のバス
-jockey_path = "./pickle-dict/jockey_jra.pkl" # 騎手のマッピング用辞書のパス
 
 nagoya_mapping = {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
                         '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
@@ -796,30 +794,13 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 1
-    field_name = 'tokyo'
+    field = 4
+    field_name = 'hanshin'
+    csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
     #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
     #  '名古屋': 21, '園田': 22, '姫路': 23, '高知': 24, '佐賀': 25}
-
-    # 学習済みモデルを保存するファイルネーム
-    tuner_name = "tokyo"
-    file_name = 'tokyo'
-
-    # ファイル数
-    file_num = 10
-
-    # ファイルパス
-    csv_path = f"./csv/{file_name}_2012-2024.csv" # 学習に使うcsvデータのパス
-    tuner_path = f"./pickle-tuner/{tuner_name}test_" # 学習済みモデルを保存する場所
-
-    # 目的変数作成
-
-    # f_ranking = {1: 10, 2: 5, 3: 3, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0,
-    #             '1': 10, '2': 5, '3': 3, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0, '15': 0, '16': 0, '17': 0, '18': 0}
-
-    
 
     # データフレーム生成
     df = pd.DataFrame()
@@ -870,9 +851,9 @@ if __name__ == "__main__":
     #############################################ここから処理開始###############################################################
     
     # 今走の処理
-    df = df_first_processing(df, 'tokyo', type='推論')
+    df = df_first_processing(df, field_name, type='a')
     # 過去走の処理
-    df_all = df_big_past_processing(df)
+    df_all = df_big_past_processing(df, field_name)
     # 過去のレベル
     df_all = past_level(df_all)
     # 終了処理

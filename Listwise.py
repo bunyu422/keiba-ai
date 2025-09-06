@@ -95,8 +95,8 @@ embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
 ###########################モデルごとに変更が必要############################
-csv_path = './csv/df_all_tokyo.csv'
-field = 'tokyo'
+csv_path = './csv/df_all_hanshin.csv'
+field = 'hanshin'
 ###########################################################################
 
 df = evaluation.load_csv(csv_path)
@@ -324,6 +324,8 @@ class RaceDataset(Dataset):
 class ListNet(nn.Module):
     def __init__(self, embedding_sizes, num_features, context_embedding_sizes, context_num_sizes, emb_dim=16, hidden_dim=64):
         super().__init__()
+        self.embedding_sizes = embedding_sizes                  # ← 追加
+        self.context_embedding_sizes = context_embedding_sizes  # ← 追加
         self.embeddings = nn.ModuleList([
             nn.Embedding(num_classes, emb_dim) for num_classes in embedding_sizes
         ])
