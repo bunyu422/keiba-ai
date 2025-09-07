@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 import time
 import schedule
+import betting
 import function
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
@@ -63,6 +64,36 @@ def set_time(skip_list, url_race):
 
     # ブラウザを起動する
     with webdriver.Chrome(options=options) as driver:
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        import re
+        driver.get(url_race)
+
+        # ページ全体が読み込まれるのを待つ（例: RaceList_DataList が出るまで最大10秒）
+        blocks = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "RaceList_DataList"))
+        )
+
+        base_race_ids = []
+
+        for block in blocks:
+            li_items = block.find_elements(By.CSS_SELECTOR, "li.RaceList_DataItem.hasMovieLink")
+            if not li_items:
+                continue
+
+            first_li = li_items[0]
+            a_tag = first_li.find_element(By.TAG_NAME, "a")
+            href = a_tag.get_attribute("href")
+
+            match = re.search(r"race_id=(\d+)", href)
+            if match:
+                race_id = match.group(1)
+                base_id = race_id[:-2]  # 末尾2桁を除く
+                base_race_ids.append(base_id)
+
+        print(base_race_ids)
+
         locations = []
         place_list = []
         # ブラウザでアクセスする
@@ -113,7 +144,8 @@ def set_time(skip_list, url_race):
     print(time_list)
     print(place_list)
     
-set_time([], url)
+# set_time([], url)
+print(betting.set_info())
 
 # Learning.scraping('./csv/sapporo_2012-2024.csv', '01')
 # Learning.scraping('./csv/hakodate_2012-2024.csv', '02')

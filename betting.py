@@ -1,3 +1,5 @@
+import re
+import traceback
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.alert import Alert
@@ -15,101 +17,92 @@ from datetime import timedelta
 import logging
 import datetime
 
+
+# ---- 共通関数 ----
+def wait_and_click(by, value, timeout=15):
+    el = WebDriverWait(driver, timeout).until(
+        EC.element_to_be_clickable((by, value))
+    )
+    el.click()
+    return el
+
+def wait_and_type(by, value, text, timeout=15):
+    el = WebDriverWait(driver, timeout).until(
+        EC.presence_of_element_located((by, value))
+    )
+    el.clear()
+    el.send_keys(text)
+    return el
+
+def wait_alert_and_accept(timeout=15):
+    WebDriverWait(driver, timeout).until(EC.alert_is_present())
+    Alert(driver).accept()
+
+# ---- job1 を短く ----
 def job1():
     driver.get(url)
-    # driver.maximize_window()
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    driver.find_element(By.ID,"userid").send_keys("51216084")
-    driver.find_element(By.ID,"password").send_keys("3156")
-    driver.find_element(By.ID,"pars").send_keys("1343")
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    driver.find_element(By.CLASS_NAME, 'btnColor').click()
+
+    wait_and_type(By.ID, "userid", "51216084")
+    wait_and_type(By.ID, "password", "3156")
+    wait_and_type(By.ID, "pars", "1343")
+
+    wait_and_click(By.CLASS_NAME, "btnColor")
+
     try:
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'OK').click()
+        wait_and_click(By.LINK_TEXT, "OK")
     except:
         pass
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    driver.find_element(By.CLASS_NAME, 'ico_regular').click()#通常投票
 
-#["札幌","函館","福島","新潟","東京","中山","中京","京都","阪神","小倉"]
-def job(n1,n2,n3):#n1は競馬場を文字列型で上のリストから選んで入力、n2は何レースを買うか
-    driver.find_element(By.PARTIAL_LINK_TEXT,n1).click()#競馬場
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    driver.find_element(By.PARTIAL_LINK_TEXT,str(n2)+'R').click()#何Rか
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    driver.find_element(By.PARTIAL_LINK_TEXT,'単勝').click()
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    b=driver.find_element(By.CLASS_NAME,'selectHorse').find_elements(By.CLASS_NAME,'ui-link')
-    WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-    horseName=[]#馬名
-    odds=[]#オッズ
+    wait_and_click(By.CLASS_NAME, "ico_regular")  # 通常投票
+
+# ---- job ----
+def job(n1, n2, n3):
+    wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
+    wait_and_click(By.PARTIAL_LINK_TEXT, f"{n2}R") # レース
+    wait_and_click(By.PARTIAL_LINK_TEXT, "単勝")
+
+    b = driver.find_element(By.CLASS_NAME, "selectHorse").find_elements(By.CLASS_NAME, "ui-link")
+
+    horseName, odds = [], []
     for n in range(len(b)):
-        x=b[n].text.split('\n')
+        x = b[n].text.split("\n")
         horseName.append(x[1])
-        if x[2]!='取消' and x[2]!='--':
-            odds.append(float(x[2]))
-        else:
-            odds.append('--')
+        odds.append(float(x[2]) if x[2] not in ["取消", "--"] else "--")
 
+    # どの会場用の関数を使うか
     buyList = None
-    
-    if n1 == '中京':
-        pass
+    if n1 == "中山":
+        field = "nakayama"
+    elif n1 == "東京":
+        field = "tokyo"
+    elif n1 == "阪神":
+        field = "hanshin"
 
-    elif n1 == '中山':
-        buyList = Listwise_func.nakayama(n3, odds)
-
-    elif n1 == '東京':
-        buyList = Listwise_func.tokyo(n3, odds)
-    
-    elif n1 == '京都':
-        pass
-
-    elif n1 == '阪神':
-        buyList = Listwise_func.hanshin(n3, odds)
-
-    elif n1 == '新潟':
-        pass
-    
-    elif n1 == '福島':
-        pass
-    
-    elif n1 == '小倉':
-        pass
-
+    # 馬を選択
+    buyList = Listwise_func.select_horse(n3, field, odds)
 
     if buyList is None:
-        print(n1+str(n2)+'R'+"は購入しない")
-        driver.find_element(By.LINK_TEXT, '式別').click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT, 'レース').click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'競馬場名').click()#通常投票画面に返る
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
+        print(f"{n1}{n2}R は購入しない")
+        wait_and_click(By.LINK_TEXT, "式別")
+        wait_and_click(By.LINK_TEXT, "レース")
+        wait_and_click(By.LINK_TEXT, "競馬場名")
     else:
         umaban = buyList
-        print(n1 + str(n2) + 'R '+str(umaban) + "番、オッズ" + str(odds[umaban-1]))
-        driver.find_element(By.CLASS_NAME,'selectHorse').find_elements(By.CLASS_NAME,'ui-link')[umaban-1].click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.CLASS_NAME, 'ui-input-text').send_keys("1")
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'セット').click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.PARTIAL_LINK_TEXT,'番から').click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'取消').click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'入力終了').click()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.ID,'sum').send_keys(str(100))
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'投票').click()
-        WebDriverWait(driver, 15).until(EC.alert_is_present())
-        # time.sleep(4)
-        Alert(driver).accept()
-        WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located)
-        driver.find_element(By.LINK_TEXT,'続けて通常投票').click()#通常投票画面に返る
+        print(f"{n1}{n2}R {umaban}番、オッズ {odds[umaban-1]}")
+
+        driver.find_element(By.CLASS_NAME, "selectHorse").find_elements(By.CLASS_NAME, "ui-link")[umaban-1].click()
+
+        wait_and_type(By.CLASS_NAME, "ui-input-text", "1")
+        wait_and_click(By.LINK_TEXT, "セット")
+        wait_and_click(By.PARTIAL_LINK_TEXT, "番から")
+        wait_and_click(By.LINK_TEXT, "取消")
+        wait_and_click(By.LINK_TEXT, "入力終了")
+        wait_and_type(By.ID, "sum", "100")
+        wait_and_click(By.LINK_TEXT, "投票")
+
+        wait_alert_and_accept()  # 投票確認アラート
+
+        wait_and_click(By.LINK_TEXT, "続けて通常投票")
 
 def quitDriver():
     driver.quit()
@@ -161,7 +154,7 @@ def set_id(id_list, skip_list):
         count+=1
     return race_id
             
-def set_info(url_race, id_list):
+def set_info():
     time_list = []
     dict_race = []
 
@@ -170,6 +163,12 @@ def set_info(url_race, id_list):
         locations = []
         place_list = []
         race_id = []
+
+        # 当日の日付を YYYYMMDD 形式に
+        today_str = datetime.datetime.today().strftime('%Y%m%d')
+
+        # レース一覧ページ
+        url_race = f'https://race.netkeiba.com/top/race_list.html?kaisai_date={today_str}'
         # ブラウザでアクセスする
         driver.get(url_race)
 
@@ -190,17 +189,34 @@ def set_info(url_race, id_list):
 
             print(location)
 
-        # RaceList_DataList を全て取得
-        blocks = driver.find_elements(By.CLASS_NAME, "RaceList_DataList")
+        # ページ全体が読み込まれるのを待つ（例: RaceList_DataList が出るまで最大10秒）
+        blocks = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "RaceList_DataList"))
+        )
 
         for num, block in enumerate(blocks):
+            # 各ブロック内の RaceList_DataItem を取得
+            li_items = block.find_elements(By.CSS_SELECTOR, "li.RaceList_DataItem.hasMovieLink")
+            if not li_items:
+                continue
+
+            # 最初の RaceList_DataItem を取得
+            first_li = li_items[0]
+            a_tag = first_li.find_element(By.TAG_NAME, "a")
+            href = a_tag.get_attribute("href")
+
+            # race_id を取得
+            match = re.search(r"race_id=(\d+)", href)
+            if match:
+                base_id = match.group(1)[:-2]  # 末尾2桁を除く
+
             # 各ブロック内の RaceList_DataTitle を取得
             titles = block.find_elements(By.CLASS_NAME, "ItemTitle")
             
             for race_num, title in enumerate(titles, start=1):
                 text = title.text.strip()  # 要素のテキストを取得
                 if "新馬" not in text:
-                    race_id.append(f'{id_list[num]}{str(race_num).zfill(2)}')
+                    race_id.append(f'{base_id}{str(race_num).zfill(2)}')
 
         # tableを取得(js反映)
         el=driver.find_elements(By.CLASS_NAME, "ItemTitle") #classでテーブルを指定
@@ -228,13 +244,30 @@ def set_info(url_race, id_list):
         for i in dict_race:
             race_l.append((i-1) % 12 + 1)
         
-    
     return time_list, place_list, race_l, race_id
+
+def job_with_retry(n1, n2, n3, retry=True):
+    try:
+        job(n1, n2, n3)  # 本来の購入処理
+    except Exception as e:
+        print(f"{n1}{n2}R でエラー発生: {e}")
+        if retry:
+            print("→ 1回だけリトライします")
+            try:
+                job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
+            except Exception as e2:
+                print(f"{n1}{n2}R リトライでも失敗: {e2}")
+                driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}_retry.png')
+                with open('log.txt', 'a', encoding='utf-8') as f:
+                    f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
+        else:
+            driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+            with open('log.txt', 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
 
 
 # ブラウザ立ち上げ
 options = Options()
-# options = webdriver.FirefoxOptions()
 options.add_argument("--headless")#ヘッドレスの切替
 options.add_argument("--blink-settings=imagesEnabled=false")                                 # 画像を非表示にする。
 options.add_argument("--disable-background-networking")                                      # 拡張機能の更新、セーフブラウジングサービス、アップグレード検出、翻訳、UMAを含む様々なバックグラウンドネットワークサービスを無効にする。
@@ -242,68 +275,46 @@ options.add_argument("--disable-blink-features=AutomationControlled")           
 options.add_argument("--disable-default-apps")                                               # デフォルトアプリのインストールを無効にする。
 options.add_argument("--disable-dev-shm-usage")                                              # ディスクのメモリスペースを使う。DockerやGcloudのメモリ対策でよく使われる。
 options.add_argument("--disable-extensions")                                                 # 拡張機能をすべて無効にする。
-# options.add_argument("--disable-features=DownloadBubble")                                    # ダウンロードが完了したときの通知を吹き出しから下部表示(従来の挙動)にする。
-# options.add_argument('--disable-features=DownloadBubbleV2')                                  # `--incognito`を使うとき、ダイアログ(名前を付けて保存)を非表示にする。
 options.add_argument("--disable-features=Translate")                                         # Chromeの翻訳を無効にする。右クリック・アドレスバーから翻訳の項目が消える。
 options.add_argument("--disable-popup-blocking")                                             # ポップアップブロックを無効にする。
-# options.add_argument("--headless=new")                                                       # ヘッドレスモードで起動する。
 options.add_argument("--hide-scrollbars")                                                    # スクロールバーを隠す。
 options.add_argument("--ignore-certificate-errors")                                          # SSL認証(この接続ではプライバシーが保護されません)を無効
-# options.add_argument("--incognito")                                                          # シークレットモードで起動する。
 options.add_argument("--mute-audio")                                                         # すべてのオーディオをミュートする。
 options.add_argument("--no-default-browser-check")                                           # アドレスバー下に表示される「既定のブラウザとして設定」を無効にする。
 options.add_argument("--propagate-iph-for-testing")                                          # Chromeに表示される青いヒント(？)を非表示にする。
 options.add_argument("--start-maximized")                                                    # ウィンドウの初期サイズを最大化。--window-position, --window-sizeの2つとは併用不可
-# options.add_argument("--test-type=gpu")                                                      # アドレスバー下に表示される「Chrome for Testing~~」を非表示にする。
-# options.add_argument("--window-position=100,100")                                            # ウィンドウの初期位置を指定する。--start-maximizedとは併用不可
-# options.add_argument("--window-size=1600,1024")                                              # ウィンドウの初期サイズを設定する。--start-maximizedとは併用不可
-# options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])  # Chromeは自動テスト ソフトウェア~~ ｜ コンソールに表示されるエラー　を非表示
-# options.set_capability("browserVersion", "117")                                              # `--headless=new`を使うとき、コンソールに表示されるエラーを非表示にするための必須オプション
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
+options.add_argument("--log-level=3")
+options.add_argument("--disable-gcm")
 
-# service = Service()
-# options.add_argument("--blink-settings=imagesEnabled=false")
-# options.add_argument("--window-size=1920,1080")  # ウィンドウサイズを指定
-# chrome_service = fs.Service(executable_path='/Users/XXXXXXXXX/Documents/Python/Driver/chromedriver')
-
-# options.add_argument("-headless")
-# driver = webdriver.Firefox(options=options)
 driver = webdriver.Chrome(options=options)
 driver.implicitly_wait(10)
-# wait = WebDriverWait(driver, 10)
-url="https://www.ipat.jra.go.jp/sp/"
-# url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=20240922"
-driver.get(url)
-# driver.save_screenshot("C:/Users/zazak/Downloads/sample.png")
 
-# ログイン時間指定
-# startTime="12:02"#何時にログインするか入力、9時5分は"09:05"のように入力
-# schedule.every().day.at(startTime).do(job1)
+if __name__ == "__main__":
+    url="https://www.ipat.jra.go.jp/sp/"
+    driver.get(url)
 
-# 購入レース指定
-id_list = [2025060401,2025090401,2025010205]
-url_race = 'https://race.netkeiba.com/top/race_list.html?kaisai_date=20250906'
+    timeList, keibajouList, RList, race_id = set_info()
+    print(timeList, keibajouList, RList, race_id)
 
-timeList, keibajouList, RList, race_id = set_info(url_race, id_list)
-print(timeList, keibajouList, RList, race_id)
+    for n in range(len(timeList)):
+        schedule.every().day.at(timeList[n]).do(job_with_retry, n1=keibajouList[n], n2=RList[n], n3=race_id[n])
 
-for n in range(len(timeList)):
-    schedule.every().day.at(timeList[n]).do(job,n1=keibajouList[n],n2=RList[n],n3=race_id[n])
+    # 終了時間指定
+    quitTime = "16:37"#終了時間を入力
+    schedule.every().day.at(quitTime).do(quitDriver)
 
-# 終了時間指定
-quitTime = "16:37"#終了時間を入力
-schedule.every().day.at(quitTime).do(quitDriver)
+    # スケジュール開始
+    isWorking = True
+    job1()
+    while isWorking:
+        try:
+            schedule.run_pending()
+            time.sleep(30)  # ポーリング間隔を30秒でも十分
+        except Exception:
+            driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+            with open('log.txt', 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
 
-# スケジュール開始
-isWorking = True
-job1()
-while isWorking:
-    try:
-        schedule.run_pending()
-        time.sleep(60)#何秒ごとに処理を実行するかを入力
-    except Exception as e:
-        driver.save_screenshot(f'./{ datetime.datetime.now()}.png')
-        # exit()
-        # logging.exception("What is doing when exception happens.")
-        # with open('log.txt', 'a') as o:
-        #     print(logging.exception("What is doing when exception happens."), file=o)
-        job1()
+    # ループが抜けたら安全に終了
+    driver.quit()

@@ -26,6 +26,15 @@ pd.set_option('display.max_columns', None)
 # GPU が使えるなら GPU に配置
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# ----------------------------
+# 競馬場別パラメータ設定
+# ----------------------------
+race_params = {
+    "hanshin": {"field_num": 1, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4},
+    "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2},
+    "nakayama": {"field_num": 4, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2},
+}
+
 def predict_new_data(model, df_new, feature_cols, cat_features, context_num_features, context_cat_features, device="cuda"):
     """
     新しいデータからスコアを予測する
@@ -67,6 +76,236 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
     
     return df_new
 
+# ----------------------------
+# 共通関数呼び出し用ラッパー
+# ----------------------------
+def select_horse(race_id: str, venue: str, odds: list):
+    """
+    競馬場ごとのパラメータを自動適用して共通関数を呼ぶ
+    """
+    params = race_params.get(venue.lower())
+    if params is None:
+        raise ValueError(f"Unknown venue: {venue}")
+    return get_race_result(
+        race_id=race_id,
+        field=venue.lower(),
+        odds=odds,
+        field_num=params["field_num"],
+        ev_min=params["ev_min"],
+        prob_min=params["prob_min"],
+        odds_min=params["odds_min"],
+        odds_max=params["odds_max"],
+        ev_max=params["ev_max"],
+        softmax_T=params["softmax_T"],
+        fold=params["fold"]
+    )
+
+def get_race_result(
+    race_id: str,
+    field: str,
+    odds: list,
+    field_num: int,
+    ev_min: float,
+    prob_min: float,
+    odds_min: float,
+    odds_max: float,
+    ev_max: float,
+    softmax_T: float,
+    fold: int
+):
+    """
+    共通化した競馬レース結果取得関数。
+    
+    Parameters
+    ----------
+    race_id : str
+        netkeibaのレースID
+    field : str
+        競馬場名 (hanshin, tokyo, nakayamaなど)
+    odds : float
+        オッズ
+    field_num : int
+        場所番号 (1, 2, 4など)
+    ev_min : float
+        期待値最小閾値
+    odds_min : float
+        オッズ最小閾値
+    odds_max : float
+        オッズ最大閾値
+    ev_max : float
+        期待値最大閾値
+    softmax_T : float
+        softmax温度
+    fold : int
+        交差検証用fold
+        
+    Returns
+    -------
+    int or None
+        選択された馬番、または条件に合致しない場合 None
+    """
+
+    # ----------------------------
+    # 基本設定
+    # ----------------------------
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_columns", None)
+    df_shutuba = pd.DataFrame()
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    url_race = 'https://race.netkeiba.com/race/shutuba.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+    url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+    print(url_race)
+
+    # ----------------------------
+    # 過去・現在データ取得
+    # ----------------------------
+    response_race = requests.get(url_race, headers=headers)
+    response_past = requests.get(url_past, headers=headers)
+    df_now = pd.read_html(response_race.content)[0]
+    df_past = pd.read_html(response_past.content)[0]
+    df_now.columns = df_now.columns.droplevel()
+    df_result_past = pd.merge(df_now, df_past, on='馬番')
+
+    # ----------------------------
+    # BeautifulSoupでレース情報抽出
+    # ----------------------------
+    soup = BeautifulSoup(response_race.content, "html.parser")
+    data1 = soup.find('div', class_='RaceData01').text
+    data2 = soup.find('div', class_='RaceData02').text
+    df_result_past['距離'] = int(re.findall(r'\d+', data1)[2])
+    df_result_past['フィールド'] = data1[data1.find('/')+2: data1.find('/')+3]
+    df_result_past['馬場'] = data1[data1.find('馬場')+3: data1.find('馬場')+4]
+    df_result_past['出走頭数'] = int(data2[data2.find('頭')-2: data2.find('頭')])
+    df_result_past['レースID'] = race_id
+
+    # ----------------------------
+    # Seleniumで人気取得
+    # ----------------------------
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument('--log-level=3')
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    driver = webdriver.Chrome(options=options)
+    driver.get(url_race)
+    el = driver.find_element(By.CLASS_NAME, "RaceTableArea")
+    html = el.get_attribute("outerHTML")
+    df1 = pd.read_html(html)[0]
+    df1.reset_index(inplace=True, drop=True)
+    df1.columns = df1.columns.droplevel()
+
+    df_shutuba = pd.concat([df_shutuba, df_result_past])
+    df_shutuba['オッズ'] = odds
+    df_shutuba['人気'] = df1['人気']
+
+    driver.quit()
+
+    # ----------------------------
+    # 取り消し馬削除
+    # ----------------------------
+    df = df_shutuba.copy()
+    df = df[df['オッズ'] != '--']
+
+    # ----------------------------
+    # Learning / Listwise 前処理
+    # ----------------------------
+    df = Learning.df_first_processing(df, field)
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1'], axis=1, errors="ignore")  # 必要な削除カラム
+    df = Learning.df_big_past_processing(df, field, field_num)
+    df = Learning.past_level(df)
+    df = Learning.df_end_processing(df)
+    df = Listwise.inversion(df)
+    df = Listwise.append_col(df)
+    df = Listwise.add_relative_features(df)
+
+    # 列情報読み込み
+    feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+    embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+    context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+    context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+    # ----------------------------
+    # 父馬マッピング
+    # ----------------------------
+    pkl_path = f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl'
+    with open(pkl_path, "rb") as f:
+        sire_mapping = pickle.load(f)
+    df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
+
+    # ----------------------------
+    # 標準化・欠損値処理
+    # ----------------------------
+    scaler = StandardScaler()
+    df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
+    df = Listwise.fill_nan(df, feature_cols)
+
+    # ----------------------------
+    # 場所列追加
+    # ----------------------------
+    df['場所'] = field_num
+
+    # ----------------------------
+    # カテゴリ列数値化
+    # ----------------------------
+    df = Listwise.race_feature(df)
+
+    # ----------------------------
+    # モデルロード・推論
+    # ----------------------------
+    model_path = f"./model/{field}_ranknet_{fold}.pth"
+    state_dict = torch.load(model_path, map_location=device)
+
+    embedding_sizes = []
+    context_embedding_sizes = []
+
+    # 通常のカテゴリ埋め込み
+    i = 0
+    while f"embeddings.{i}.weight" in state_dict:
+        num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
+        embedding_sizes.append(num_classes)
+        # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
+        i += 1
+
+    # コンテキストカテゴリ埋め込み
+    j = 0
+    while f"context_embeddings.{j}.weight" in state_dict:
+        num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
+        context_embedding_sizes.append(num_classes)
+        # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
+        j += 1
+
+    # 読み込み
+    model = Listwise.ListNet(
+        embedding_sizes=embedding_sizes,
+        num_features=len(feature_cols),
+        context_embedding_sizes=context_embedding_sizes,
+        context_num_sizes=len(Listwise.context_num_cols),
+        emb_dim=16
+    )
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
+
+    df = predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
+
+    # ----------------------------
+    # 馬番修正
+    # ----------------------------
+    df['馬番'] = df['馬番'].astype(int) + 1
+
+    # ----------------------------
+    # 期待値最大選択 & 閾値フィルタ
+    # ----------------------------
+    df = Listwise_test.pick_ev_max_per_race(df, race_col="レースID", T=softmax_T)
+    print(df[["馬番","オッズ","softmax_score","expected_value"]], flush=True)
+    df = Listwise_test.filter_by_thresholds(df, ev_min=ev_min, prob_min=prob_min, odds_min=odds_min, odds_max=odds_max, ev_max=ev_max)
+
+    if len(df) == 0:
+        return None
+    else:
+        return int(df.iloc[0]['馬番'])
+    
 
 def hanshin(race_id, odds):
     field = 'hanshin'
@@ -172,7 +411,7 @@ def hanshin(race_id, odds):
     # 今走の処理
     df = Learning.df_first_processing(df, field)
     # いらないカラムを消す
-    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', 'レースID', '登録', '馬メモ切替', 'Unnamed: 9_level_1'], axis=1, errors="ignore")
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1'], axis=1, errors="ignore")
     # 過去走の処理
     df = Learning.df_big_past_processing(df, field, field_num)
     # 過去のレベル
@@ -211,7 +450,7 @@ def hanshin(race_id, odds):
     embedding_sizes = []
     context_embedding_sizes = []
     # state_dict をロード
-    state_dict = torch.load("./model/tokyo_ranknet_2.pth", map_location=device)
+    state_dict = torch.load("./model/hanshin_ranknet_4.pth", map_location=device)
 
     # 通常のカテゴリ埋め込み
     i = 0
@@ -254,7 +493,6 @@ def hanshin(race_id, odds):
         return None
     else:
         return df.iloc[0]['馬番']
-
 
 def tokyo(race_id, odds):
     field = 'tokyo'
@@ -540,21 +778,15 @@ def nakayama(race_id, odds):
                 '920001': 120.9, '922001': 134.7, '912002': 71.2, '914002': 83.8, '918002': 111.0, '919002': 119.4, '1012001': 69.0,
                 '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8}
 
-    # カラム作成
-    df_shutuba['父馬'] = df_shutuba['馬名_y'].str.extract(r'(\w+\s)', expand=True)
-    df_shutuba['間隔'] = df_shutuba['馬名_y'].str.extract(r'(\d+)', expand=True)
-    df_shutuba['母父馬'] = df_shutuba['馬名_y'].str.extract(r'(\(\D+\))', expand=True)
-
-    # いらないカラムを消す
-    df = df_shutuba.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', 'レースID', '登録', '馬メモ切替', 'Unnamed: 9_level_1'], axis=1)
-    # display(df.columns)
-
     # 取り消し馬を削除
+    df = df_shutuba.copy()
     indexNames = df[df['オッズ'] != '--']
     df = indexNames
 
     # 今走の処理
     df = Learning.df_first_processing(df, field)
+    # いらないカラムを消す
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1'], axis=1, errors="ignore")
     # 過去走の処理
     df = Learning.df_big_past_processing(df, field, field_num)
     # 過去のレベル
@@ -593,7 +825,7 @@ def nakayama(race_id, odds):
     embedding_sizes = []
     context_embedding_sizes = []
     # state_dict をロード
-    state_dict = torch.load("./model/tokyo_ranknet_2.pth", map_location=device)
+    state_dict = torch.load("./model/nakayama_ranknet_2.pth", map_location=device)
 
     # 通常のカテゴリ埋め込み
     i = 0
@@ -636,7 +868,6 @@ def nakayama(race_id, odds):
         return None
     else:
         return df.iloc[0]['馬番']
-
 
 def all_place(race_id, odds):
 
@@ -803,7 +1034,7 @@ def all_place(race_id, odds):
 if __name__ == "__main__":
     start = time.time()
     
-    result = tokyo(202505020301, [43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 13.9, 13.4, 4.7, 79.1, 193.3, 332.3, 84.6, 22.1, 3.6])
+    result = select_horse(202506040202, 'nakayama', [43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 2, 3])
 
     end = time.time()
     print("実行時間：", end - start)

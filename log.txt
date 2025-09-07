@@ -1,0 +1,69 @@
+[2025-09-07 15:32:15.878753] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 225, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 78, in job
+    buyList = Listwise_func.hanshin(n3, odds)
+  File "c:\keibaAI_2025_0702\Listwise_func.py", line 185, in hanshin
+    df = Listwise.append_col(df)
+  File "c:\keibaAI_2025_0702\Listwise.py", line 113, in append_col
+    df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\frame.py", line 7712, in groupby
+    return DataFrameGroupBy(
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\groupby\groupby.py", line 882, in __init__
+    grouper, exclusions, obj = get_grouper(
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\groupby\grouper.py", line 882, in get_grouper
+    raise KeyError(gpr)
+KeyError: 'レースID'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 231, in job_with_retry
+    job(n1, n2, n3, retry=False)  # 再実行。ただし二重再帰しないよう retry=False
+TypeError: job() got an unexpected keyword argument 'retry'
+
+[2025-09-07 16:27:52.472907] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 225, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 74, in job
+    buyList = Listwise_func.nakayama(n3, odds)
+  File "c:\keibaAI_2025_0702\Listwise_func.py", line 541, in nakayama
+    # 取り消し馬を削除
+UnboundLocalError: local variable 'df' referenced before assignment
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 231, in job_with_retry
+    job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
+  File "c:\keibaAI_2025_0702\betting.py", line 59, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
+  File "c:\keibaAI_2025_0702\betting.py", line 22, in wait_and_click
+    el = WebDriverWait(driver, timeout).until(
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff63a983d85+79397]
+	GetHandleVerifier [0x0x7ff63a983de0+79488]
+	(No symbol) [0x0x7ff63a72c0fa]
+	(No symbol) [0x0x7ff63a782fd6]
+	(No symbol) [0x0x7ff63a78328c]
+	(No symbol) [0x0x7ff63a7d6537]
+	(No symbol) [0x0x7ff63a7ab1df]
+	(No symbol) [0x0x7ff63a7d3344]
+	(No symbol) [0x0x7ff63a7aaf73]
+	(No symbol) [0x0x7ff63a7741b1]
+	(No symbol) [0x0x7ff63a774f43]
+	GetHandleVerifier [0x0x7ff63ac4e1ed+3005069]
+	GetHandleVerifier [0x0x7ff63ac4831d+2980797]
+	GetHandleVerifier [0x0x7ff63ac67e0d+3110573]
+	GetHandleVerifier [0x0x7ff63a99d6de+184190]
+	GetHandleVerifier [0x0x7ff63a9a516f+215567]
+	GetHandleVerifier [0x0x7ff63a98c974+115220]
+	GetHandleVerifier [0x0x7ff63a98cb29+115657]
+	GetHandleVerifier [0x0x7ff63a973268+11016]
+	BaseThreadInitThunk [0x0x7ffeb3bee8d7+23]
+	RtlUserThreadStart [0x0x7ffeb573c34c+44]
+
+
