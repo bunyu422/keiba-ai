@@ -1,69 +1,415 @@
-[2025-09-07 15:32:15.878753] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 225, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 78, in job
-    buyList = Listwise_func.hanshin(n3, odds)
-  File "c:\keibaAI_2025_0702\Listwise_func.py", line 185, in hanshin
-    df = Listwise.append_col(df)
-  File "c:\keibaAI_2025_0702\Listwise.py", line 113, in append_col
-    df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
-  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\frame.py", line 7712, in groupby
-    return DataFrameGroupBy(
-  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\groupby\groupby.py", line 882, in __init__
-    grouper, exclusions, obj = get_grouper(
-  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\groupby\grouper.py", line 882, in get_grouper
-    raise KeyError(gpr)
-KeyError: 'レースID'
+[2025-09-20 15:42:53.879459] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 27, in wait_and_click
+    el.click()
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webelement.py", line 94, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webelement.py", line 395, in _execute
+    return self._parent.execute(command, params)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 354, in execute
+    self.error_handler.check_response(response)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.StaleElementReferenceException: Message: stale element reference: stale element not found
+  (Session info: chrome=140.0.7339.128); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#stale-element-reference-exception
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7afeb30f5+79493]
+	GetHandleVerifier [0x0x7ff7afeb3150+79584]
+	(No symbol) [0x0x7ff7afc301ba]
+	(No symbol) [0x0x7ff7afc46985]
+	(No symbol) [0x0x7ff7afc45473]
+	(No symbol) [0x0x7ff7afc38a57]
+	(No symbol) [0x0x7ff7afc36910]
+	(No symbol) [0x0x7ff7afc3adef]
+	(No symbol) [0x0x7ff7afc3aeaf]
+	(No symbol) [0x0x7ff7afc8a664]
+	(No symbol) [0x0x7ff7afc89770]
+	(No symbol) [0x0x7ff7afc7af58]
+	(No symbol) [0x0x7ff7afcb070a]
+	(No symbol) [0x0x7ff7afc7a7e6]
+	(No symbol) [0x0x7ff7afcb0920]
+	(No symbol) [0x0x7ff7afcd8b8b]
+	(No symbol) [0x0x7ff7afcb04e3]
+	(No symbol) [0x0x7ff7afc78e92]
+	(No symbol) [0x0x7ff7afc79c63]
+	GetHandleVerifier [0x0x7ff7b0170dbd+2954061]
+	GetHandleVerifier [0x0x7ff7b016b02a+2930106]
+	GetHandleVerifier [0x0x7ff7b018b357+3061991]
+	GetHandleVerifier [0x0x7ff7afecd60e+187294]
+	GetHandleVerifier [0x0x7ff7afed557f+219919]
+	GetHandleVerifier [0x0x7ff7afebc294+116772]
+	GetHandleVerifier [0x0x7ff7afebc449+117209]
+	GetHandleVerifier [0x0x7ff7afea2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
 
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 231, in job_with_retry
-    job(n1, n2, n3, retry=False)  # 再実行。ただし二重再帰しないよう retry=False
-TypeError: job() got an unexpected keyword argument 'retry'
-
-[2025-09-07 16:27:52.472907] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 225, in job_with_retry
+  File "c:\keibaAI_2025_0702\betting.py", line 286, in job_with_retry
     job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 74, in job
-    buyList = Listwise_func.nakayama(n3, odds)
-  File "c:\keibaAI_2025_0702\Listwise_func.py", line 541, in nakayama
-    # 取り消し馬を削除
-UnboundLocalError: local variable 'df' referenced before assignment
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 231, in job_with_retry
-    job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
-  File "c:\keibaAI_2025_0702\betting.py", line 59, in job
+  File "c:\keibaAI_2025_0702\betting.py", line 114, in job
     wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
-  File "c:\keibaAI_2025_0702\betting.py", line 22, in wait_and_click
+  File "c:\keibaAI_2025_0702\betting.py", line 29, in wait_and_click
+    driver.execute_script("arguments[0].click();", el)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 414, in execute_script
+    return self.execute(command, {"script": script, "args": converted_args})["value"]
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 354, in execute
+    self.error_handler.check_response(response)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.StaleElementReferenceException: Message: stale element reference: stale element not found
+  (Session info: chrome=140.0.7339.128); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#stale-element-reference-exception
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7afeb30f5+79493]
+	GetHandleVerifier [0x0x7ff7afeb3150+79584]
+	(No symbol) [0x0x7ff7afc301ba]
+	(No symbol) [0x0x7ff7afc46985]
+	(No symbol) [0x0x7ff7afc45473]
+	(No symbol) [0x0x7ff7afc38a57]
+	(No symbol) [0x0x7ff7afc38bd1]
+	(No symbol) [0x0x7ff7afc36910]
+	(No symbol) [0x0x7ff7afc3b131]
+	(No symbol) [0x0x7ff7afcd9f1b]
+	(No symbol) [0x0x7ff7afcb070a]
+	(No symbol) [0x0x7ff7afcd8b8b]
+	(No symbol) [0x0x7ff7afcb04e3]
+	(No symbol) [0x0x7ff7afc78e92]
+	(No symbol) [0x0x7ff7afc79c63]
+	GetHandleVerifier [0x0x7ff7b0170dbd+2954061]
+	GetHandleVerifier [0x0x7ff7b016b02a+2930106]
+	GetHandleVerifier [0x0x7ff7b018b357+3061991]
+	GetHandleVerifier [0x0x7ff7afecd60e+187294]
+	GetHandleVerifier [0x0x7ff7afed557f+219919]
+	GetHandleVerifier [0x0x7ff7afebc294+116772]
+	GetHandleVerifier [0x0x7ff7afebc449+117209]
+	GetHandleVerifier [0x0x7ff7afea2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 27, in wait_and_click
+    el.click()
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webelement.py", line 94, in click
+    self._execute(Command.CLICK_ELEMENT)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webelement.py", line 395, in _execute
+    return self._parent.execute(command, params)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 354, in execute
+    self.error_handler.check_response(response)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.StaleElementReferenceException: Message: stale element reference: stale element not found
+  (Session info: chrome=140.0.7339.128); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#stale-element-reference-exception
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7afeb30f5+79493]
+	GetHandleVerifier [0x0x7ff7afeb3150+79584]
+	(No symbol) [0x0x7ff7afc301ba]
+	(No symbol) [0x0x7ff7afc46985]
+	(No symbol) [0x0x7ff7afc45473]
+	(No symbol) [0x0x7ff7afc38a57]
+	(No symbol) [0x0x7ff7afc36910]
+	(No symbol) [0x0x7ff7afc3adef]
+	(No symbol) [0x0x7ff7afc3aeaf]
+	(No symbol) [0x0x7ff7afc8a664]
+	(No symbol) [0x0x7ff7afc89770]
+	(No symbol) [0x0x7ff7afc7af58]
+	(No symbol) [0x0x7ff7afcb070a]
+	(No symbol) [0x0x7ff7afc7a7e6]
+	(No symbol) [0x0x7ff7afcb0920]
+	(No symbol) [0x0x7ff7afcd8b8b]
+	(No symbol) [0x0x7ff7afcb04e3]
+	(No symbol) [0x0x7ff7afc78e92]
+	(No symbol) [0x0x7ff7afc79c63]
+	GetHandleVerifier [0x0x7ff7b0170dbd+2954061]
+	GetHandleVerifier [0x0x7ff7b016b02a+2930106]
+	GetHandleVerifier [0x0x7ff7b018b357+3061991]
+	GetHandleVerifier [0x0x7ff7afecd60e+187294]
+	GetHandleVerifier [0x0x7ff7afed557f+219919]
+	GetHandleVerifier [0x0x7ff7afebc294+116772]
+	GetHandleVerifier [0x0x7ff7afebc449+117209]
+	GetHandleVerifier [0x0x7ff7afea2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 292, in job_with_retry
+    job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
+  File "c:\keibaAI_2025_0702\betting.py", line 114, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
+  File "c:\keibaAI_2025_0702\betting.py", line 29, in wait_and_click
+    driver.execute_script("arguments[0].click();", el)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 414, in execute_script
+    return self.execute(command, {"script": script, "args": converted_args})["value"]
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 354, in execute
+    self.error_handler.check_response(response)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 229, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.StaleElementReferenceException: Message: stale element reference: stale element not found
+  (Session info: chrome=140.0.7339.128); For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#stale-element-reference-exception
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7afeb30f5+79493]
+	GetHandleVerifier [0x0x7ff7afeb3150+79584]
+	(No symbol) [0x0x7ff7afc301ba]
+	(No symbol) [0x0x7ff7afc46985]
+	(No symbol) [0x0x7ff7afc45473]
+	(No symbol) [0x0x7ff7afc38a57]
+	(No symbol) [0x0x7ff7afc38bd1]
+	(No symbol) [0x0x7ff7afc36910]
+	(No symbol) [0x0x7ff7afc3b131]
+	(No symbol) [0x0x7ff7afcd9f1b]
+	(No symbol) [0x0x7ff7afcb070a]
+	(No symbol) [0x0x7ff7afcd8b8b]
+	(No symbol) [0x0x7ff7afcb04e3]
+	(No symbol) [0x0x7ff7afc78e92]
+	(No symbol) [0x0x7ff7afc79c63]
+	GetHandleVerifier [0x0x7ff7b0170dbd+2954061]
+	GetHandleVerifier [0x0x7ff7b016b02a+2930106]
+	GetHandleVerifier [0x0x7ff7b018b357+3061991]
+	GetHandleVerifier [0x0x7ff7afecd60e+187294]
+	GetHandleVerifier [0x0x7ff7afed557f+219919]
+	GetHandleVerifier [0x0x7ff7afebc294+116772]
+	GetHandleVerifier [0x0x7ff7afebc449+117209]
+	GetHandleVerifier [0x0x7ff7afea2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+[2025-09-20 16:28:00.962822] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 286, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 139, in job
+    wait_and_click(By.LINK_TEXT, "続けて通常投票")
+  File "c:\keibaAI_2025_0702\betting.py", line 23, in wait_and_click
     el = WebDriverWait(driver, timeout).until(
   File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
     raise TimeoutException(message, screen, stacktrace)
 selenium.common.exceptions.TimeoutException: Message: 
 Stacktrace:
-	GetHandleVerifier [0x0x7ff63a983d85+79397]
-	GetHandleVerifier [0x0x7ff63a983de0+79488]
-	(No symbol) [0x0x7ff63a72c0fa]
-	(No symbol) [0x0x7ff63a782fd6]
-	(No symbol) [0x0x7ff63a78328c]
-	(No symbol) [0x0x7ff63a7d6537]
-	(No symbol) [0x0x7ff63a7ab1df]
-	(No symbol) [0x0x7ff63a7d3344]
-	(No symbol) [0x0x7ff63a7aaf73]
-	(No symbol) [0x0x7ff63a7741b1]
-	(No symbol) [0x0x7ff63a774f43]
-	GetHandleVerifier [0x0x7ff63ac4e1ed+3005069]
-	GetHandleVerifier [0x0x7ff63ac4831d+2980797]
-	GetHandleVerifier [0x0x7ff63ac67e0d+3110573]
-	GetHandleVerifier [0x0x7ff63a99d6de+184190]
-	GetHandleVerifier [0x0x7ff63a9a516f+215567]
-	GetHandleVerifier [0x0x7ff63a98c974+115220]
-	GetHandleVerifier [0x0x7ff63a98cb29+115657]
-	GetHandleVerifier [0x0x7ff63a973268+11016]
-	BaseThreadInitThunk [0x0x7ffeb3bee8d7+23]
-	RtlUserThreadStart [0x0x7ffeb573c34c+44]
+	GetHandleVerifier [0x0x7ff7afeb30f5+79493]
+	GetHandleVerifier [0x0x7ff7afeb3150+79584]
+	(No symbol) [0x0x7ff7afc301ba]
+	(No symbol) [0x0x7ff7afc88067]
+	(No symbol) [0x0x7ff7afc8832c]
+	(No symbol) [0x0x7ff7afcdbe27]
+	(No symbol) [0x0x7ff7afcb074f]
+	(No symbol) [0x0x7ff7afcd8b8b]
+	(No symbol) [0x0x7ff7afcb04e3]
+	(No symbol) [0x0x7ff7afc78e92]
+	(No symbol) [0x0x7ff7afc79c63]
+	GetHandleVerifier [0x0x7ff7b0170dbd+2954061]
+	GetHandleVerifier [0x0x7ff7b016b02a+2930106]
+	GetHandleVerifier [0x0x7ff7b018b357+3061991]
+	GetHandleVerifier [0x0x7ff7afecd60e+187294]
+	GetHandleVerifier [0x0x7ff7afed557f+219919]
+	GetHandleVerifier [0x0x7ff7afebc294+116772]
+	GetHandleVerifier [0x0x7ff7afebc449+117209]
+	GetHandleVerifier [0x0x7ff7afea2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
 
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 292, in job_with_retry
+    job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
+  File "c:\keibaAI_2025_0702\betting.py", line 64, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, f"{n2}R") # レース
+  File "c:\keibaAI_2025_0702\betting.py", line 23, in wait_and_click
+    el = WebDriverWait(driver, timeout).until(
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7afeb30f5+79493]
+	GetHandleVerifier [0x0x7ff7afeb3150+79584]
+	(No symbol) [0x0x7ff7afc301ba]
+	(No symbol) [0x0x7ff7afc88067]
+	(No symbol) [0x0x7ff7afc8832c]
+	(No symbol) [0x0x7ff7afcdbe27]
+	(No symbol) [0x0x7ff7afcb074f]
+	(No symbol) [0x0x7ff7afcd8b8b]
+	(No symbol) [0x0x7ff7afcb04e3]
+	(No symbol) [0x0x7ff7afc78e92]
+	(No symbol) [0x0x7ff7afc79c63]
+	GetHandleVerifier [0x0x7ff7b0170dbd+2954061]
+	GetHandleVerifier [0x0x7ff7b016b02a+2930106]
+	GetHandleVerifier [0x0x7ff7b018b357+3061991]
+	GetHandleVerifier [0x0x7ff7afecd60e+187294]
+	GetHandleVerifier [0x0x7ff7afed557f+219919]
+	GetHandleVerifier [0x0x7ff7afebc294+116772]
+	GetHandleVerifier [0x0x7ff7afebc449+117209]
+	GetHandleVerifier [0x0x7ff7afea2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+[2025-09-21 09:58:03.445396] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 315, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 137, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, "金額入力画面へ")
+  File "c:\keibaAI_2025_0702\betting.py", line 25, in wait_and_click
+    el = WebDriverWait(driver, timeout).until( EC.element_to_be_clickable((by, value)) )
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7fb3d30f5+79493]
+	GetHandleVerifier [0x0x7ff7fb3d3150+79584]
+	(No symbol) [0x0x7ff7fb1501ba]
+	(No symbol) [0x0x7ff7fb1a8067]
+	(No symbol) [0x0x7ff7fb1a832c]
+	(No symbol) [0x0x7ff7fb1fbe27]
+	(No symbol) [0x0x7ff7fb1d074f]
+	(No symbol) [0x0x7ff7fb1f8b8b]
+	(No symbol) [0x0x7ff7fb1d04e3]
+	(No symbol) [0x0x7ff7fb198e92]
+	(No symbol) [0x0x7ff7fb199c63]
+	GetHandleVerifier [0x0x7ff7fb690dbd+2954061]
+	GetHandleVerifier [0x0x7ff7fb68b02a+2930106]
+	GetHandleVerifier [0x0x7ff7fb6ab357+3061991]
+	GetHandleVerifier [0x0x7ff7fb3ed60e+187294]
+	GetHandleVerifier [0x0x7ff7fb3f557f+219919]
+	GetHandleVerifier [0x0x7ff7fb3dc294+116772]
+	GetHandleVerifier [0x0x7ff7fb3dc449+117209]
+	GetHandleVerifier [0x0x7ff7fb3c2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+[2025-09-21 10:32:38.937176] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 315, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 137, in job
+    wait_and_click(By.CSS_SELECTOR, selector)
+  File "c:\keibaAI_2025_0702\betting.py", line 25, in wait_and_click
+    el = WebDriverWait(driver, timeout).until( EC.element_to_be_clickable((by, value)) )
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7fb3d30f5+79493]
+	GetHandleVerifier [0x0x7ff7fb3d3150+79584]
+	(No symbol) [0x0x7ff7fb1501ba]
+	(No symbol) [0x0x7ff7fb1a8067]
+	(No symbol) [0x0x7ff7fb1a832c]
+	(No symbol) [0x0x7ff7fb1fbe27]
+	(No symbol) [0x0x7ff7fb1d074f]
+	(No symbol) [0x0x7ff7fb1f8b8b]
+	(No symbol) [0x0x7ff7fb1d04e3]
+	(No symbol) [0x0x7ff7fb198e92]
+	(No symbol) [0x0x7ff7fb199c63]
+	GetHandleVerifier [0x0x7ff7fb690dbd+2954061]
+	GetHandleVerifier [0x0x7ff7fb68b02a+2930106]
+	GetHandleVerifier [0x0x7ff7fb6ab357+3061991]
+	GetHandleVerifier [0x0x7ff7fb3ed60e+187294]
+	GetHandleVerifier [0x0x7ff7fb3f557f+219919]
+	GetHandleVerifier [0x0x7ff7fb3dc294+116772]
+	GetHandleVerifier [0x0x7ff7fb3dc449+117209]
+	GetHandleVerifier [0x0x7ff7fb3c2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+[2025-09-21 11:02:59.673296] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 311, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 133, in job
+    wait_and_click_wide(By.CSS_SELECTOR, selector)
+  File "c:\keibaAI_2025_0702\betting.py", line 30, in wait_and_click_wide
+    el = WebDriverWait(driver, timeout).until(
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff7fb3d30f5+79493]
+	GetHandleVerifier [0x0x7ff7fb3d3150+79584]
+	(No symbol) [0x0x7ff7fb1501ba]
+	(No symbol) [0x0x7ff7fb1a8067]
+	(No symbol) [0x0x7ff7fb1a832c]
+	(No symbol) [0x0x7ff7fb1fbe27]
+	(No symbol) [0x0x7ff7fb1d074f]
+	(No symbol) [0x0x7ff7fb1f8b8b]
+	(No symbol) [0x0x7ff7fb1d04e3]
+	(No symbol) [0x0x7ff7fb198e92]
+	(No symbol) [0x0x7ff7fb199c63]
+	GetHandleVerifier [0x0x7ff7fb690dbd+2954061]
+	GetHandleVerifier [0x0x7ff7fb68b02a+2930106]
+	GetHandleVerifier [0x0x7ff7fb6ab357+3061991]
+	GetHandleVerifier [0x0x7ff7fb3ed60e+187294]
+	GetHandleVerifier [0x0x7ff7fb3f557f+219919]
+	GetHandleVerifier [0x0x7ff7fb3dc294+116772]
+	GetHandleVerifier [0x0x7ff7fb3dc449+117209]
+	GetHandleVerifier [0x0x7ff7fb3c2618+11176]
+	BaseThreadInitThunk [0x0x7ff8c4ede8d7+23]
+	RtlUserThreadStart [0x0x7ff8c66c8d9c+44]
+
+
+[2025-09-21 12:52:16.563326] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 331, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 146, in job
+    f.write(selector)
+UnboundLocalError: local variable 'selector' referenced before assignment
+
+[2025-09-21 13:22:55.939327] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 326, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 144, in job
+    click_wide_horse(driver, i)
+  File "c:\keibaAI_2025_0702\betting.py", line 42, in click_wide_horse
+    horse_el = horse_links[umaban - 1]  # umaban は 1 始まり
+IndexError: list index out of range
+
+[2025-09-21 13:52:38.548199] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 326, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 144, in job
+    click_wide_horse(driver, i)
+  File "c:\keibaAI_2025_0702\betting.py", line 42, in click_wide_horse
+    horse_el = horse_links[umaban - 1]  # umaban は 1 始まり
+IndexError: list index out of range
+
+[2025-09-21 14:27:40.431341] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 326, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 144, in job
+    click_wide_horse(driver, i)
+  File "c:\keibaAI_2025_0702\betting.py", line 42, in click_wide_horse
+    horse_el = horse_links[umaban - 1]  # umaban は 1 始まり
+IndexError: list index out of range
+
+[2025-09-21 15:02:45.766535] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 326, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 144, in job
+    click_wide_horse(driver, i)
+  File "c:\keibaAI_2025_0702\betting.py", line 42, in click_wide_horse
+    horse_el = horse_links[umaban - 1]  # umaban は 1 始まり
+IndexError: list index out of range
+
+[2025-09-21 15:42:49.308244] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 326, in job_with_retry
+    try:
+  File "c:\keibaAI_2025_0702\betting.py", line 144, in job
+    for i in umaban:
+  File "c:\keibaAI_2025_0702\betting.py", line 42, in click_wide_horse
+    # 馬番に対応する要素
+IndexError: list index out of range
+
+[2025-09-21 16:28:04.301280] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 327, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 145, in job
+    click_wide_horse(driver, i)
+  File "c:\keibaAI_2025_0702\betting.py", line 43, in click_wide_horse
+    horse_el = horse_links[umaban - 1]  # umaban は 1 始まり
+IndexError: list index out of range
 

@@ -105,6 +105,124 @@ def scraping(csv_path, no):
     # 結果をcsvに保存
     df.to_csv(csv_path, na_rep='NaN')
 
+def scraping_local(csv_path, no):
+    df = pd.DataFrame()
+    # ヘッダー
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    for year in range(2015, 2025):
+        for month in range(1, 13):
+            for day in range(1, 32):
+                for race_no in range(1, 13):
+                    race_id = '{}{}{}{}{}'.format(str(year), no, str(month).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
+                    # race_id = "201530042201"
+                    url_race = 'https://nar.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
+                    url_past = 'https://nar.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+                    try:
+                        response_race = requests.get(url_race, headers=headers)
+                        response_past = requests.get(url_past, headers=headers)
+                        df_result = pd.read_html(response_race.content)[0]
+                        df_past = pd.read_html(response_past.content)[0]
+                        soup = BeautifulSoup(response_race.content, 'html.parser')
+                        data1 = soup.find('div', class_='RaceData01').text
+                        data2 = soup.find('div', class_='RaceData02').text
+                        data3 = soup.find('tr', class_='Umatan').text
+                        data4 = soup.find('div', class_='RaceName').text
+                        a = data2[data2.find('新馬')+0: data2.find('新馬')+2]
+                        if a == '新馬':
+                            continue
+                        df_result_past = pd.merge(df_result, df_past, on='馬番')
+                        df_result_past['距離'] = re.findall(r'\d+', data1)[2]
+                        df_result_past['フィールド'] = data1[data1.find('/')+2: data1.find('/')+3]
+                        df_result_past['馬場'] = data1[data1.find('馬場')+3: data1.find('馬場')+4]
+                        df_result_past['出走頭数'] = data2[data2.find('頭')-2: data2.find('頭')+0]
+                        df_result_past['馬単'] = data3
+                        df_result_past['レース名'] = data4.replace('\n', '')
+                        print(url_race)
+                        time.sleep(1)
+                    except:
+                        if race_no == 1:
+                            print("no:"+url_race)
+                            break
+                        continue
+                    df_result_past['レースID'] = race_id
+                    df = pd.concat([df, df_result_past])
+
+    # 結果をcsvに保存
+    df.to_csv(csv_path, na_rep='NaN')
+
+def scrape_payouts_combination(csv_path, no):
+    df = pd.DataFrame(columns=['レースID', '券種', '馬番', '払い戻し金額'])
+
+    headers = {'User-Agent': 'Mozilla/5.0'}
+
+    for year in range(2012, 2025):
+        for number in range(1, 6):
+            for day in range(1, 13):
+                for race_no in range(1, 13):
+                    race_id = '{}{}{}{}{}'.format(str(year), no, str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
+                    url_race = f'https://race.netkeiba.com/race/result.html?race_id={race_id}&rf=race_list'
+                    try:
+                        response = requests.get(url_race, headers=headers)
+                        soup = BeautifulSoup(response.content, 'html.parser')
+
+                        data2 = soup.find('div', class_='RaceData02').text
+                        a = data2[data2.find('新馬')+0: data2.find('新馬')+2]
+                        if a == '新馬':
+                            continue
+
+                        payout_tables = soup.find_all('table', class_='Payout_Detail_Table')
+                        
+                        for table in payout_tables:
+                            for tr in table.find_all('tr'):
+                                bet_type = tr.find('th').text.strip()  # 券種
+                                payout_td = tr.find('td', class_='Payout')
+                                result_td = tr.find('td', class_='Result')
+
+                                if not payout_td or not result_td:
+                                    continue
+
+                                # 的中馬番
+                                combos = []
+                                if result_td.find_all('ul'):
+                                    # 複数馬番の組み合わせが <ul><li><span> の形式で複数ある場合
+                                    for ul in result_td.find_all('ul'):
+                                        horses = [span.text.strip() for span in ul.find_all('span') if span.text.strip()]
+                                        if horses:
+                                            combos.append('-'.join(horses))
+                                else:
+                                    # 単勝・複勝など <div><span> 形式
+                                    horses = [span.text.strip() for span in result_td.find_all('span') if span.text.strip()]
+                                    for h in horses:
+                                        combos.append(h)
+
+                                # 払い戻し金額
+                                payout_text = payout_td.get_text(separator='|')  # 改行やbrを | で区切る
+                                payouts = [p.strip().replace('円','').replace(',','') for p in payout_text.split('|') if p.strip()]
+
+                                # コンボと払い戻し金額を対応
+                                for i, combo in enumerate(combos):
+                                    if i < len(payouts):
+                                        payout_amount = payouts[i]
+                                    else:
+                                        payout_amount = ''
+                                    df = pd.concat([df, pd.DataFrame([{
+                                        'レースID': race_id,
+                                        '券種': bet_type,
+                                        '馬番': combo,
+                                        '払い戻し金額': payout_amount
+                                    }])], ignore_index=True)
+
+                        print(f"Scraped {race_id}")
+                        # print(df)
+
+                        time.sleep(1)
+                    except Exception as e:
+                        print(f"Error {race_id}: {e}")
+                        continue
+
+    df.to_csv(csv_path, index=False, encoding='utf-8-sig')
+    print(f"Saved to {csv_path}")
+
 # 辞書作成
 def create_unique_pickle(series, file_path):
     mapping = dict(zip(series.unique().tolist(), range(1, len(series.unique().tolist()) + 1)))
@@ -127,8 +245,12 @@ def df_first_processing(df, name, type='推論'):
 
     df = df.copy()
     # 新たなカラムを作成
-    df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
-    df['間隔'] = df['馬名_y'].str.extract(r'(\d+)', expand=True)
+    if "馬名_y" in df.columns:
+        df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
+        df['間隔'] = df['馬名_y'].str.extract(r'(\d+)', expand=True)
+    else:
+        df['父馬'] = df['馬名 オッズ'].str.extract(r'(\w+\s)', expand=True)
+        df['間隔'] = df['馬名 オッズ'].str.extract(r'(\d+)', expand=True)
 
     # 血統pickle作成
     if type != '推論':
@@ -147,7 +269,7 @@ def df_first_processing(df, name, type='推論'):
         df['馬単'] = df['馬単'].str.extract(r'(\d+)', expand=True)
 
     # いらないカラムを消す
-    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎', 'タイム', '騎手斤量', '着差', '後3F', '印'], axis=1, errors="ignore")
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎', 'タイム', '騎手斤量', '着差', '後3F', '印', '馬名 オッズ'], axis=1, errors="ignore")
 
     # 特殊記号を消す
     df['騎手'] = df['騎手'].str.replace('▲', '')
@@ -247,7 +369,7 @@ def df_big_past_processing(df, name, field_num):
         df_split[sou+'タイム'] = df_split[sou+'タイム'].dt.total_seconds()
 
         # # スピード指数の計算
-        for i in range(1, 11):
+        for i in range(1, 13):
             for k in range(1000, 3700, 100):
                 try:
                     speed = speed_dict[f'{i}{k}1']
@@ -289,6 +411,8 @@ def df_big_past_processing(df, name, field_num):
 
         if int(sou) == 1:
             past_level(df_all)
+        
+    # print(df_all.head(10))
 
     return df_all
 
@@ -357,22 +481,21 @@ def df_end_processing(df_all, type='推論'):
 
     # print(df_all.isnull().sum())
 
-    # 空白削除
-    for i in df_all.columns:
-        df_all[i] = df_all[i].replace('', np.nan)
+    # # 空白削除
+    # for i in df_all.columns:
+    #     df_all[i] = df_all[i].replace('', np.nan)
 
     # 上昇度カラム作成
-    df_all['5過去着順'] = df_all['5過去着順'].astype(float)
-    df_all['4過去着順'] = df_all['4過去着順'].astype(float)
-    df_all['3過去着順'] = df_all['3過去着順'].astype(float)
-    df_all['2過去着順'] = df_all['2過去着順'].astype(float)
-    df_all['1過去着順'] = df_all['1過去着順'].astype(float)
+    cols = ['5過去着順', '4過去着順', '3過去着順', '2過去着順', '1過去着順']
+
+    df_all[cols] = df_all[cols].apply(pd.to_numeric, errors='coerce')
     df_all['上昇度'] = (df_all['5過去着順'] - df_all['4過去着順']) + (df_all['4過去着順'] - df_all['3過去着順']) + (df_all['3過去着順'] - df_all['2過去着順']) + (df_all['2過去着順'] - df_all['1過去着順']) / (df_all[['1過去着順', '2過去着順', '3過去着順', '4過去着順', '5過去着順']].isnull().sum(axis=1) + 1)
     
     # df_all['rank'] = df_all['着順'].map(f_ranking)
-    df_all = df_all.replace('', '00000')  # ''をエラー検出文字に置換してくれる
-    df_all = df_all.replace('未定', '00000')
-    df_all = df_all[~df_all.apply(lambda s: s.str.contains('00000'), axis=1).any(axis=1)]  # エラー検出文字を入れた行以外を抽出
+    df_all = df_all.replace(['', '未定'], np.nan)
+    # df_all = df_all.replace('', '00000')  # ''をエラー検出文字に置換してくれる
+    # df_all = df_all.replace('未定', '00000')
+    # df_all = df_all[~df_all.astype(str).apply(lambda s: s.str.contains('00000', na=False), axis=1).any(axis=1)]  # エラー検出文字を入れた行以外を抽出
     # df_all = df_all.astype(float)
 
     if type != '推論':
@@ -782,7 +905,8 @@ speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, 
                 '717002': 104.5, '724002': 155.2, '810001': 54.9, '812001': 69.0, '814001': 80.8, '816001': 93.7, '818001': 107.1, '820001': 120.0,
                 '822001': 134.1, '824001': 146.9, '812002': 70.7, '818002': 112.2, '825002': 161.4, '912001': 68.2, '914001': 81.1, '916001': 93.9,
                 '920001': 120.9, '922001': 134.7, '912002': 71.2, '914002': 83.8, '918002': 111.0, '919002': 119.4, '1012001': 69.0,
-                '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8}
+                '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8,
+                '1210002': 61.0, '1211002': 68.0, '1212002': 74.1, '1215002': 99.1, '1216002': 102.5, '1217002': 110.4, '1218002': 118.4, '1220002': 133.8, '1226002': 174.9}
 
 if __name__ == "__main__":
     warnings.simplefilter('ignore')
@@ -794,9 +918,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 4
-    field_name = 'hanshin'
-    csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
+    field = 12
+    field_name = 'monbetu'
+    csv_path = f"./csv/{field_name}_2015-2024.csv" # 学習に使うcsvデータのパス
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
     #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
@@ -841,6 +965,7 @@ if __name__ == "__main__":
     df = pd.read_csv(csv_path, index_col=0)
     df['場所'] = field
     # print(df.columns)
+    # print(df.head(5))
 
     # 辞書作成(各コースの平均タイム)
 
@@ -853,11 +978,11 @@ if __name__ == "__main__":
     # 今走の処理
     df = df_first_processing(df, field_name, type='a')
     # 過去走の処理
-    df_all = df_big_past_processing(df, field_name)
+    df_all = df_big_past_processing(df, field_name, field)
     # 過去のレベル
-    df_all = past_level(df_all)
+    df_all = past_level(df_all, type='a')
     # 終了処理
-    df_all = df_end_processing(df_all)
+    df_all = df_end_processing(df_all, type='b')
     # csv
     save_csv(f'./csv/df_all_{field_name}.csv', df_all)
     # ラベリング

@@ -30,9 +30,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 競馬場別パラメータ設定
 # ----------------------------
 race_params = {
-    "hanshin": {"field_num": 1, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4},
+    "hanshin": {"field_num": 4, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4},
     "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2},
-    "nakayama": {"field_num": 4, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2},
+    "nakayama": {"field_num": 1, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2},
+}
+
+race_params_wide = {
+    "nakayama": {"field_num": 1, "ev_min": 1.8, "prob_min": 0.05, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.6, "fold": 2}
 }
 
 def predict_new_data(model, df_new, feature_cols, cat_features, context_num_features, context_cat_features, device="cuda"):
@@ -86,24 +90,54 @@ def select_horse(race_id: str, venue: str, odds: list):
     params = race_params.get(venue.lower())
     if params is None:
         raise ValueError(f"Unknown venue: {venue}")
-    return get_race_result(
-        race_id=race_id,
-        field=venue.lower(),
-        odds=odds,
-        field_num=params["field_num"],
-        ev_min=params["ev_min"],
-        prob_min=params["prob_min"],
-        odds_min=params["odds_min"],
-        odds_max=params["odds_max"],
-        ev_max=params["ev_max"],
-        softmax_T=params["softmax_T"],
-        fold=params["fold"]
-    )
+    
+    params_wide = race_params_wide.get(venue.lower())
+    
+    df = get_race_info(race_id, field=venue.lower(), field_num=params["field_num"], odds=odds)
+
+    if params_wide is not None:
+        
+        return get_race_result(
+            df,
+            field=venue.lower(),
+            field_num=params["field_num"],
+            ev_min=params["ev_min"],
+            prob_min=params["prob_min"],
+            odds_min=params["odds_min"],
+            odds_max=params["odds_max"],
+            ev_max=params["ev_max"],
+            softmax_T=params["softmax_T"],
+            fold=params["fold"]
+        ), \
+        get_race_wide_result(
+            df,
+            field=venue.lower(),
+            field_num=params_wide["field_num"],
+            ev_min=params_wide["ev_min"],
+            prob_min=params_wide["prob_min"],
+            odds_min=params_wide["odds_min"],
+            odds_max=params_wide["odds_max"],
+            ev_max=params_wide["ev_max"],
+            softmax_T=params_wide["softmax_T"],
+            fold=params_wide["fold"]
+        )
+    else:
+        return get_race_result(
+            df,
+            field=venue.lower(),
+            field_num=params["field_num"],
+            ev_min=params["ev_min"],
+            prob_min=params["prob_min"],
+            odds_min=params["odds_min"],
+            odds_max=params["odds_max"],
+            ev_max=params["ev_max"],
+            softmax_T=params["softmax_T"],
+            fold=params["fold"]
+        ), None
 
 def get_race_result(
-    race_id: str,
+    df,
     field: str,
-    odds: list,
     field_num: int,
     ev_min: float,
     prob_min: float,
@@ -145,6 +179,248 @@ def get_race_result(
         選択された馬番、または条件に合致しない場合 None
     """
 
+
+    # 列情報読み込み
+    feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+    embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+    context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+    context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+    # ----------------------------
+    # 父馬マッピング
+    # ----------------------------
+    pkl_path = f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl'
+    with open(pkl_path, "rb") as f:
+        sire_mapping = pickle.load(f)
+    df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
+
+    # ----------------------------
+    # 標準化・欠損値処理
+    # ----------------------------
+    # with open('log.txt', 'a', encoding='utf-8') as f:
+    #     print(df, file=f)
+    scaler = StandardScaler()
+    df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
+    df = Listwise.fill_nan(df, feature_cols)
+
+    # ----------------------------
+    # 場所列追加
+    # ----------------------------
+    df['場所'] = field_num
+
+    # ----------------------------
+    # カテゴリ列数値化
+    # ----------------------------
+    df = Listwise.race_feature(df)
+
+    # ----------------------------
+    # モデルロード・推論
+    # ----------------------------
+    
+    # 列情報読み込み
+    feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+    embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+    context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+    context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+    model_path = f"./model/{field}_ranknet_{fold}.pth"
+    state_dict = torch.load(model_path, map_location=device)
+
+    embedding_sizes = []
+    context_embedding_sizes = []
+
+    # 通常のカテゴリ埋め込み
+    i = 0
+    while f"embeddings.{i}.weight" in state_dict:
+        num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
+        embedding_sizes.append(num_classes)
+        # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
+        i += 1
+
+    # コンテキストカテゴリ埋め込み
+    j = 0
+    while f"context_embeddings.{j}.weight" in state_dict:
+        num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
+        context_embedding_sizes.append(num_classes)
+        # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
+        j += 1
+
+    # 読み込み
+    model = Listwise.ListNet(
+        embedding_sizes=embedding_sizes,
+        num_features=len(feature_cols),
+        context_embedding_sizes=context_embedding_sizes,
+        context_num_sizes=len(Listwise.context_num_cols),
+        emb_dim=16
+    )
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
+
+    df = predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
+
+    # ----------------------------
+    # 馬番修正
+    # ----------------------------
+    df['馬番'] = df['馬番'].astype(int) + 1
+
+    # ----------------------------
+    # 期待値最大選択 & 閾値フィルタ
+    # ----------------------------
+    df = Listwise_test.pick_ev_max_per_race(df, race_col="レースID", T=softmax_T)
+    print(df[["馬番","オッズ","softmax_score","expected_value"]], flush=True)
+    df = Listwise_test.filter_by_thresholds(df, ev_min=ev_min, prob_min=prob_min, odds_min=odds_min, odds_max=odds_max, ev_max=ev_max)
+
+    if len(df) == 0:
+        return None
+    else:
+        return int(df.iloc[0]['馬番'])
+    
+def get_race_wide_result(
+    df,
+    field: str,
+    field_num: int,
+    ev_min: float,
+    prob_min: float,
+    odds_min: float,
+    odds_max: float,
+    ev_max: float,
+    softmax_T: float,
+    fold: int
+):
+    """
+    共通化した競馬レース結果取得関数。
+    
+    Parameters
+    ----------
+    race_id : str
+        netkeibaのレースID
+    field : str
+        競馬場名 (hanshin, tokyo, nakayamaなど)
+    odds : float
+        オッズ
+    field_num : int
+        場所番号 (1, 2, 4など)
+    ev_min : float
+        期待値最小閾値
+    odds_min : float
+        オッズ最小閾値
+    odds_max : float
+        オッズ最大閾値
+    ev_max : float
+        期待値最大閾値
+    softmax_T : float
+        softmax温度
+    fold : int
+        交差検証用fold
+        
+    Returns
+    -------
+    int or None
+        選択された馬番、または条件に合致しない場合 None
+    """
+
+
+    # 列情報読み込み
+    feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+    embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+    context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+    context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+    # ----------------------------
+    # 父馬マッピング
+    # ----------------------------
+    pkl_path = f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl'
+    with open(pkl_path, "rb") as f:
+        sire_mapping = pickle.load(f)
+    df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
+
+    # ----------------------------
+    # 標準化・欠損値処理
+    # ----------------------------
+    # with open('log.txt', 'a', encoding='utf-8') as f:
+    #     print(df, file=f)
+    scaler = StandardScaler()
+    df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
+    df = Listwise.fill_nan(df, feature_cols)
+
+    # ----------------------------
+    # 場所列追加
+    # ----------------------------
+    df['場所'] = field_num
+
+    # ----------------------------
+    # カテゴリ列数値化
+    # ----------------------------
+    df = Listwise.race_feature(df)
+
+    # ----------------------------
+    # モデルロード・推論
+    # ----------------------------
+    
+    # 列情報読み込み
+    feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+    embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+    context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+    context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+    model_path = f"./model/{field}_ranknet_{fold}.pth"
+    state_dict = torch.load(model_path, map_location=device)
+
+    embedding_sizes = []
+    context_embedding_sizes = []
+
+    # 通常のカテゴリ埋め込み
+    i = 0
+    while f"embeddings.{i}.weight" in state_dict:
+        num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
+        embedding_sizes.append(num_classes)
+        # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
+        i += 1
+
+    # コンテキストカテゴリ埋め込み
+    j = 0
+    while f"context_embeddings.{j}.weight" in state_dict:
+        num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
+        context_embedding_sizes.append(num_classes)
+        # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
+        j += 1
+
+    # 読み込み
+    model = Listwise.ListNet(
+        embedding_sizes=embedding_sizes,
+        num_features=len(feature_cols),
+        context_embedding_sizes=context_embedding_sizes,
+        context_num_sizes=len(Listwise.context_num_cols),
+        emb_dim=16
+    )
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
+
+    df = predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
+
+    # ----------------------------
+    # 馬番修正
+    # ----------------------------
+    df['馬番'] = df['馬番'].astype(int) + 1
+
+    # ----------------------------
+    # 期待値最大選択 & 閾値フィルタ
+    # ----------------------------
+    df = Listwise_test.pick_ev_max_per_race(df, race_col="レースID", T=softmax_T, bet_type="ワイド")
+    print(df[["馬番","オッズ","softmax_score","expected_value"]], flush=True)
+    # 先頭評価
+    # main_candidates = df.head(1)
+    # main_candidates = Listwise_test.filter_by_thresholds(main_candidates, ev_min=ev_min, prob_min=prob_min, odds_min=odds_min, odds_max=odds_max, ev_max=ev_max)
+
+    # if len(main_candidates) == 0:
+    #     return None
+    # else:
+    #     return df["馬番"].astype(int).tolist()
+    return df["馬番"].astype(int).tolist()
+    
+def get_race_info(race_id, field, field_num, odds):
     # ----------------------------
     # 基本設定
     # ----------------------------
@@ -211,7 +487,7 @@ def get_race_result(
     # Learning / Listwise 前処理
     # ----------------------------
     df = Learning.df_first_processing(df, field)
-    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1'], axis=1, errors="ignore")  # 必要な削除カラム
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1', 'グループ'], axis=1, errors="ignore")  # 必要な削除カラム
     df = Learning.df_big_past_processing(df, field, field_num)
     df = Learning.past_level(df)
     df = Learning.df_end_processing(df)
@@ -219,93 +495,8 @@ def get_race_result(
     df = Listwise.append_col(df)
     df = Listwise.add_relative_features(df)
 
-    # 列情報読み込み
-    feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
-    embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
-    context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
-    context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+    return df
 
-    # ----------------------------
-    # 父馬マッピング
-    # ----------------------------
-    pkl_path = f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl'
-    with open(pkl_path, "rb") as f:
-        sire_mapping = pickle.load(f)
-    df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
-
-    # ----------------------------
-    # 標準化・欠損値処理
-    # ----------------------------
-    scaler = StandardScaler()
-    df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
-    df = Listwise.fill_nan(df, feature_cols)
-
-    # ----------------------------
-    # 場所列追加
-    # ----------------------------
-    df['場所'] = field_num
-
-    # ----------------------------
-    # カテゴリ列数値化
-    # ----------------------------
-    df = Listwise.race_feature(df)
-
-    # ----------------------------
-    # モデルロード・推論
-    # ----------------------------
-    model_path = f"./model/{field}_ranknet_{fold}.pth"
-    state_dict = torch.load(model_path, map_location=device)
-
-    embedding_sizes = []
-    context_embedding_sizes = []
-
-    # 通常のカテゴリ埋め込み
-    i = 0
-    while f"embeddings.{i}.weight" in state_dict:
-        num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
-        embedding_sizes.append(num_classes)
-        # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
-        i += 1
-
-    # コンテキストカテゴリ埋め込み
-    j = 0
-    while f"context_embeddings.{j}.weight" in state_dict:
-        num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
-        context_embedding_sizes.append(num_classes)
-        # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
-        j += 1
-
-    # 読み込み
-    model = Listwise.ListNet(
-        embedding_sizes=embedding_sizes,
-        num_features=len(feature_cols),
-        context_embedding_sizes=context_embedding_sizes,
-        context_num_sizes=len(Listwise.context_num_cols),
-        emb_dim=16
-    )
-    model.load_state_dict(state_dict)
-    model.to(device)
-    model.eval()
-
-    df = predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
-
-    # ----------------------------
-    # 馬番修正
-    # ----------------------------
-    df['馬番'] = df['馬番'].astype(int) + 1
-
-    # ----------------------------
-    # 期待値最大選択 & 閾値フィルタ
-    # ----------------------------
-    df = Listwise_test.pick_ev_max_per_race(df, race_col="レースID", T=softmax_T)
-    print(df[["馬番","オッズ","softmax_score","expected_value"]], flush=True)
-    df = Listwise_test.filter_by_thresholds(df, ev_min=ev_min, prob_min=prob_min, odds_min=odds_min, odds_max=odds_max, ev_max=ev_max)
-
-    if len(df) == 0:
-        return None
-    else:
-        return int(df.iloc[0]['馬番'])
-    
 
 def hanshin(race_id, odds):
     field = 'hanshin'

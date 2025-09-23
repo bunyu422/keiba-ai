@@ -1,7 +1,7 @@
 import glob
 import numpy as np
 import pandas as pd
-from itertools import product
+from itertools import combinations, product
 from tqdm import tqdm
 import statsmodels.api as sm
 from betacal import BetaCalibration
@@ -18,7 +18,7 @@ def make_softmax_with_temperature(T=1.0):
             return e_x / e_x.sum()
         return softmax
 
-def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col="レースID", T=0.7):
+def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col="レースID", T=0.7, bet_type="単勝"):
     """レースごとにEV最大の馬を1頭だけ抽出（EV = p * odds）。"""
     df = df.copy()
 
@@ -28,15 +28,27 @@ def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col=
     df['softmax_score'] = df.groupby('レースID')['pred_score'].transform(softmax_T)
     df['expected_value'] = df['softmax_score'] * df['オッズ']
     
+    if bet_type != "ワイド":
+        # df["expected_value"] = df[p_col] * df[odds_col]
+        # EV最大のindexを取る（同値があると複数返ることがあるので最後に重複排除）
+        idx = df.groupby(race_col)["expected_value"].idxmax()
+        sel = df.loc[idx].copy()
+        
+        # 念のため race 重複排除（理論上不要だが安全策）
+        sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
+        sel = sel.drop_duplicates(subset=[race_col], keep="first")
+    else:
+        # EV最大3のindexを取る（同値があると複数返ることがあるので最後に重複排除）
+        idx = (
+            df.groupby(race_col, group_keys=False)
+            .apply(lambda g: g["expected_value"].nlargest(3).index)
+        )
+        # flatten して list に変換
+        idx = idx.explode().dropna().astype(int).to_list()
 
-    # df["expected_value"] = df[p_col] * df[odds_col]
-    # EV最大のindexを取る（同値があると複数返ることがあるので最後に重複排除）
-    idx = df.groupby(race_col)["expected_value"].idxmax()
-    sel = df.loc[idx].copy()
-    
-    # 念のため race 重複排除（理論上不要だが安全策）
-    sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
-    sel = sel.drop_duplicates(subset=[race_col], keep="first")
+        sel = df.loc[idx].copy()
+        
+        sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
     
     return sel
 
@@ -121,10 +133,12 @@ import pandas as pd
 
 def evaluate_selection(
     sel,
+    df_payout=None,
     stake=100,
     use_bootstrap=False,
     n_bootstrap=5000,
     ci=0.95,
+    bet_type="単勝",
     random_state=None
 ):
     """購入結果を集計。ROIの95%信頼区間は Wilson またはブートストラップで計算。"""
@@ -142,11 +156,65 @@ def evaluate_selection(
             "ci_method": "none"
         }
 
-    hits = int(sel["is_win"].sum())
-    return_yen = float((sel["is_win"] * sel["オッズ"] * stake).sum())
-    invest = n_selected_races * stake
-    roi = return_yen / invest
-    p_hat = hits / n_selected_races if n_selected_races > 0 else 0
+    if bet_type == "単勝":
+        hits = int(sel["is_win"].sum())
+        return_yen = float((sel["is_win"] * sel["オッズ"] * stake).sum())
+        invest = n_selected_races * stake
+        roi = return_yen / invest
+        p_hat = hits / n_selected_races if n_selected_races > 0 else 0
+
+    elif bet_type == "複勝":
+        # NaN を 0 に埋めて扱いやすくする
+        sel["複勝払戻"] = sel["複勝払戻"].fillna(0)
+        # 的中判定（払戻が入っていれば的中）
+        sel["hit"] = (sel["複勝払戻"] > 0).astype(int)
+        # 払戻はそのまま金額
+        sel["payout"] = sel["複勝払戻"]
+        hits = sel["hit"].sum()
+        return_yen = float(sel["payout"].sum())
+        invest = n_selected_races * stake
+        roi = return_yen / invest
+        p_hat = hits / n_selected_races if n_selected_races > 0 else 0
+    elif bet_type == "ワイド":
+        race_col = "レースID"
+
+        # --- 各レースの上位3頭をリスト化 ---
+        horse_lists = sel.groupby(race_col)["馬番"].apply(list)
+
+        # --- 各レースで「本命流し」の2点だけ生成 ---
+        bets = []
+        for race_id, horses in horse_lists.items():
+            if len(horses) >= 3:
+                main = horses[0]      # 1着予想馬（sel内の先頭）
+                others = horses[1:3]  # 2着・3着予想馬
+                for o in others:
+                    pair = "-".join(map(str, sorted([main, o])))
+                    bets.append((race_id, pair))
+
+        df_bets = pd.DataFrame(bets, columns=[race_col, "馬番"])
+
+        if df_bets.empty:
+            return 0, 0, 0, 0, 0, df_bets
+
+        # --- 払戻データ（ワイドのみ抽出） ---
+        payout_wide = df_payout.query("券種 == 'ワイド'")[
+            [race_col, "馬番", "払い戻し金額"]
+        ]
+
+        # --- mergeで結合 ---
+        df_merged = df_bets.merge(payout_wide, on=[race_col, "馬番"], how="left")
+
+        # --- 的中判定 & 集計 ---
+        df_merged["hit"] = df_merged["払い戻し金額"].notna().astype(int)
+        df_merged["payout"] = df_merged["払い戻し金額"].fillna(0)
+
+        hits = df_merged["hit"].sum()
+        return_yen = df_merged["payout"].sum()
+        invest = len(df_merged) * stake
+        roi = return_yen / invest if invest > 0 else 0
+        p_hat = hits / len(df_merged) if len(df_merged) > 0 else 0
+        n_selected_races = df_bets[race_col].nunique()  # 実際に購入したレース数
+
 
     roi_ci_low, roi_ci_high, ci_method = None, None, "none"
 
@@ -198,6 +266,8 @@ def evaluate_selection(
 
 def grid_search_ev_policy(
     df,
+    df_payout=None,
+    bet_type="単勝",
     fold_col='fold',
     p_col="pred_score",
     odds_col="オッズ",
@@ -219,43 +289,55 @@ def grid_search_ev_policy(
         fold_df = df[df[fold_col] == fold].reset_index(drop=True)
         best_roi = -float('inf')
         best_params = None
+        # 全パラメータの組み合わせ数を計算
+        total = len(temperature_grid) * len(ev_min_grid) * len(prob_min_grid) \
+                * len(odds_max_grid) * len(ev_max_grid) * len(odds_min_grid)
 
-        for T in temperature_grid:
-            # 温度 T で一度だけ softmax 適用
-            base = pick_ev_max_per_race(fold_df, p_col=p_col, odds_col=odds_col, race_col=race_col, T=T)
+        with tqdm(total=total, desc=f"Fold {fold}", unit="param") as pbar:
+            for T in temperature_grid:
+                # 温度 T で一度だけ softmax 適用
+                base = pick_ev_max_per_race(fold_df, p_col=p_col, odds_col=odds_col, race_col=race_col, T=T, bet_type=bet_type)
+                
+                if bet_type == "ワイド":
+                    # ---- ① 1着候補のみフィルタ ----
+                    main_candidates = (
+                        base.groupby(race_col, group_keys=False)
+                        .head(1)  # 各レースの先頭行 = 1着予想馬
+                    )
 
-            for ev_min, prob_min, odds_max, ev_max, odds_min in product(
-                ev_min_grid, prob_min_grid, odds_max_grid, ev_max_grid, odds_min_grid
-            ):
-                sel = filter_by_thresholds(
-                    base,
-                    ev_min=ev_min,
-                    prob_min=prob_min,
-                    odds_min=odds_min,
-                    odds_max=odds_max,
-                    ev_max=ev_max
-                )
+                for ev_min, prob_min, odds_max, ev_max, odds_min in product(
+                    ev_min_grid, prob_min_grid, odds_max_grid, ev_max_grid, odds_min_grid
+                ):
+                    if bet_type == "ワイド":
+                        main_filtered = filter_by_thresholds(
+                            main_candidates,
+                            ev_min=ev_min,
+                            prob_min=prob_min,
+                            odds_min=odds_min,
+                            odds_max=odds_max,
+                            ev_max=ev_max
+                        )
 
-                # 選択レース数が少なければスキップ
-                if sel[race_col].nunique() < min_selected:
-                    continue
+                        # ---- ② 1着が残ったレースの上位3頭を購入対象にする ----
+                        sel = base[base[race_col].isin(main_filtered[race_col])]
+                    
+                    else:
+                        sel = filter_by_thresholds(
+                            base,
+                            ev_min=ev_min,
+                            prob_min=prob_min,
+                            odds_min=odds_min,
+                            odds_max=odds_max,
+                            ev_max=ev_max
+                        )
 
-                metrics = evaluate_selection(sel, stake=stake, use_bootstrap=False)
-                all_results.append({
-                    "fold": fold,
-                    "temperature": T,
-                    "ev_min": ev_min,
-                    "prob_min": prob_min,
-                    "odds_min": odds_min,
-                    "odds_max": odds_max,
-                    "ev_max": ev_max,
-                    **metrics
-                })
+                    # 選択レース数が少なければスキップ
+                    if sel[race_col].nunique() < min_selected:
+                        pbar.update(1)
+                        continue
 
-                # ベストROI更新
-                if metrics['roi_ci_low'] > best_roi:
-                    best_roi = metrics['roi_ci_low']
-                    best_params = {
+                    metrics = evaluate_selection(sel, df_payout=df_payout, stake=stake, use_bootstrap=False, bet_type=bet_type)
+                    all_results.append({
                         "fold": fold,
                         "temperature": T,
                         "ev_min": ev_min,
@@ -263,16 +345,32 @@ def grid_search_ev_policy(
                         "odds_min": odds_min,
                         "odds_max": odds_max,
                         "ev_max": ev_max,
-                        "roi": metrics['roi'],
-                        "roi_ci_low": metrics['roi_ci_low'],
-                        "roi_ci_high": metrics['roi_ci_high'],
-                        "selected_races": metrics['selected_races'],
-                        "hits": metrics['hits'],
-                        "hit_rate": metrics['hit_rate'],
-                        "return_yen": metrics['return_yen'],
-                        "investment_yen": metrics['investment_yen'],
-                        "ci_method": metrics['ci_method']
-                    }
+                        **metrics
+                    })
+
+                    # ベストROI更新
+                    if metrics['roi_ci_low'] > best_roi:
+                        best_roi = metrics['roi_ci_low']
+                        best_params = {
+                            "fold": fold,
+                            "temperature": T,
+                            "ev_min": ev_min,
+                            "prob_min": prob_min,
+                            "odds_min": odds_min,
+                            "odds_max": odds_max,
+                            "ev_max": ev_max,
+                            "roi": metrics['roi'],
+                            "roi_ci_low": metrics['roi_ci_low'],
+                            "roi_ci_high": metrics['roi_ci_high'],
+                            "selected_races": metrics['selected_races'],
+                            "hits": metrics['hits'],
+                            "hit_rate": metrics['hit_rate'],
+                            "return_yen": metrics['return_yen'],
+                            "investment_yen": metrics['investment_yen'],
+                            "ci_method": metrics['ci_method']
+                        }
+
+                    pbar.update(1)
 
         if best_params is not None:
             best_params_per_fold.append(best_params)
@@ -612,12 +710,20 @@ if __name__ == '__main__':
     #     './csv/tokyo_result_ranknet_val_4.csv'
     # ]
 
+    # csv_files = [
+    #     './csv/hanshin_result_ranknet_test_0.csv',
+    #     './csv/hanshin_result_ranknet_test_1.csv',
+    #     './csv/hanshin_result_ranknet_test_2.csv',
+    #     './csv/hanshin_result_ranknet_test_3.csv',
+    #     './csv/hanshin_result_ranknet_test_4.csv'
+    # ]
+
     csv_files = [
-        './csv/hanshin_result_ranknet_test_0.csv',
-        './csv/hanshin_result_ranknet_test_1.csv',
-        './csv/hanshin_result_ranknet_test_2.csv',
-        './csv/hanshin_result_ranknet_test_3.csv',
-        './csv/hanshin_result_ranknet_test_4.csv'
+        './csv/nakayama_result_ranknet_test_0.csv',
+        './csv/nakayama_result_ranknet_test_1.csv',
+        './csv/nakayama_result_ranknet_test_2.csv',
+        './csv/nakayama_result_ranknet_test_3.csv',
+        './csv/nakayama_result_ranknet_test_4.csv'
     ]
 
     dfs = []
@@ -628,6 +734,24 @@ if __name__ == '__main__':
         print(f"レース数: {len(df_fold['レースID'].unique())}")
 
     df = pd.concat(dfs, ignore_index=True)
+
+    payout_df = pd.read_csv('./csv/nakayama_payouts_2012-2024.csv')
+
+    # 複勝の払い戻しだけ抽出
+    # fukusho = payout_df[payout_df["券種"] == "複勝"]
+
+    # # 馬番をintに直す
+    # fukusho["馬番"] = fukusho["馬番"].astype(int)
+
+    # # 結合
+    # df = df.merge(
+    #     fukusho[["レースID", "馬番", "払い戻し金額"]],
+    #     on=["レースID", "馬番"],
+    #     how="left"
+    # ).rename(columns={"払い戻し金額": "複勝払戻"})
+
+    # print(df[["レースID", "馬番", "着順", "複勝払戻"]].head(20))
+
     # df_val = df_val.copy()
     # df_val['is_win'] = (df_val['着順'] == 1).astype(int)
 
@@ -656,7 +780,7 @@ if __name__ == '__main__':
     # pred_score は温度スケーリング後の確率（0~1推奨）
 
     # 例）グリッド探索して上位5条件を表示
-    res, best = grid_search_ev_policy(df)
+    res, best = grid_search_ev_policy(df, df_payout=payout_df, bet_type="ワイド")
     print(best)
 
     # res_df, params_df, summary, top = nested_fold_eval_temperature(df)

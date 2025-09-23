@@ -19,12 +19,30 @@ import datetime
 
 
 # ---- 共通関数 ----
+from selenium.common.exceptions import StaleElementReferenceException
+
 def wait_and_click(by, value, timeout=15):
-    el = WebDriverWait(driver, timeout).until(
-        EC.element_to_be_clickable((by, value))
-    )
-    el.click()
+    el = WebDriverWait(driver, timeout).until( EC.element_to_be_clickable((by, value)) ) 
+    el.click() 
     return el
+
+def click_wide_horse(umaban):
+    """
+    ワイド選択で馬をクリックする関数
+    driver : Selenium WebDriver
+    umaban : 馬番（1始まり）
+    """
+    print("selectHorse count:", driver.page_source.count("selectHorse"))
+
+    # 表示中の selectHorse 内のリンクだけ取得
+    horse_links = WebDriverWait(driver, 10).until(
+        EC.presence_of_all_elements_located(
+            (By.CSS_SELECTOR, ".selectHorse:not([style*='display: none']) .ui-link")
+        )
+    )
+
+    horse_el = horse_links[umaban - 1]
+    horse_el.click()
 
 def wait_and_type(by, value, text, timeout=15):
     el = WebDriverWait(driver, timeout).until(
@@ -79,7 +97,7 @@ def job(n1, n2, n3):
         field = "hanshin"
 
     # 馬を選択
-    buyList = Listwise_func.select_horse(n3, field, odds)
+    buyList, buyList_wide = Listwise_func.select_horse(n3, field, odds)
 
     if buyList is None:
         print(f"{n1}{n2}R は購入しない")
@@ -92,12 +110,41 @@ def job(n1, n2, n3):
 
         driver.find_element(By.CLASS_NAME, "selectHorse").find_elements(By.CLASS_NAME, "ui-link")[umaban-1].click()
 
+        wait_and_type(By.CLASS_NAME, "ui-input-text", "5")
+        wait_and_click(By.LINK_TEXT, "セット")
+        # wait_and_click(By.PARTIAL_LINK_TEXT, "番から")
+        # wait_and_click(By.LINK_TEXT, "取消")
+        wait_and_click(By.LINK_TEXT, "入力終了")
+        wait_and_type(By.ID, "sum", "500")
+        wait_and_click(By.LINK_TEXT, "投票")
+
+        wait_alert_and_accept()  # 投票確認アラート
+
+        wait_and_click(By.LINK_TEXT, "続けて通常投票")
+
+    # ワイド投票
+    if buyList_wide is None:
+        pass
+    else:
+        wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
+        wait_and_click(By.PARTIAL_LINK_TEXT, f"{n2}R") # レース
+        wait_and_click(By.PARTIAL_LINK_TEXT, "ワイド")
+        wait_and_click(By.PARTIAL_LINK_TEXT, "ながし")
+
+        umaban = buyList_wide
+        print(f"{n1}{n2}R {umaban}番")
+
+        for i in umaban:
+            click_wide_horse(i)
+            time.sleep(1)
+            
+        wait_and_click(By.CSS_SELECTOR, "金額入力画面へ")
         wait_and_type(By.CLASS_NAME, "ui-input-text", "1")
         wait_and_click(By.LINK_TEXT, "セット")
-        wait_and_click(By.PARTIAL_LINK_TEXT, "番から")
-        wait_and_click(By.LINK_TEXT, "取消")
+        # wait_and_click(By.PARTIAL_LINK_TEXT, "番から")
+        # wait_and_click(By.LINK_TEXT, "取消")
         wait_and_click(By.LINK_TEXT, "入力終了")
-        wait_and_type(By.ID, "sum", "100")
+        wait_and_type(By.ID, "sum", f"{(len(umaban)-1) * 100}")
         wait_and_click(By.LINK_TEXT, "投票")
 
         wait_alert_and_accept()  # 投票確認アラート
@@ -169,6 +216,7 @@ def set_info():
 
         # レース一覧ページ
         url_race = f'https://race.netkeiba.com/top/race_list.html?kaisai_date={today_str}'
+        print(url_race)
         # ブラウザでアクセスする
         driver.get(url_race)
 
@@ -196,7 +244,7 @@ def set_info():
 
         for num, block in enumerate(blocks):
             # 各ブロック内の RaceList_DataItem を取得
-            li_items = block.find_elements(By.CSS_SELECTOR, "li.RaceList_DataItem.hasMovieLink")
+            li_items = block.find_elements(By.CSS_SELECTOR, "li.RaceList_DataItem")
             if not li_items:
                 continue
 
@@ -246,24 +294,35 @@ def set_info():
         
     return time_list, place_list, race_l, race_id
 
+# def job_with_retry(n1, n2, n3, retry=True):
+#     try:
+#         job(n1, n2, n3)  # 本来の購入処理
+#     except Exception as e:
+#         print(f"{n1}{n2}R でエラー発生: {e}")
+#         if retry:
+#             print("→ 1回だけリトライします")
+#             try:
+#                 job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
+#             except Exception as e2:
+#                 print(f"{n1}{n2}R リトライでも失敗: {e2}")
+#                 driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}_retry.png')
+#                 with open('log.txt', 'a', encoding='utf-8') as f:
+#                     f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
+#                 job1()
+#         else:
+#             driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+#             with open('log.txt', 'a', encoding='utf-8') as f:
+#                 f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
+
 def job_with_retry(n1, n2, n3, retry=True):
     try:
         job(n1, n2, n3)  # 本来の購入処理
     except Exception as e:
         print(f"{n1}{n2}R でエラー発生: {e}")
-        if retry:
-            print("→ 1回だけリトライします")
-            try:
-                job(n1, n2, n3)  # 再実行。ただし二重再帰しないよう retry=False
-            except Exception as e2:
-                print(f"{n1}{n2}R リトライでも失敗: {e2}")
-                driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}_retry.png')
-                with open('log.txt', 'a', encoding='utf-8') as f:
-                    f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
-        else:
-            driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
-            with open('log.txt', 'a', encoding='utf-8') as f:
-                f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
+        driver.save_screenshot(f'./img/{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}_retry.png')
+        with open('log.txt', 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.datetime.now()}] {traceback.format_exc()}\n")
+        job1()
 
 
 # ブラウザ立ち上げ
