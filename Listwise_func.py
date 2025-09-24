@@ -30,9 +30,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 競馬場別パラメータ設定
 # ----------------------------
 race_params = {
-    "hanshin": {"field_num": 4, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4},
-    "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2},
-    "nakayama": {"field_num": 1, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2},
+    "hanshin": {"field_num": 4, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4, "central": True},
+    "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2, "central": True},
+    "nakayama": {"field_num": 1, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2, "central": True},
+    "monbetu": {"field_num": 12, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 3, "softmax_T": 0.6, "fold": 3, "central": False},
+    "kasamatu": {"field_num": 20, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.2, "fold": 0, "central": False}
 }
 
 race_params_wide = {
@@ -93,7 +95,7 @@ def select_horse(race_id: str, venue: str, odds: list):
     
     params_wide = race_params_wide.get(venue.lower())
     
-    df = get_race_info(race_id, field=venue.lower(), field_num=params["field_num"], odds=odds)
+    df = get_race_info(race_id, field=venue.lower(), field_num=params["field_num"], odds=odds, central=params["central"])
 
     if params_wide is not None:
         
@@ -420,7 +422,7 @@ def get_race_wide_result(
     #     return df["馬番"].astype(int).tolist()
     return df["馬番"].astype(int).tolist()
     
-def get_race_info(race_id, field, field_num, odds):
+def get_race_info(race_id, field, field_num, odds, central):
     # ----------------------------
     # 基本設定
     # ----------------------------
@@ -430,8 +432,12 @@ def get_race_info(race_id, field, field_num, odds):
 
     headers = {"User-Agent": "Mozilla/5.0"}
 
-    url_race = 'https://race.netkeiba.com/race/shutuba.html?race_id={}&rf=shutuba_submenu'.format(race_id)
-    url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+    if central:
+        url_race = 'https://race.netkeiba.com/race/shutuba.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+        url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+    else:
+        url_race = 'https://nar.netkeiba.com/race/shutuba.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+        url_past = 'https://nar.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
     print(url_race)
 
     # ----------------------------
@@ -494,6 +500,8 @@ def get_race_info(race_id, field, field_num, odds):
     df = Listwise.inversion(df)
     df = Listwise.append_col(df)
     df = Listwise.add_relative_features(df)
+    with open("log.txt", "a", encoding="utf-8") as f:
+        f.write(df.to_string())
 
     return df
 

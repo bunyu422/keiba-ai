@@ -718,12 +718,28 @@ if __name__ == '__main__':
     #     './csv/hanshin_result_ranknet_test_4.csv'
     # ]
 
+    # csv_files = [
+    #     './csv/nakayama_result_ranknet_test_0.csv',
+    #     './csv/nakayama_result_ranknet_test_1.csv',
+    #     './csv/nakayama_result_ranknet_test_2.csv',
+    #     './csv/nakayama_result_ranknet_test_3.csv',
+    #     './csv/nakayama_result_ranknet_test_4.csv'
+    # ]
+
+    # csv_files = [
+    #     './csv/monbetu_result_ranknet_test_0.csv',
+    #     './csv/monbetu_result_ranknet_test_1.csv',
+    #     './csv/monbetu_result_ranknet_test_2.csv',
+    #     './csv/monbetu_result_ranknet_test_3.csv',
+    #     './csv/monbetu_result_ranknet_test_4.csv'
+    # ]
+
     csv_files = [
-        './csv/nakayama_result_ranknet_test_0.csv',
-        './csv/nakayama_result_ranknet_test_1.csv',
-        './csv/nakayama_result_ranknet_test_2.csv',
-        './csv/nakayama_result_ranknet_test_3.csv',
-        './csv/nakayama_result_ranknet_test_4.csv'
+        './csv/kasamatu_result_ranknet_test_0.csv',
+        './csv/kasamatu_result_ranknet_test_1.csv',
+        './csv/kasamatu_result_ranknet_test_2.csv',
+        './csv/kasamatu_result_ranknet_test_3.csv',
+        './csv/kasamatu_result_ranknet_test_4.csv'
     ]
 
     dfs = []
@@ -735,7 +751,7 @@ if __name__ == '__main__':
 
     df = pd.concat(dfs, ignore_index=True)
 
-    payout_df = pd.read_csv('./csv/nakayama_payouts_2012-2024.csv')
+    # payout_df = pd.read_csv('./csv/nakayama_payouts_2012-2024.csv')
 
     # 複勝の払い戻しだけ抽出
     # fukusho = payout_df[payout_df["券種"] == "複勝"]
@@ -780,7 +796,7 @@ if __name__ == '__main__':
     # pred_score は温度スケーリング後の確率（0~1推奨）
 
     # 例）グリッド探索して上位5条件を表示
-    res, best = grid_search_ev_policy(df, df_payout=payout_df, bet_type="ワイド")
+    res, best = grid_search_ev_policy(df)
     print(best)
 
     # res_df, params_df, summary, top = nested_fold_eval_temperature(df)

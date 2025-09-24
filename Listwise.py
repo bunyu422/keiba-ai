@@ -95,8 +95,8 @@ embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
 ###########################モデルごとに変更が必要############################
-csv_path = './csv/df_all_monbetu.csv'
-field = 'monbetu'
+field = 'sonoda'
+csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
 df = evaluation.load_csv(csv_path)

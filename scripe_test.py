@@ -156,7 +156,11 @@ def set_time(skip_list, url_race):
 
 # Learning.scrape_payouts_combination('./csv/nakayama_payouts_2012-2024.csv', '06')
 
-Learning.scraping_local('./csv/monbetu_2015-2024.csv', '30')
+# Learning.scraping_local('./csv/monbetu_2015-2024.csv', '30')
+Learning.scraping_local('./csv/kasamatu_2015-2024.csv', '47')
+Learning.scraping_local('./csv/sonoda_2015-2024.csv', '50')
+Learning.scraping_local('./csv/nagoya_2015-2024.csv', '48')
+
 # Learning.scraping('./csv/sapporo_2012-2024.csv', '01')
 # Learning.scraping('./csv/hakodate_2012-2024.csv', '02')
 # Learning.scraping('./csv/hukushima_2012-2024.csv', '03')
