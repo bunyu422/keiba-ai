@@ -930,8 +930,8 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 22
-    field_name = 'sonoda'
+    field = 21
+    field_name = 'nagoya'
     csv_path = f"./csv/{field_name}_2015-2024.csv" # 学習に使うcsvデータのパス
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,

@@ -95,8 +95,9 @@ embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'sonoda'
-csv_path = f'./csv/df_all_{field}.csv'
+field = 'nagoya2'
+csv_path = f'./csv/df_all_nagoya.csv'
+# csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
 df = evaluation.load_csv(csv_path)
@@ -466,21 +467,49 @@ def ranknet_loss(preds, labels):
     return loss
 
 
-def make_smooth_relevance_labels(df, max_rel=3):
+# def make_smooth_relevance_labels(df, max_rel=3):
+#     """
+#     着順に応じて滑らかに relevance を作る
+#     上位ほど大きく、下位も微小な値を持つ
+#     """
+#     def relevance(x):
+#         if x == 1:
+#             return max_rel
+#         elif x == 2:
+#             return max(max_rel - 1, 0)
+#         elif x == 3:
+#             return max(max_rel - 2, 0)
+#         else:
+#             return max_rel / x  # 下位も微小な値
+#     return df['着順'].apply(relevance)
+
+def make_smooth_relevance_labels(df, max_rel=3, odds_col="オッズ", gamma=0.5):
     """
-    着順に応じて滑らかに relevance を作る
-    上位ほど大きく、下位も微小な値を持つ
+    着順とオッズを組み合わせたrelevanceを作る
+    gamma: 着順とオッズの重みバランス
     """
-    def relevance(x):
-        if x == 1:
-            return max_rel
-        elif x == 2:
-            return max(max_rel - 1, 0)
-        elif x == 3:
-            return max(max_rel - 2, 0)
+    def relevance(row):
+        pos = row['着順']
+        odds = row[odds_col]
+
+        # 着順に基づく部分
+        if pos == 1:
+            base = max_rel
+        elif pos == 2:
+            base = max(max_rel - 1, 0)
+        elif pos == 3:
+            base = max(max_rel - 2, 0)
         else:
-            return max_rel / x  # 下位も微小な値
-    return df['着順'].apply(relevance)
+            base = max_rel / pos
+
+        # オッズに基づく補正（例：対数 or 平方根で抑える）
+        odds_factor = np.log1p(odds) / np.log1p(df[odds_col].max())
+
+        # γでバランスを取る
+        return (1 - gamma) * base + gamma * (base * odds_factor)
+
+    return df.apply(relevance, axis=1)
+
 
 def lambdarank_loss(preds, labels):
     """
@@ -882,6 +911,8 @@ if __name__ == '__main__':
 
     gkf = GroupKFold(n_splits=n_splits)
     for fold, (train_idx, test_idx) in enumerate(gkf.split(df, groups=df[group_col])):
+        if fold == 3:
+            break
 
         # trainval: test = 8 : 2（group単位）
         trainval_df = df.iloc[train_idx]
@@ -1039,7 +1070,7 @@ if __name__ == '__main__':
         model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-4)
         # ハイパーパラメータ
-        patience = 20  # 何エポック改善がなければ終了するか
+        patience = 10  # 何エポック改善がなければ終了するか
         best_val_loss = float('inf')
         no_improve_count = 0
         best_model_weights = None

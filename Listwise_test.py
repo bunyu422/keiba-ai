@@ -6,6 +6,7 @@ from tqdm import tqdm
 import statsmodels.api as sm
 from betacal import BetaCalibration
 from sklearn.isotonic import IsotonicRegression
+import bandit
 
 # 行・列ともに省略せず全て表示する設定
 pd.set_option('display.max_rows', None)
@@ -51,6 +52,45 @@ def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col=
         sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
     
     return sel
+
+def pick_ev_max_per_race_alpha(df, alpha=1, beta=1, gamma=1, race_col="レースID", bet_type="単勝"):
+    """レースごとにEV最大の馬を1頭だけ抽出（EV = p * odds）。"""
+    df = df.copy()
+
+    df['expected_value'] = df['softmax_score'] * df['オッズ']
+    df['score_alpha'] = (alpha * df['softmax_score']) + (beta * df['expected_value']) + (1 / df['オッズ'] * gamma)
+    
+    if bet_type != "ワイド":
+        # df["expected_value"] = df[p_col] * df[odds_col]
+        # EV最大のindexを取る（同値があると複数返ることがあるので最後に重複排除）
+        idx = df.groupby(race_col)["expected_value"].idxmax()
+        sel = df.loc[idx].copy()
+        
+        # 念のため race 重複排除（理論上不要だが安全策）
+        sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
+        sel = sel.drop_duplicates(subset=[race_col], keep="first")
+    else:
+        # EV最大3のindexを取る（同値があると複数返ることがあるので最後に重複排除）
+        idx = (
+            df.groupby(race_col, group_keys=False)
+            .apply(lambda g: g["expected_value"].nlargest(3).index)
+        )
+        # flatten して list に変換
+        idx = idx.explode().dropna().astype(int).to_list()
+
+        sel = df.loc[idx].copy()
+        
+        sel = sel.sort_values(["レースID", "expected_value"], ascending=[True, False])
+    
+    return sel
+
+def softmax_pred(df, T):
+    # T = 0.6
+    softmax_T = make_softmax_with_temperature(T)
+
+    df['softmax_score'] = df.groupby('レースID')['pred_score'].transform(softmax_T)
+
+    return df
 
 def pick_score_max_per_race(df, race_col="レースID", T=0.1):
     """レースごとにEV最大の馬を1頭だけ抽出（EV = p * odds）。"""
@@ -291,12 +331,13 @@ def grid_search_ev_policy(
         best_params = None
         # 全パラメータの組み合わせ数を計算
         total = len(temperature_grid) * len(ev_min_grid) * len(prob_min_grid) \
-                * len(odds_max_grid) * len(ev_max_grid) * len(odds_min_grid)
+                * len(odds_max_grid) * len(ev_max_grid) * len(odds_min_grid) \
 
         with tqdm(total=total, desc=f"Fold {fold}", unit="param") as pbar:
             for T in temperature_grid:
                 # 温度 T で一度だけ softmax 適用
                 base = pick_ev_max_per_race(fold_df, p_col=p_col, odds_col=odds_col, race_col=race_col, T=T, bet_type=bet_type)
+                # base = softmax_pred(fold_df, T)
                 
                 if bet_type == "ワイド":
                     # ---- ① 1着候補のみフィルタ ----
@@ -330,6 +371,164 @@ def grid_search_ev_policy(
                             odds_max=odds_max,
                             ev_max=ev_max
                         )
+
+                    # 選択レース数が少なければスキップ
+                    if sel[race_col].nunique() < min_selected:
+                        pbar.update(1)
+                        continue
+
+                    metrics = evaluate_selection(sel, df_payout=df_payout, stake=stake, use_bootstrap=False, bet_type=bet_type)
+                    all_results.append({
+                        "fold": fold,
+                        "temperature": T,
+                        "ev_min": ev_min,
+                        "prob_min": prob_min,
+                        "odds_min": odds_min,
+                        "odds_max": odds_max,
+                        "ev_max": ev_max,
+                        **metrics
+                    })
+
+                    # ベストROI更新
+                    if metrics['roi_ci_low'] > best_roi:
+                        best_roi = metrics['roi_ci_low']
+                        best_params = {
+                            "fold": fold,
+                            "temperature": T,
+                            "ev_min": ev_min,
+                            "prob_min": prob_min,
+                            "odds_min": odds_min,
+                            "odds_max": odds_max,
+                            "ev_max": ev_max,
+                            "roi": metrics['roi'],
+                            "roi_ci_low": metrics['roi_ci_low'],
+                            "roi_ci_high": metrics['roi_ci_high'],
+                            "selected_races": metrics['selected_races'],
+                            "hits": metrics['hits'],
+                            "hit_rate": metrics['hit_rate'],
+                            "return_yen": metrics['return_yen'],
+                            "investment_yen": metrics['investment_yen'],
+                            "ci_method": metrics['ci_method']
+                        }
+
+                    pbar.update(1)
+
+        if best_params is not None:
+            best_params_per_fold.append(best_params)
+
+    all_results_df = pd.DataFrame(all_results).sort_values(["fold", "roi_ci_low"], ascending=[True, False])
+    best_params_df = pd.DataFrame(best_params_per_fold)
+
+    return all_results_df, best_params_df
+
+
+def grid_search_bandit(
+    df,
+    df_payout=None,
+    bet_type="単勝",
+    fold_col='fold',
+    p_col="pred_score",
+    odds_col="オッズ",
+    race_col="レースID",
+    stake=100,
+    temperature_grid=[0.3],
+    ev_min_grid=[1.1],
+    prob_min_grid=[0],
+    odds_max_grid=[float('inf')],
+    ev_max_grid=[3],
+    odds_min_grid=[3],
+    temperature_grid2=[0.2, 0.3, 0.4, 0.5, 0.6],
+    ev_min_grid2=np.round(np.arange(0, 2.01, 0.1), 2),
+    prob_min_grid2=[0, 0.05, 0.1, 0.12, 0.15, 0.2],
+    odds_max_grid2=[8, 10, 12, 15, float('inf')],
+    ev_max_grid2=[3, 4, 5, float('inf')],
+    odds_min_grid2=[1.0, 1.5, 2, 3, 4],
+    min_selected=200
+):
+    folds = sorted(df[fold_col].unique())
+    all_results = []
+    best_params_per_fold = []
+    policies = [
+    ("EV最大", bandit.policy_ev_max, {}),
+    ("勝率最大", bandit.policy_prob_max, {}),
+    ("オッズ条件付き", bandit.policy_odds_range, {}),
+]
+
+    for fold in folds:
+        if fold != 3:
+            continue
+        fold_df = df[df[fold_col] == fold].reset_index(drop=True)
+        best_roi = -float('inf')
+        best_params = None
+        # 全パラメータの組み合わせ数を計算
+        total = len(temperature_grid2) * len(ev_min_grid2) * len(prob_min_grid2) \
+                * len(odds_max_grid2) * len(ev_max_grid2) * len(odds_min_grid2) \
+
+        T = temperature_grid
+        # 温度 T で一度だけ softmax 適用
+        # base = pick_ev_max_per_race(fold_df, p_col=p_col, odds_col=odds_col, race_col=race_col, T=T, bet_type=bet_type)
+        base_df = softmax_pred(fold_df, T)
+        base = pick_ev_max_per_race_alpha(base_df)
+
+        if bet_type == "ワイド":
+            # ---- ① 1着候補のみフィルタ ----
+            main_candidates = (
+                base.groupby(race_col, group_keys=False)
+                .head(1)  # 各レースの先頭行 = 1着予想馬
+            )
+
+        ev_min, prob_min, odds_max, ev_max, odds_min = ev_min_grid[0], prob_min_grid[0], odds_max_grid[0], ev_max_grid[0], odds_min_grid[0]
+        if bet_type == "ワイド":
+            main_filtered = filter_by_thresholds(
+                main_candidates,
+                ev_min=ev_min,
+                prob_min=prob_min,
+                odds_min=odds_min,
+                odds_max=odds_max,
+                ev_max=ev_max
+            )
+
+            # ---- ② 1着が残ったレースの上位3頭を購入対象にする ----
+            sel = base[base[race_col].isin(main_filtered[race_col])]
+        
+        else:
+            sel = filter_by_thresholds(
+                base,
+                ev_min=ev_min,
+                prob_min=prob_min,
+                odds_min=odds_min,
+                odds_max=odds_max,
+                ev_max=ev_max
+            )
+
+                    
+        main = sel.copy()
+        with tqdm(total=total, desc=f"Fold {fold}", unit="param") as pbar:
+            for T in temperature_grid2:
+                base_df = softmax_pred(fold_df, T)
+                # Bandit で選択
+                main_selected = main.copy()
+                dropped_races = set(base['レースID'].unique().tolist()) - set(main_selected['レースID'].unique().tolist())
+                chosen = bandit.run_contextual_bandit_simulation(
+                    base_df[base_df['レースID'].isin(dropped_races)],  # ['レースID']dropped_races,
+                    base_df[base_df['レースID'].isin(dropped_races)],
+                    policies
+
+                )
+                
+                for ev_min, prob_min, odds_max, ev_max, odds_min in product(
+                    ev_min_grid2, prob_min_grid2, odds_max_grid2, ev_max_grid2, odds_min_grid2
+                ):
+                    con = filter_by_thresholds(
+                        chosen,
+                        ev_min=ev_min,
+                        prob_min=prob_min,
+                        odds_min=odds_min,
+                        odds_max=odds_max,
+                        ev_max=ev_max
+                    )
+
+                    sel = pd.concat([main, con])
 
                     # 選択レース数が少なければスキップ
                     if sel[race_col].nunique() < min_selected:
@@ -578,7 +777,7 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
     # val_df['log_odds'] = np.log(val_df['オッズ'] + 1)
     for i in range(1, 21):
         # T = 0.1 * i  # 例：温度を0.5に設定（小さいほど尖る）
-        T = 1.0
+        T = i / 10
         softmax_T = make_softmax_with_temperature(T)
 
         val_df['softmax_score'] = val_df.groupby('レースID')['pred_score'].transform(softmax_T)
@@ -734,12 +933,28 @@ if __name__ == '__main__':
     #     './csv/monbetu_result_ranknet_test_4.csv'
     # ]
 
+    # csv_files = [
+    #     './csv/kasamatu_result_ranknet_test_0.csv',
+    #     './csv/kasamatu_result_ranknet_test_1.csv',
+    #     './csv/kasamatu_result_ranknet_test_2.csv',
+    #     './csv/kasamatu_result_ranknet_test_3.csv',
+    #     './csv/kasamatu_result_ranknet_test_4.csv'
+    # ]
+
+    # csv_files = [
+    #     './csv/sonoda_result_ranknet_test_0.csv',
+    #     './csv/sonoda_result_ranknet_test_1.csv',
+    #     './csv/sonoda_result_ranknet_test_2.csv',
+    #     './csv/sonoda_result_ranknet_test_3.csv',
+    #     './csv/sonoda_result_ranknet_test_4.csv'
+    # ]
+
     csv_files = [
-        './csv/kasamatu_result_ranknet_test_0.csv',
-        './csv/kasamatu_result_ranknet_test_1.csv',
-        './csv/kasamatu_result_ranknet_test_2.csv',
-        './csv/kasamatu_result_ranknet_test_3.csv',
-        './csv/kasamatu_result_ranknet_test_4.csv'
+        './csv/nagoya_result_ranknet_test_0.csv',
+        './csv/nagoya_result_ranknet_test_1.csv',
+        './csv/nagoya_result_ranknet_test_2.csv',
+        './csv/nagoya_result_ranknet_test_3.csv',
+        './csv/nagoya_result_ranknet_test_4.csv'
     ]
 
     dfs = []
@@ -776,7 +991,7 @@ if __name__ == '__main__':
     # print(params_df)   # foldごとの選ばれたパラメータ
 
 
-    # df = pd.read_csv('./csv/all_result_ranknet_test_0.csv')  # または val データ専用ファイルを読み込む
+    # df = pd.read_csv('./csv/nagoya_result_ranknet_test_3.csv')  # または val データ専用ファイルを読み込む
     # # レース数出力
     # print(f"レース数: {len(df['レースID'].unique())}")
     
@@ -796,6 +1011,7 @@ if __name__ == '__main__':
     # pred_score は温度スケーリング後の確率（0~1推奨）
 
     # 例）グリッド探索して上位5条件を表示
+    # res, best = grid_search_ev_policy(df)
     res, best = grid_search_ev_policy(df)
     print(best)
 

@@ -34,7 +34,9 @@ race_params = {
     "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2, "central": True},
     "nakayama": {"field_num": 1, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2, "central": True},
     "monbetu": {"field_num": 12, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 3, "softmax_T": 0.6, "fold": 3, "central": False},
-    "kasamatu": {"field_num": 20, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.2, "fold": 0, "central": False}
+    "kasamatu": {"field_num": 20, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.2, "fold": 0, "central": False},
+    "sonoda": {"field_num": 22, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 3.0, "softmax_T": 0.3, "fold": 1, "central": False},
+    "nagoya": {"field_num": 21, "ev_min": 1.1, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 3.0, "softmax_T": 0.3, "fold": 3, "central": False},
 }
 
 race_params_wide = {
