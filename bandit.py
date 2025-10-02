@@ -59,40 +59,186 @@ def policy_odds_range(race_df, odds_col="オッズ", low=3.0, high=8.0, p_col="p
     # その中でpred_prob最高を選ぶ
     return candidates.sort_values(p_col, ascending=False).iloc[[0]]
 
+def policy_ev_prob_combo(race_df, alpha=0.5, p_col="pred_score", odds_col="オッズ"):
+    race_df = race_df.copy()
+    race_df['score'] = alpha * (race_df[p_col]*race_df[odds_col]) + (1-alpha) * race_df[p_col]
+    return race_df.sort_values('score', ascending=False).iloc[[0]]
+
+def policy_top3_softmax_pick(race_df, score_col="softmax_score"):
+    race_df = race_df.copy()
+    # 上位3頭だけ抽出（スコア順）
+    top3 = race_df.sort_values(score_col, ascending=False).head(3)
+    # softmax_scoreはすでに確率なので、そのまま確率として使用
+    probs = top3[score_col].to_numpy()
+    probs = probs / probs.sum()  # 念のため合計1に正規化
+    choice_idx = np.random.choice(len(top3), p=probs)
+    return top3.iloc[[choice_idx]]
+
+def policy_low_odds(race_df, odds_col="オッズ", max_odds=4.0, p_col="pred_score"):
+    candidates = race_df[race_df[odds_col] <= max_odds]
+    if len(candidates) == 0:
+        return policy_prob_max(race_df, p_col)
+    return candidates.sort_values(p_col, ascending=False).iloc[[0]]
+
+def policy_fastest_last3f(race_df, col='av後3F'):
+    """
+    最後3Fが最も小さい馬を選択
+    """
+    return race_df.sort_values(col, ascending=True).iloc[[0]]
+
+def policy_highest_speed_index(race_df, col='avスピード指数'):
+    """
+    スピード指数が最も大きい馬を選択
+    """
+    return race_df.sort_values(col, ascending=False).iloc[[0]]
+
+def policy_highest_uptrend(race_df, col='上昇度'):
+    """
+    上昇度が最も大きい馬を選択
+    """
+    return race_df.sort_values(col, ascending=False).iloc[[0]]
+
+def policy_main_filter(
+    race_df,
+    ev_min=1.1,
+    prob_min=0.0,
+    odds_min=3.0,
+    odds_max=float('inf'),
+    ev_max=3,
+    p_col="softmax_score",
+    odds_col="オッズ"
+):
+    """
+    mainフィルタ相当の条件をポリシーとして定義
+    条件を満たす馬から期待値最大を選ぶ
+    条件を満たす馬がいなければ「勝率最大」にフォールバック
+    """
+    race_df = race_df.copy()
+    race_df["expected_value"] = race_df[p_col] * race_df[odds_col]
+
+    sel = race_df[
+        (race_df["expected_value"] >= ev_min) &
+        (race_df["expected_value"] <= ev_max) &
+        (race_df[p_col] >= prob_min) &
+        (race_df[odds_col] >= odds_min) &
+        (race_df[odds_col] <= odds_max)
+    ]
+
+    if len(sel) > 0:
+        return sel.sort_values("expected_value", ascending=False).iloc[[0]]
+    else:
+        # fallback → 勝率最大馬
+        return race_df.sort_values(p_col, ascending=False).iloc[[0]]
+
 # Add other policies as needed...
 
 # -----------------------
 # 3) レース文脈抽出関数
 # -----------------------
+# def extract_race_context(race_df):
+#     """
+#     race_df: DataFrame containing all horses of the race.
+#     Returns: numpy vector (context)
+#     Candidate features:
+#       - n_horses
+#       - distance (could be numeric or bucket embedding; here numeric normalized)
+#       - track_condition (encoded numeric)
+#       - odds_std (std of odds)
+#       - top_odds_ratio (odds of 1st / odds of 2nd)  (popularity concentration)
+#     You can expand/normalize as needed.
+#     """
+#     n_horses = len(race_df)
+#     # assume '距離' and '馬場' columns exist, otherwise adapt
+#     distance = race_df['距離'].iloc[0] if '距離' in race_df.columns else 0
+#     # horse-level odds -> summary
+#     odds = race_df['オッズ'].values if 'オッズ' in race_df.columns else np.ones(n_horses)
+#     odds_std = float(np.std(odds))
+#     sorted_odds = np.sort(odds)
+#     top_ratio = float(sorted_odds[0] / (sorted_odds[1] + 1e-9)) if n_horses > 1 else 1.0
+#     # track cond numeric: map common text to number (extend map as needed)
+#     if '馬場' in race_df.columns:
+#         track_cond = race_df['馬場'].iloc[0]
+#         # cond_map = {'良': 0, '稍重': 1, '重': 2, '不良': 3}
+#         # track_cond = cond_map.get(cond, 0)
+#     else:
+#         track_cond = 0
+#     # Normalize/scale simple heuristics (you can fit scalers on training set)
+#     return np.array([n_horses, distance, track_cond, odds_std, top_ratio], dtype=float)
+
 def extract_race_context(race_df):
     """
-    race_df: DataFrame containing all horses of the race.
-    Returns: numpy vector (context)
-    Candidate features:
-      - n_horses
-      - distance (could be numeric or bucket embedding; here numeric normalized)
-      - track_condition (encoded numeric)
-      - odds_std (std of odds)
-      - top_odds_ratio (odds of 1st / odds of 2nd)  (popularity concentration)
-    You can expand/normalize as needed.
+    レースDFからバンディット用のコンテキストベクトルを作成
+    含まれる情報：
+    - n_horses（出走頭数）
+    - オッズ分布: odds_std, fav_odds, fav_prob, longshot_ratio
+    - 各戦略トップ馬: prob, ev, odds
+    - トップ馬の飛び抜け度: 2番手との差 diff2, Zスコア zscore
+      対象: softmax_score, expected_value, 後3F, スピード指数, 上昇度
     """
     n_horses = len(race_df)
-    # assume '距離' and '馬場' columns exist, otherwise adapt
-    distance = race_df['距離'].iloc[0] if '距離' in race_df.columns else 0
-    # horse-level odds -> summary
-    odds = race_df['オッズ'].values if 'オッズ' in race_df.columns else np.ones(n_horses)
+
+    # --- オッズ分布情報 ---
+    odds = race_df['オッズ'].values
     odds_std = float(np.std(odds))
-    sorted_odds = np.sort(odds)
-    top_ratio = float(sorted_odds[0] / (sorted_odds[1] + 1e-9)) if n_horses > 1 else 1.0
-    # track cond numeric: map common text to number (extend map as needed)
-    if '馬場' in race_df.columns:
-        track_cond = race_df['馬場'].iloc[0]
-        # cond_map = {'良': 0, '稍重': 1, '重': 2, '不良': 3}
-        # track_cond = cond_map.get(cond, 0)
-    else:
-        track_cond = 0
-    # Normalize/scale simple heuristics (you can fit scalers on training set)
-    return np.array([n_horses, distance, track_cond, odds_std, top_ratio], dtype=float)
+    fav_odds = float(np.min(odds))
+    fav_prob = float(race_df['softmax_score'].max())
+    longshot_ratio = float(np.mean(odds > 20))
+
+    # --- トップ馬 summary 関数 ---
+    def get_top_features(df, col, maximize=True):
+        """col の最大/最小馬を取り出し、飛び抜け度を計算"""
+        if col not in df.columns:
+            return {"prob":0,"ev":0,"odds":0,"value":0,"diff2":0,"zscore":0}
+        df_sorted = df.sort_values(col, ascending=not maximize).reset_index(drop=True)
+        top = df_sorted.iloc[0]
+        value = float(top[col])
+        prob = float(top['softmax_score'])
+        ev = float(top['expected_value'])
+        odds = float(top['オッズ'])
+
+        # 2番目との差
+        if len(df_sorted) > 1:
+            diff2 = float(value - df_sorted.iloc[1][col])
+        else:
+            diff2 = value
+
+        # Zスコア（平均との差 / 標準偏差）
+        mean_val = float(df[col].mean())
+        std_val = float(df[col].std() + 1e-9)
+        zscore = float((value - mean_val) / std_val)
+
+        return {"prob":prob,"ev":ev,"odds":odds,"value":value,"diff2":diff2,"zscore":zscore}
+
+    # --- 各戦略トップ馬 ---
+    softmax_top = get_top_features(race_df, "softmax_score", maximize=True)
+    ev_top      = get_top_features(race_df, "expected_value", maximize=True)
+    last3f_top  = get_top_features(race_df, "av後3F", maximize=False)   # 小さい方が良い
+    speed_top   = get_top_features(race_df, "avスピード指数", maximize=True)
+    uptrend_top = get_top_features(race_df, "上昇度", maximize=True)
+
+    # --- コンテキストベクトル作成 ---
+    context = np.array([
+        n_horses,
+        odds_std, fav_odds, fav_prob, longshot_ratio,
+
+        # 各トップ馬の summary (prob, ev, odds)
+        softmax_top["prob"], softmax_top["ev"], softmax_top["odds"],
+        ev_top["prob"], ev_top["ev"], ev_top["odds"],
+        last3f_top["prob"], last3f_top["ev"], last3f_top["odds"],
+        speed_top["prob"], speed_top["ev"], speed_top["odds"],
+        uptrend_top["prob"], uptrend_top["ev"], uptrend_top["odds"],
+
+        # 飛び抜け度 (diff2, zscore)
+        softmax_top["diff2"], softmax_top["zscore"],
+        ev_top["diff2"], ev_top["zscore"],
+        last3f_top["diff2"], last3f_top["zscore"],
+        speed_top["diff2"], speed_top["zscore"],
+        uptrend_top["diff2"], uptrend_top["zscore"],
+    ], dtype=float)
+
+    return context
+
+
 
 # -----------------------
 # 4) 報酬関数（例）
@@ -118,48 +264,34 @@ def calc_reward_for_choice(chosen_row, df_payout, stake=100, bet_type="単勝"):
         profit = -stake
     return profit
 
-def calc_reward_for_choice_A(chosen_row, df_payout, stake=100, lam=0.1, scale_ev=10.0):
-    """
-    Reward A:
-      reward = hit(0/1) + λ * normalized_EV
-    """
-    race_id = chosen_row['レースID']
-    horse_no = chosen_row['馬番']
-
+def calc_reward_smooth(chosen_row, df_payout, stake=100, max_rel=3):
+    # 着順に応じて滑らかに報酬を付与
     try:
-        payout_row = df_payout.loc[(race_id, horse_no)]
-        is_win = int(payout_row['is_win'] == 1)
-        odds = payout_row['オッズ']
-    except KeyError:
-        is_win = 0
-        odds = chosen_row.get("オッズ", 0.0)
-
-    # EVを計算（pred_score は事前にsoftmax済み or 勝率予測）
-    ev = chosen_row["softmax_score"] * odds
-    normalized_ev = ev / scale_ev  # スケーリングして極端に大きくならないようにする
-
-    reward = is_win + lam * normalized_ev
+        rank = chosen_row['着順']
+        if rank == 1:
+            rel = max_rel
+        elif rank == 2:
+            rel = max(max_rel - 1, 0)
+        elif rank == 3:
+            rel = max(max_rel - 2, 0)
+        else:
+            rel = max_rel / rank
+        reward = rel * chosen_row['softmax_score']  # スコアも加味
+        reward /= max_rel  # 0-1スケール
+    except Exception:
+        reward = 0.0
     return reward
 
-
-def calc_reward_for_choice_B(chosen_row, df_payout, stake=100, scale=1000.0):
-    """
-    Reward B:
-      reward = tanh(profit_yen / scale)
-    """
+def calc_reward_ev_norm(chosen_row, df_payout, stake=100, bet_type="単勝", max_ev=10):
     race_id = chosen_row['レースID']
     horse_no = chosen_row['馬番']
-
     try:
         payout_row = df_payout.loc[(race_id, horse_no)]
-        if payout_row['is_win'] == 1:
-            profit = stake * (payout_row['オッズ'] - 1.0)
-        else:
-            profit = -stake
-    except KeyError:
-        profit = -stake
-
-    reward = np.tanh(profit / scale)
+        ev = payout_row['オッズ'] * chosen_row['softmax_score']  # スコアとオッズの掛け算
+        # max_evで割って0-1スケールに正規化
+        reward = min(ev / max_ev, 1.0)
+    except Exception:
+        reward = 0.0
     return reward
 
 # -----------------------
@@ -168,7 +300,7 @@ def calc_reward_for_choice_B(chosen_row, df_payout, stake=100, scale=1000.0):
 def run_contextual_bandit_simulation(
     df, df_payout,
     policies,  # list of (name, function, policy_kwargs)
-    context_dim=5,
+    context_dim=30,
     alpha=1.0,
     stake_map=None,  # dict policy_name -> stake multiplier (relative)
     initial_A=None
@@ -223,6 +355,8 @@ def run_contextual_bandit_simulation(
 
     # records_df = pd.DataFrame(records)
     return sel
+
+
 
 # -----------------------
 # 6) grid_search_ev_policy と統合する方法（概念）

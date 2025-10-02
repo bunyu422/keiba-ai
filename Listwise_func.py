@@ -30,17 +30,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 競馬場別パラメータ設定
 # ----------------------------
 race_params = {
-    "hanshin": {"field_num": 4, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4, "central": True},
-    "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2, "central": True},
-    "nakayama": {"field_num": 1, "ev_min": 1.5, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.2, "fold": 2, "central": True},
-    "monbetu": {"field_num": 12, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 3, "softmax_T": 0.6, "fold": 3, "central": False},
-    "kasamatu": {"field_num": 20, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.2, "fold": 0, "central": False},
-    "sonoda": {"field_num": 22, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 3.0, "softmax_T": 0.3, "fold": 1, "central": False},
-    "nagoya": {"field_num": 21, "ev_min": 1.1, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 3.0, "softmax_T": 0.3, "fold": 3, "central": False},
+    # "hanshin": {"field_num": 4, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4, "central": True},
+    # "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2, "central": True},
+    "nakayama": {"field_num": 1, "ev_min": 0.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.2, "fold": 0, "func": Listwise_test.pick_score_max_per_race, "central": True},
+    "monbetu": {"field_num": 12, "ev_min": 1.4, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.4, "fold": 3, "func": Listwise_test.pick_ev_max_per_race, "central": False},
+    "kasamatu": {"field_num": 20, "ev_min": 0.0, "prob_min": 0.05, "odds_min": 1.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.5, "fold": 0, "func": Listwise_test.pick_ev_max_per_race, "central": False},
+    # "sonoda": {"field_num": 22, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 3.0, "softmax_T": 0.3, "fold": 1, "central": False},
+    "nagoya": {"field_num": 21, "ev_min": 0.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 5.0, "softmax_T": 0.6, "fold": 3, "func": Listwise_test.pick_ev_max_per_race, "central": False},
 }
 
 race_params_wide = {
-    "nakayama": {"field_num": 1, "ev_min": 1.8, "prob_min": 0.05, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.6, "fold": 2}
+    # "nakayama": {"field_num": 1, "ev_min": 1.8, "prob_min": 0.05, "odds_min": 4.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.6, "fold": 2}
 }
 
 def predict_new_data(model, df_new, feature_cols, cat_features, context_num_features, context_cat_features, device="cuda"):
@@ -111,7 +111,8 @@ def select_horse(race_id: str, venue: str, odds: list):
             odds_max=params["odds_max"],
             ev_max=params["ev_max"],
             softmax_T=params["softmax_T"],
-            fold=params["fold"]
+            fold=params["fold"],
+            func=params["func"]
         ), \
         get_race_wide_result(
             df,
@@ -136,7 +137,8 @@ def select_horse(race_id: str, venue: str, odds: list):
             odds_max=params["odds_max"],
             ev_max=params["ev_max"],
             softmax_T=params["softmax_T"],
-            fold=params["fold"]
+            fold=params["fold"],
+            func=params["func"]
         ), None
 
 def get_race_result(
@@ -149,7 +151,8 @@ def get_race_result(
     odds_max: float,
     ev_max: float,
     softmax_T: float,
-    fold: int
+    fold: int,
+    func
 ):
     """
     共通化した競馬レース結果取得関数。
@@ -193,6 +196,9 @@ def get_race_result(
     # ----------------------------
     # 父馬マッピング
     # ----------------------------
+    if field == 'nakayama':
+        field = 'nakayama2'
+
     pkl_path = f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl'
     with open(pkl_path, "rb") as f:
         sire_mapping = pickle.load(f)
@@ -271,7 +277,7 @@ def get_race_result(
     # ----------------------------
     # 期待値最大選択 & 閾値フィルタ
     # ----------------------------
-    df = Listwise_test.pick_ev_max_per_race(df, race_col="レースID", T=softmax_T)
+    df = func(df, race_col="レースID", T=softmax_T)
     print(df[["馬番","オッズ","softmax_score","expected_value"]], flush=True)
     df = Listwise_test.filter_by_thresholds(df, ev_min=ev_min, prob_min=prob_min, odds_min=odds_min, odds_max=odds_max, ev_max=ev_max)
 

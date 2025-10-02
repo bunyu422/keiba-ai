@@ -1,5 +1,6 @@
 import copy
 import pickle
+import random
 import joblib
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -60,44 +61,14 @@ diff_category_place = ['1場所変化', '2場所変化', '3場所変化', '4場�
 
 diff_category_field = ['1フィールド変化', '2フィールド変化', '3フィールド変化', '4フィールド変化', '5フィールド変化']
 
-# 東京用
-# place = '2'
-# common_cols = ['距離', 'フィールド', '馬場', '出走頭数', '平均クラス', '平均ペース']
-
-# context_cat_cols = ['フィールド', '馬場', '出走頭数']
-# context_num_cols = ['距離', '平均クラス', '平均ペース']
-
-# numeric_diff_cols = ['1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数',
-#                     '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', 
-#                     'best着差', 'bestスピード指数', 'best後3F', 'av着差', 'avスピード指数', 'av後3F', '斤量']
-
-# scale_cols = ['1着差', '2着差', '3着差', '4着差', '5着差', '1タイム', '2タイム', '3タイム', '4タイム', '5タイム',
-#             '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
-#             '斤量', '1斤量', '2斤量', '3斤量', '4斤量', '5斤量', '父馬_te', '間隔', '1馬体重', '2馬体重', '3馬体重', '4馬体重', '5馬体重',
-#             '1体重増減', '2体重増減', '3体重増減', '4体重増減', '5体重増減', '1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数',
-#             'best着差', 'bestスピード指数', 'av着差', 'avスピード指数', '上昇度', '1クラス差', '1ペース差']
-
-# inversion_cols = ['人気', '齢', '間隔', '1着差', '2着差', '3着差', '4着差', '5着差', '1タイム', '2タイム', '3タイム', '4タイム', '5タイム',
-#                 '1人気', '2人気', '3人気', '4人気', '5人気', 
-#                 '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
-#                 'best着差', 'av着差']
-
-# feature_category = ['距離', 'フィールド', '馬場', '出走頭数', '馬番', '性', '父馬',
-#                     '1場所', '2場所', '3場所', '4場所', '5場所', '1フィールド', '2フィールド', '3フィールド', '4フィールド', '5フィールド',
-#                     '1距離', '2距離', '3距離', '4距離', '5距離',
-#                     '1馬場', '2馬場', '3馬場', '4馬場', '5馬場','1コーナー通過順', '2コーナー通過順', '3コーナー通過順', '4コーナー通過順', '5コーナー通過順',
-#                     '1出走馬数', '2出走馬数', '3出走馬数', '4出走馬数', '5出走馬数', '1馬番', '2馬番', '3馬番', '4馬番', '5馬番']
-# diff_category_place = ['1場所変化', '2場所変化', '3場所変化', '4場所変化', '5場所変化']
-
-# diff_category_field = ['1フィールド変化', '2フィールド変化', '3フィールド変化', '4フィールド変化', '5フィールド変化']
 
 embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'nagoya2'
-csv_path = f'./csv/df_all_nagoya.csv'
-# csv_path = f'./csv/df_all_{field}.csv'
+field = 'kasamatu'
+# csv_path = f'./csv/df_all_nakayama.csv'
+csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
 df = evaluation.load_csv(csv_path)
@@ -107,6 +78,8 @@ feature_cols = []
 df['is_win'] = (df['着順'] == 1).astype(int)
 
 def append_col(df):
+    # df = add_history_features(df)
+
     df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
     df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
     # ascending=True → 値が小さいほど小さい順位
@@ -127,6 +100,8 @@ def append_col(df):
     feature_cols.append('av_speed_rank_num')
     feature_cols.append('best後3F_rank_num')
     feature_cols.append('av後3F_rank_num')
+    # feature_cols.append('同場所過去率')
+    # feature_cols.append('同距離過去率')
 
     scale_cols.append('best後3F')
     scale_cols.append('av後3F')
@@ -134,12 +109,66 @@ def append_col(df):
     scale_cols.append('av_speed_rank_num')
     scale_cols.append('best後3F_rank_num')
     scale_cols.append('av後3F_rank_num')
+    # scale_cols.append('同場所過去率')
+    # scale_cols.append('同距離過去率')
 
     feature_category.append('best_speed_rank_cat')
     feature_category.append('av_speed_rank_cat')
     feature_category.append('best後3F_rank_cat')
     feature_category.append('av後3F_rank_cat')
+    # feature_category.append('同距離過去数')
+    # feature_category.append('同距離過去3着内数')
+    # feature_category.append('同場所過去数')
+    # feature_category.append('同場所過去3着内数')
     
+    
+    
+    return df
+
+def add_history_features(df):
+    # 距離関連
+    dist_cols = [f"{i}距離" for i in range(1, 6)]
+    dist_rank_cols = [f"{i}過去着順" for i in range(1, 6)]
+
+    def safe_to_num(val):
+        try:
+            return float(val)
+        except:
+            return np.nan
+
+    def count_same_distance(row):
+        return sum(row["距離"] == row[col] for col in dist_cols)
+
+    def count_top3_same_distance(row):
+        counts = [
+            safe_to_num(row[dist_rank_cols[i]])
+            for i in range(5) if row["距離"] == row[dist_cols[i]]
+        ]
+        return sum((not np.isnan(r)) and (r <= 3) for r in counts)
+
+    df["同距離過去数"] = df.apply(count_same_distance, axis=1)
+    df["同距離過去3着内数"] = df.apply(count_top3_same_distance, axis=1)
+    df['同距離過去率'] = df['同距離過去3着内数'] / (df['同距離過去数'] + 1e-12)
+
+    # 場所関連
+    loc_cols = [f"{i}場所" for i in range(1, 6)]
+    loc_rank_cols = [f"{i}過去着順" for i in range(1, 6)]
+
+    def count_same_location(row):
+        return sum(row["場所"] == row[col] for col in loc_cols)
+
+    def count_top3_same_location(row):
+        counts = [
+            safe_to_num(row[loc_rank_cols[i]])
+            for i in range(5) if row["場所"] == row[loc_cols[i]]
+        ]
+        return sum((not np.isnan(r)) and (r <= 3) for r in counts)
+
+    df["同場所過去数"] = df.apply(count_same_location, axis=1)
+    df["同場所過去3着内数"] = df.apply(count_top3_same_location, axis=1)
+    df['同場所過去率'] = df['同場所過去3着内数'] / (df['同場所過去数'] + 1e-12)
+
+
     return df
 
 # Nanの処理
@@ -483,32 +512,9 @@ def ranknet_loss(preds, labels):
 #             return max_rel / x  # 下位も微小な値
 #     return df['着順'].apply(relevance)
 
-def make_smooth_relevance_labels(df, max_rel=3, odds_col="オッズ", gamma=0.5):
-    """
-    着順とオッズを組み合わせたrelevanceを作る
-    gamma: 着順とオッズの重みバランス
-    """
-    def relevance(row):
-        pos = row['着順']
-        odds = row[odds_col]
+def make_smooth_relevance_labels(df, max_rel=3):
+    return df['着順'].apply(lambda x: max_rel if x == 1 else 1/(x+1))
 
-        # 着順に基づく部分
-        if pos == 1:
-            base = max_rel
-        elif pos == 2:
-            base = max(max_rel - 1, 0)
-        elif pos == 3:
-            base = max(max_rel - 2, 0)
-        else:
-            base = max_rel / pos
-
-        # オッズに基づく補正（例：対数 or 平方根で抑える）
-        odds_factor = np.log1p(odds) / np.log1p(df[odds_col].max())
-
-        # γでバランスを取る
-        return (1 - gamma) * base + gamma * (base * odds_factor)
-
-    return df.apply(relevance, axis=1)
 
 
 def lambdarank_loss(preds, labels):
@@ -888,8 +894,31 @@ def embedding_init():
     emb = feature_category + diff_category_place + diff_category_field
     return emb
 
+def set_seed(seed: int = 42):
+    random.seed(seed)                    
+    np.random.seed(seed)                 
+    torch.manual_seed(seed)              
+    torch.cuda.manual_seed(seed)         
+    torch.cuda.manual_seed_all(seed)     
+
+    # torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    # DataLoader の worker 初期化用
+    def seed_worker(worker_id):
+        worker_seed = seed + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+    return seed_worker
 
 if __name__ == '__main__':
+    print(device)
+    # print(df.head(10))
+    # print(torch.version.cuda)       # "12.7" が出ればOK
+    # print(torch.cuda.is_available())  # True が出ればGPU使用可能
+    # print(torch.cuda.get_device_name(0))  # GPU名表示
+    seed = 1
+    set_seed(seed)  # 先に乱数固定
 
     # === 5. KFold処理 ===
     
@@ -908,12 +937,10 @@ if __name__ == '__main__':
     # カラム追加
     df = append_col(df)
     df = add_relative_features(df)
+    
 
     gkf = GroupKFold(n_splits=n_splits)
     for fold, (train_idx, test_idx) in enumerate(gkf.split(df, groups=df[group_col])):
-        if fold == 3:
-            break
-
         # trainval: test = 8 : 2（group単位）
         trainval_df = df.iloc[train_idx]
         test_df = df.iloc[test_idx]
@@ -1056,7 +1083,7 @@ if __name__ == '__main__':
         val_dataset = RaceDataset(X_val_groups, y_val_groups, cat_val_groups, context_val_num_groups, context_val_cat_groups, win_val_groups, payout_val_groups)
         test_dataset = RaceDataset(X_test_groups, y_test_groups, cat_test_groups, context_test_num_groups, context_test_cat_groups, win_test_groups, payout_test_groups)
         
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,worker_init_fn=set_seed(seed), generator=torch.Generator().manual_seed(seed))
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
         test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
@@ -1064,18 +1091,24 @@ if __name__ == '__main__':
         context_embedding_sizes = [train_df[col].nunique() + 5 for col in context_cat_cols]  # 各カテゴリ列のクラス数
 
         # モデル
-        emb_dim = 16
+        emb_dim = 64  
         model = ListNet(embedding_sizes=embedding_sizes, num_features=len(feature_cols), context_embedding_sizes=context_embedding_sizes, context_num_sizes=len(context_num_cols), emb_dim=emb_dim)
         model.apply(init_weights)
         model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=0.0005, weight_decay=1e-4)
         # ハイパーパラメータ
+        # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        #     optimizer, max_lr=1e-3, steps_per_epoch=len(train_loader), epochs=num_epochs
+        # )
+        
         patience = 10  # 何エポック改善がなければ終了するか
         best_val_loss = float('inf')
+        best_ndcg = 0
         no_improve_count = 0
         best_model_weights = None
         mse_loss_fn = nn.MSELoss()
         alpha = 0  # MSE の比率
+        val_records = val_df.copy()
         for epoch in range(num_epochs):
             model.train()
             total_loss = 0
@@ -1107,16 +1140,19 @@ if __name__ == '__main__':
 
 
                 optimizer.step()
+                # scheduler.step()  # ← ここでLR更新
                 total_loss += loss.item()
-            print(f"Epoch {epoch+1}: Train Loss: {total_loss:.4f}")
+            # print(f"Epoch {epoch+1}: Train Loss: {total_loss:.4f}")
 
             # Validation
             model.eval()
             val_loss = 0.0
+            box = []
             with torch.no_grad():
                 for X, y, cat_X, context_X, context_cat_X, win_labels, gain in val_loader:
                     X, y, cat_X, context_X, context_cat_X, win_labels, gain = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), win_labels[0].to(device), gain[0].to(device)
                     preds = model(X, cat_X, context_X, context_cat_X)
+                    box.append(preds.squeeze().cpu().numpy())
                     # loss = listnet_loss(preds, y, gain)
                     loss = lambdarank_loss(preds, y)
                     # 回帰損失（勝率ラベルとの直接比較）
@@ -1124,6 +1160,10 @@ if __name__ == '__main__':
                     # reg_loss = mse_loss_fn(prob_preds.squeeze(), y)
                     # loss = loss + alpha * reg_loss
                     val_loss += loss.item()
+            
+            val_records['pred_score'] = np.concatenate(box)
+            ndcg = calc_mean_ndcg(val_records)
+            print(f"Epoch {epoch+1}: NDCG: {ndcg:.4f}")
 
             avg_train_loss = total_loss / len(train_loader)
             avg_val_loss = val_loss / len(val_loader)
@@ -1131,8 +1171,8 @@ if __name__ == '__main__':
             print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
             # Early Stopping 判定
-            if avg_val_loss < best_val_loss - 1e-4:
-                best_val_loss = avg_val_loss
+            if ndcg > best_ndcg + 1e-3:
+                best_ndcg = ndcg
                 best_model_weights = copy.deepcopy(model.state_dict())
                 no_improve_count = 0
             else:

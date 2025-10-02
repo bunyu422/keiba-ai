@@ -269,7 +269,7 @@ def df_first_processing(df, name, type='推論'):
         df['馬単'] = df['馬単'].str.extract(r'(\d+)', expand=True)
 
     # いらないカラムを消す
-    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎', 'タイム', '騎手斤量', '着差', '後3F', '印', '馬名 オッズ'], axis=1, errors="ignore")
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎', 'タイム', '騎手斤量', '着差', '後3F', '印', '馬名 オッズ', '馬名'], axis=1, errors="ignore")
 
     # 特殊記号を消す
     df['騎手'] = df['騎手'].str.replace('▲', '')
