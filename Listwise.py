@@ -977,18 +977,26 @@ if __name__ == '__main__':
     df = add_relative_features(df)
     
 
-    gkf = GroupKFold(n_splits=n_splits)
-    for fold, (train_idx, test_idx) in enumerate(gkf.split(df, groups=df[group_col])):
+    # gkf = GroupKFold(n_splits=n_splits)
+    # for fold, (train_idx, test_idx) in enumerate(gkf.split(df, groups=df[group_col])):
+    # --- 使用例 ---
+    splits = time_series_group_cv_3split(df, group_col="レースID", n_splits=5)
+
+    for fold, (train_idx, val_idx, test_idx) in enumerate(splits):
+        train_df = df.loc[train_idx]
+        val_df = df.loc[val_idx]
+        test_df = df.loc[test_idx]
+
         # trainval: test = 8 : 2（group単位）
-        trainval_df = df.iloc[train_idx]
-        test_df = df.iloc[test_idx]
+        # trainval_df = df.iloc[train_idx]
+        # test_df = df.iloc[test_idx]
 
-        # train:valid = 6 : 2（group単位）
-        gss = GroupShuffleSplit(n_splits=1, train_size=0.75, random_state=42)  # 0.75 of 8割 = 6割
-        train_idx, val_idx = next(gss.split(trainval_df, groups=trainval_df[group_col]))
+        # # train:valid = 6 : 2（group単位）
+        # gss = GroupShuffleSplit(n_splits=1, train_size=0.75, random_state=42)  # 0.75 of 8割 = 6割
+        # train_idx, val_idx = next(gss.split(trainval_df, groups=trainval_df[group_col]))
 
-        train_df = trainval_df.iloc[train_idx]
-        val_df = trainval_df.iloc[val_idx]
+        # train_df = trainval_df.iloc[train_idx]
+        # val_df = trainval_df.iloc[val_idx]
 
         # print("fold_num:", len(train_df))
 
