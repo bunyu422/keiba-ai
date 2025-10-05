@@ -939,6 +939,30 @@ if __name__ == '__main__':
     # ]
 
     # csv_files = [
+    #     './csv/kyoto_result_ranknet_test_0.csv',
+    #     './csv/kyoto_result_ranknet_test_1.csv',
+    #     './csv/kyoto_result_ranknet_test_2.csv',
+    #     './csv/kyoto_result_ranknet_test_3.csv',
+    #     './csv/kyoto_result_ranknet_test_4.csv'
+    # ]
+
+    # csv_files = [
+    #     './csv/tokyo_result_ranknet_test_0.csv',
+    #     './csv/tokyo_result_ranknet_test_1.csv',
+    #     './csv/tokyo_result_ranknet_test_2.csv',
+    #     './csv/tokyo_result_ranknet_test_3.csv',
+    #     './csv/tokyo_result_ranknet_test_4.csv'
+    # ]
+
+    csv_files = [
+        './csv/ooi_result_ranknet_test_0.csv',
+        './csv/ooi_result_ranknet_test_1.csv',
+        './csv/ooi_result_ranknet_test_2.csv',
+        './csv/ooi_result_ranknet_test_3.csv',
+        './csv/ooi_result_ranknet_test_4.csv'
+    ]
+
+    # csv_files = [
     #     './csv/nakayama2_result_ranknet_test_0.csv',
     #     './csv/nakayama2_result_ranknet_test_1.csv',
     #     './csv/nakayama2_result_ranknet_test_2.csv',
@@ -954,21 +978,21 @@ if __name__ == '__main__':
     #     './csv/monbetu_result_ranknet_test_4.csv'
     # ]
 
-    csv_files = [
-    #     # './csv/monbetu_result_ranknet_test_0.csv',
-    #     # './csv/monbetu_result_ranknet_test_1.csv',
-    #     # './csv/monbetu_result_ranknet_test_2.csv',
-        # './csv/monbetu_result_ranknet_test_3.csv',
-    #     './csv/monbetu2_result_ranknet_test_4.csv'
-    ]
+    # csv_files = [
+    # #     # './csv/monbetu_result_ranknet_test_0.csv',
+    # #     # './csv/monbetu_result_ranknet_test_1.csv',
+    # #     # './csv/monbetu_result_ranknet_test_2.csv',
+    #     # './csv/monbetu_result_ranknet_test_3.csv',
+    # #     './csv/monbetu2_result_ranknet_test_4.csv'
+    # ]
 
-    csv_files = [
-        './csv/kasamatu_result_ranknet_test_0.csv',
-        './csv/kasamatu_result_ranknet_test_1.csv',
-        './csv/kasamatu_result_ranknet_test_2.csv',
-        './csv/kasamatu_result_ranknet_test_3.csv',
-        './csv/kasamatu_result_ranknet_test_4.csv'
-    ]
+    # csv_files = [
+    #     './csv/kasamatu_result_ranknet_test_0.csv',
+    #     './csv/kasamatu_result_ranknet_test_1.csv',
+    #     './csv/kasamatu_result_ranknet_test_2.csv',
+    #     './csv/kasamatu_result_ranknet_test_3.csv',
+    #     './csv/kasamatu_result_ranknet_test_4.csv'
+    # ]
 
     # csv_files = [
     #     './csv/sonoda_result_ranknet_test_0.csv',
@@ -976,6 +1000,22 @@ if __name__ == '__main__':
     #     './csv/sonoda_result_ranknet_test_2.csv',
     #     './csv/sonoda_result_ranknet_test_3.csv',
     #     './csv/sonoda_result_ranknet_test_4.csv'
+    # ]
+
+    # csv_files = [
+    #     './csv/saga_result_ranknet_test_0.csv',
+    #     './csv/saga_result_ranknet_test_1.csv',
+    #     './csv/saga_result_ranknet_test_2.csv',
+    #     './csv/saga_result_ranknet_test_3.csv',
+    #     './csv/saga_result_ranknet_test_4.csv'
+    # ]
+
+    # csv_files = [
+    #     './csv/hunabasi_result_ranknet_test_0.csv',
+    #     './csv/hunabasi_result_ranknet_test_1.csv',
+    #     './csv/hunabasi_result_ranknet_test_2.csv',
+    #     './csv/hunabasi_result_ranknet_test_3.csv',
+    #     './csv/hunabasi_result_ranknet_test_4.csv'
     # ]
 
     # csv_files = [

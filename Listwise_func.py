@@ -31,12 +31,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # ----------------------------
 race_params = {
     # "hanshin": {"field_num": 4, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 4.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.6, "fold": 4, "central": True},
-    # "tokyo": {"field_num": 2, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 4, "softmax_T": 0.2, "fold": 2, "central": True},
+    "tokyo": {"field_num": 2, "ev_min": 0.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.6, "fold": 1, "func": Listwise_test.pick_ev_max_per_race, "central": True},
     "nakayama": {"field_num": 1, "ev_min": 0.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.2, "fold": 0, "func": Listwise_test.pick_score_max_per_race, "central": True},
+    "kyoto": {"field_num": 3, "ev_min": 0.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.6, "fold": 2, "func": Listwise_test.pick_ev_max_per_race, "central": True},
     "monbetu": {"field_num": 12, "ev_min": 1.4, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.4, "fold": 3, "func": Listwise_test.pick_ev_max_per_race, "central": False},
     "kasamatu": {"field_num": 20, "ev_min": 0.0, "prob_min": 0.05, "odds_min": 1.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.5, "fold": 0, "func": Listwise_test.pick_ev_max_per_race, "central": False},
-    # "sonoda": {"field_num": 22, "ev_min": 2.0, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 3.0, "softmax_T": 0.3, "fold": 1, "central": False},
+    "sonoda": {"field_num": 22, "ev_min": 2.0, "prob_min": 0.1, "odds_min": 1.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.5, "fold": 0, "func": Listwise_test.pick_ev_max_per_race, "central": False},
     "nagoya": {"field_num": 21, "ev_min": 0.0, "prob_min": 0.0, "odds_min": 1.0, "odds_max": np.inf, "ev_max": 5.0, "softmax_T": 0.6, "fold": 3, "func": Listwise_test.pick_ev_max_per_race, "central": False},
+    "saga": {"field_num": 25, "ev_min": 0.3, "prob_min": 0.15, "odds_min": 1.0, "odds_max": np.inf, "ev_max": np.inf, "softmax_T": 0.3, "fold": 3, "func": Listwise_test.pick_score_max_per_race, "central": False},
+    # "hunabasi": {"field_num": 16, "ev_min": 1.9, "prob_min": 0.0, "odds_min": 3.0, "odds_max": np.inf, "ev_max": 5, "softmax_T": 0.3, "fold": 2, "func": Listwise_test.pick_ev_max_per_race, "central": False},
 }
 
 race_params_wide = {
@@ -216,7 +219,7 @@ def get_race_result(
     # ----------------------------
     # 場所列追加
     # ----------------------------
-    df['場所'] = field_num
+    # df['場所'] = field_num
 
     # ----------------------------
     # カテゴリ列数値化
@@ -261,7 +264,7 @@ def get_race_result(
         num_features=len(feature_cols),
         context_embedding_sizes=context_embedding_sizes,
         context_num_sizes=len(Listwise.context_num_cols),
-        emb_dim=16
+        emb_dim=64
     )
     model.load_state_dict(state_dict)
     model.to(device)
@@ -357,7 +360,7 @@ def get_race_wide_result(
     # ----------------------------
     # 場所列追加
     # ----------------------------
-    df['場所'] = field_num
+    # df['場所'] = field_num
 
     # ----------------------------
     # カテゴリ列数値化
@@ -438,7 +441,21 @@ def get_race_info(race_id, field, field_num, odds, central):
     pd.set_option("display.max_columns", None)
     df_shutuba = pd.DataFrame()
 
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/127.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": "https://www.google.com/",
+    "Connection": "keep-alive",
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
 
     if central:
         url_race = 'https://race.netkeiba.com/race/shutuba.html?race_id={}&rf=shutuba_submenu'.format(race_id)
@@ -451,8 +468,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     # ----------------------------
     # 過去・現在データ取得
     # ----------------------------
-    response_race = requests.get(url_race, headers=headers)
-    response_past = requests.get(url_past, headers=headers)
+    response_race = session.get(url_race, headers=headers)
+    response_past = session.get(url_past, headers=headers)
     df_now = pd.read_html(response_race.content)[0]
     df_past = pd.read_html(response_past.content)[0]
     df_now.columns = df_now.columns.droplevel()
@@ -500,6 +517,10 @@ def get_race_info(race_id, field, field_num, odds, central):
     # ----------------------------
     # Learning / Listwise 前処理
     # ----------------------------
+    # ----------------------------
+    # 場所列追加
+    # ----------------------------
+    df['場所'] = field_num
     df = Learning.df_first_processing(df, field)
     df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1', 'グループ'], axis=1, errors="ignore")  # 必要な削除カラム
     df = Learning.df_big_past_processing(df, field, field_num)
@@ -1241,7 +1262,8 @@ def all_place(race_id, odds):
 if __name__ == "__main__":
     start = time.time()
     
-    result = select_horse(202506040202, 'nakayama', [43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 2, 3])
+    # result = select_horse(202506040202, 'nakayama', [43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 2, 3])
+    result = select_horse(202555090411, 'saga', [43.6, 2.9, 18.7, 172.1, 52.1, 10.0, 146.0, 43.6, 2.9, 18.7])
 
     end = time.time()
     print("実行時間：", end - start)

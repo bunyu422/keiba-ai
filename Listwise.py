@@ -1,6 +1,7 @@
 import copy
 import pickle
 import random
+import warnings
 import joblib
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -25,6 +26,11 @@ from sklearn.model_selection import StratifiedGroupKFold
 # 行・列ともに省略せず全て表示する設定
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
+import os
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
+# 警告を例外に変えてトレースバックを出す
+# warnings.filterwarnings("error")
 
 # === 0. ハイパーパラメータ ===
 n_splits = 5
@@ -66,8 +72,8 @@ embedding_cols = feature_category + diff_category_place + diff_category_field
 
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'kasamatu'
-# csv_path = f'./csv/df_all_nakayama.csv'
+field = 'ooi'
+# csv_path = f'./csv/df_all_tokyo.csv'
 csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
@@ -911,6 +917,38 @@ def set_seed(seed: int = 42):
         random.seed(worker_seed)
     return seed_worker
 
+def time_series_group_cv_3split(df, group_col="レースID", n_splits=5):
+    """
+    時系列順（レースID昇順）に基づくリーク防止付きクロスバリデーション
+    各foldで train / val / test の3分割を生成する
+    """
+    unique_races = np.sort(df[group_col].unique())
+    n_races = len(unique_races)
+    fold_size = n_races // (n_splits + 2)  # test分も含めて少し余裕をもたせる
+
+    splits = []
+
+    for i in range(n_splits):
+        # 各foldで範囲を決める
+        train_end = (i + 1) * fold_size
+        val_end = train_end + fold_size
+        test_end = val_end + fold_size
+
+        if test_end > n_races:
+            break  # データが足りなくなったら終了
+
+        train_races = unique_races[:train_end]
+        val_races = unique_races[train_end:val_end]
+        test_races = unique_races[val_end:test_end]
+
+        train_idx = df[df[group_col].isin(train_races)].index
+        val_idx = df[df[group_col].isin(val_races)].index
+        test_idx = df[df[group_col].isin(test_races)].index
+
+        splits.append((train_idx, val_idx, test_idx))
+
+    return splits
+
 if __name__ == '__main__':
     print(device)
     # print(df.head(10))
@@ -951,6 +989,8 @@ if __name__ == '__main__':
 
         train_df = trainval_df.iloc[train_idx]
         val_df = trainval_df.iloc[val_idx]
+
+        # print("fold_num:", len(train_df))
 
     # ---- 外側: trainval/test = 8:2 ----
     # sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
@@ -1037,6 +1077,16 @@ if __name__ == '__main__':
         val_df['父馬_te'] = val_df['父馬'].map(sire_mapping).fillna(-1)
         test_df['父馬_te'] = test_df['父馬'].map(sire_mapping).fillna(-1)
 
+        # zero_var = train_df[scale_cols].std()[train_df[scale_cols].std() == 0]
+        # print("分散ゼロの列:", zero_var.index.tolist())
+
+        # print("train shape:", train_df[scale_cols].shape)
+        # print("val shape:", val_df[scale_cols].shape)
+        # print("test shape:", test_df[scale_cols].shape)
+
+        # print("NaN 含有数:\n", train_df[scale_cols].isna().sum())
+        # print("有効サンプル数:", train_df[scale_cols].notna().sum())
+
         # === 7. 特徴量スケーリング ===
         scaler = StandardScaler()
         train_df[scale_cols] = scaler.fit_transform(train_df[scale_cols])
@@ -1048,6 +1098,9 @@ if __name__ == '__main__':
         train_df, val_df, test_df = fill_nan(train_df, feature_cols), fill_nan(val_df, feature_cols), fill_nan(test_df, feature_cols)
         # カテゴリ変換
         train_df, val_df, test_df = race_feature(train_df), race_feature(val_df), race_feature(test_df)
+
+        bad_vals = ~np.isfinite(train_df.select_dtypes(include=[np.number]))
+        # print(bad_vals.sum())           # 各列ごとの個数
 
         # === 3. ランキング学習 ===
         # embedding_cols = feature_category + diff_category_place + diff_category_field
@@ -1087,8 +1140,21 @@ if __name__ == '__main__':
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
         test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-        embedding_sizes = [train_df[col].nunique() + 5 for col in embedding_cols]  # 各カテゴリ列のクラス数
-        context_embedding_sizes = [train_df[col].nunique() + 5 for col in context_cat_cols]  # 各カテゴリ列のクラス数
+        all_df = pd.concat([train_df, val_df, test_df], axis=0)
+        embedding_sizes = []
+        for col in embedding_cols:
+            n_unique = all_df[col].nunique()
+            n_unique = max(n_unique, 1)  # 定数列や全NaN列でも最低1
+            embedding_sizes.append(n_unique + 5)  # 余裕分 +5
+
+        context_embedding_sizes = []
+        for col in context_cat_cols:
+            n_unique = all_df[col].nunique()
+            n_unique = max(n_unique, 1)
+            context_embedding_sizes.append(n_unique + 5)
+
+        # embedding_sizes = [train_df[col].nunique() + 5 for col in embedding_cols]  # 各カテゴリ列のクラス数
+        # context_embedding_sizes = [train_df[col].nunique() + 5 for col in context_cat_cols]  # 各カテゴリ列のクラス数
 
         # モデル
         emb_dim = 64  

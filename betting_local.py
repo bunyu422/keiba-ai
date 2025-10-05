@@ -97,6 +97,8 @@ def job(n1, n2, n3):
         field = "sonoda"
     elif n1 == "名古屋":
         field = "nagoya"
+    elif n1 == "佐賀":
+        field = "saga"
     else:
         field = None
 

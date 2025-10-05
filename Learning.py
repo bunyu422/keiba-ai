@@ -67,7 +67,22 @@ def convert_to_float_if_possible(df):
 def scraping(csv_path, no):
     df = pd.DataFrame()
     # ヘッダー
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/127.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": "https://www.google.com/",
+    "Connection": "keep-alive",
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
+
     for year in range(2012, 2025):
         for number in range(1, 6):
             for day in range(1, 13):
@@ -76,8 +91,8 @@ def scraping(csv_path, no):
                     url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
                     url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
                     try:
-                        response_race = requests.get(url_race, headers=headers)
-                        response_past = requests.get(url_past, headers=headers)
+                        response_race = session.get(url_race, headers=headers)
+                        response_past = session.get(url_past, headers=headers)
                         df_result = pd.read_html(response_race.content)[0]
                         df_past = pd.read_html(response_past.content)[0]
                         soup = BeautifulSoup(response_race.content, 'html.parser')
@@ -108,7 +123,21 @@ def scraping(csv_path, no):
 def scraping_local(csv_path, no):
     df = pd.DataFrame()
     # ヘッダー
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/127.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": "https://www.google.com/",
+    "Connection": "keep-alive",
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
     for year in range(2015, 2025):
         for month in range(1, 13):
             for day in range(1, 32):
@@ -118,8 +147,8 @@ def scraping_local(csv_path, no):
                     url_race = 'https://nar.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
                     url_past = 'https://nar.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
                     try:
-                        response_race = requests.get(url_race, headers=headers)
-                        response_past = requests.get(url_past, headers=headers)
+                        response_race = session.get(url_race, headers=headers)
+                        response_past = session.get(url_past, headers=headers)
                         df_result = pd.read_html(response_race.content)[0]
                         df_past = pd.read_html(response_past.content)[0]
                         soup = BeautifulSoup(response_race.content, 'html.parser')
@@ -245,12 +274,13 @@ def df_first_processing(df, name, type='推論'):
 
     df = df.copy()
     # 新たなカラムを作成
-    if "馬名_y" in df.columns:
+    if df['場所'].iloc[0] <= 10:
         df['父馬'] = df['馬名_y'].str.extract(r'(\w+\s)', expand=True)
-        df['間隔'] = df['馬名_y'].str.extract(r'(\d+)', expand=True)
+        df['間隔'] = df['馬名_y'].str.extract(r'中\s*(\d+)\s*週', expand=True).astype(float)
     else:
         df['父馬'] = df['馬名 オッズ'].str.extract(r'(\w+\s)', expand=True)
-        df['間隔'] = df['馬名 オッズ'].str.extract(r'(\d+)', expand=True)
+        df['間隔'] = df['馬名 オッズ'].str.extract(r'中\s*(\d+)\s*週', expand=True).astype(float)
+    # print(df['間隔'])
 
     # 血統pickle作成
     if type != '推論':
@@ -370,7 +400,7 @@ def df_big_past_processing(df, name, field_num):
 
         # # スピード指数の計算
         for i in range(1, 26):
-            for k in range(800, 3700, 100):
+            for k in range(800, 3700, 10):
                 try:
                     speed = speed_dict[f'{i}{k}1']
                     df_split.loc[(df_split[sou+'場所'] == i) & (df_split[sou+'距離'].astype(float) == k) & (df_split[sou+'フィールド'] == 1), sou+'スピード指数'] = ((speed + 0.01 - df_split[sou+'タイム'].astype(float)) * 10) * (1 / speed * 100) + (df_split[sou+'馬場'] * 10) + (df_split[sou+'斤量'].astype(float) - 55) * 2 + 80
@@ -901,6 +931,8 @@ https://datsusara-horse.com/2021/08/25/keiba_course_time/
 地方ソース
 https://kaisekisya.net/local/index.html
 https://www.keiba.go.jp/guide/course_record/
+
+基本，条件戦で一番グレードの高いレースを参考にしている
 '''
 speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, '122001': 133.8, '125001': 153.5, '136001': 227.0,
                 '112002': 71.0, '118002': 113.8, '124002': 154.2, '125002': 162.5, '214001': 81.0, '216001': 93.9, '218001': 106.9, '220001': 120.3,
@@ -916,9 +948,20 @@ speed_dict = {'112001': 68.5, '116001': 94.3, '118001': 108.5, '120001': 121.2, 
                 '920001': 120.9, '922001': 134.7, '912002': 71.2, '914002': 83.8, '918002': 111.0, '919002': 119.4, '1012001': 69.0,
                 '1015001': 89.5, '1017001': 161.1, '1018001': 107.5, '1020001': 121.6, '1026001': 161.6, '1010002': 57.55, '1017002': 103.8, '1024002': 153.8,
                 '1210002': 61.0, '1211002': 68.0, '1212002': 74.1, '1215002': 99.1, '1216002': 102.5, '1217002': 110.4, '1218002': 118.4, '1220002': 133.8, '1226002': 174.9,
+                '1310001': 58.2, '1316001': 97.6, '1317001': 105.5, '1324001': 149.6, '1310002': 60.1, '1312002': 73.5, '1314002': 86.3, '1316002': 99.4, '1318002': 113.6, '1320002': 123.9, '1326002': 170.0,
+                '148502': 51.5, '1413002': 83.7, '1414002': 89.5, '1416002': 102.6, '1418002': 117.5, '1419002': 123.6, '1420002': 127.8,
+                '158002': 46.8, '1513002': 82.9, '1514002': 88.0, '1515002': 95.0, '1516002': 104.0, '1520002': 131.1,
+                '1610002': 60.3, '1612002': 74.0, '1615002': 96.5, '1616002': 102.7, '1617002': 110.0, '1618002': 116.1, '1622002': 146.0, '1624002': 158.1,            
+                '1710002': 60.1, '1712002': 72.8, '1714002': 86.5, '1716002': 101.1, '1716502': 106.7, '1717002': 108.6, '1718002': 114.3, '1720002': 127.4, '1724002': 156.5, '1726002': 172.8,
+                '189002': 54.0, '1814002': 90.6, '1815002': 95.4, '1816002': 103.3, '1820002': 130.9, '1821002': 142.3,
+                '199002': 55.7, '1914002': 88.2, '1915002': 94.8, '1917002': 109.6, '1919002': 124.0, '1920002': 128.6, '1921002': 135.3, '1926002': 171.0,
                 '208002': 50.7, '2014002': 89.3, '2016002': 103.7, '2018002': 117.7, '2019002': 126.6, '2025002': 170.6,
                 '219002': 55.3, '219202': 55.3, '2114002': 89.1, '2115002': 95.9, '2117002': 110.3, '2120002': 132.2, '2121002': 138.7,
-                '228202': 49.7, '2212302': 79.2, '2214002': 90.2, '2217002': 113.3, '2218702': 125.4, '2224002': 169.4}
+                '228202': 49.7, '2212302': 79.2, '2214002': 90.2, '2217002': 113.3, '2218702': 125.4, '2224002': 169.4,
+                '238002': 49.7, '2314002': 92.2, '2315002': 97.6, '2318002': 123.6, '2320002': 137.1,
+                '248002': 49.0, '2413002': 85.1, '2414002': 91.6, '2416002': 106.7, '2418002': 121.0, '2419002': 130.8, '2424002': 169.9,
+                '259002': 53.1, '2513002': 82.7, '2514002': 89.5, '2517502': 115.0, '2518002': 119.1, '2518602': 123.0, '2520002': 132.4, '2525002': 171.2}
+                
 
 if __name__ == "__main__":
     warnings.simplefilter('ignore')
@@ -930,8 +973,8 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 21
-    field_name = 'nagoya'
+    field = 17
+    field_name = 'ooi'
     csv_path = f"./csv/{field_name}_2015-2024.csv" # 学習に使うcsvデータのパス
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -943,6 +986,8 @@ if __name__ == "__main__":
 
     # 行を全表示（行の数）
     pd.set_option("display.max_rows", None)
+    # セルの文字列を省略せずに全部表示
+    pd.set_option("display.max_colwidth", None)
 
     # 列を全表示（列の数）
     pd.set_option("display.max_columns", None)
@@ -975,6 +1020,8 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
+    # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
+
     df['場所'] = field
     # print(df.columns)
     # print(df.head(5))

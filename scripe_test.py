@@ -160,9 +160,15 @@ def set_time(skip_list, url_race):
 # Learning.scraping_local('./csv/kasamatu_2015-2024.csv', '47')
 # Learning.scraping_local('./csv/sonoda_2015-2024.csv', '50')
 # Learning.scraping_local('./csv/nagoya_2015-2024.csv', '48')
-Learning.scraping_local('./csv/mizusawa_2015-2024.csv', '36')
-Learning.scraping_local('./csv/hunabasi_2015-2024.csv', '43')
-Learning.scraping_local('./csv/saga_2015-2024.csv', '55')
+# Learning.scraping_local('./csv/mizusawa_2015-2024.csv', '36')
+# Learning.scraping_local('./csv/hunabasi_2015-2024.csv', '43')
+# Learning.scraping_local('./csv/saga_2015-2024.csv', '55')
+Learning.scraping_local('./csv/ooi_2015-2024.csv', '44')
+Learning.scraping_local('./csv/urawa_2015-2024.csv', '42')
+
+# s = "マンハッタンカフェ ... 中3週 454kg"
+# import pandas as pd
+# print(pd.Series([s]).str.extract(r'(\d+)'))
 
 
 
