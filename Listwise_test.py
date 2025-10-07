@@ -392,8 +392,8 @@ def grid_search_ev_policy(
                     })
 
                     # ベストROI更新
-                    # if metrics['roi_ci_low'] > best_roi:
-                    if metrics['roi_ci_low'] > 1.0 and metrics['selected_races'] > best_selected_races:
+                    if metrics['roi_ci_low'] > best_roi:
+                    # if metrics['roi_ci_low'] > 1.0 and metrics['selected_races'] > best_selected_races:
                         best_roi = metrics['roi_ci_low']
                         best_selected_races = metrics['selected_races']
                         best_params = {
@@ -424,6 +424,83 @@ def grid_search_ev_policy(
     best_params_df = pd.DataFrame(best_params_per_fold)
 
     return all_results_df, best_params_df
+
+def grid_search_ev_policy_val_test(
+    df_val,
+    df_test,
+    df_payout=None,
+    bet_type="単勝",
+    fold_col='fold',
+    p_col="pred_score",
+    odds_col="オッズ",
+    race_col="レースID",
+    stake=100,
+    temperature_grid=[0.2, 0.3, 0.4, 0.5, 0.6],
+    ev_min_grid=np.round(np.arange(0, 2.01, 0.1), 2),
+    prob_min_grid=[0, 0.05, 0.1, 0.12, 0.15, 0.2],
+    odds_max_grid=[8, 10, 12, 15, float('inf')],
+    ev_max_grid=[3, 4, 5, float('inf')],
+    odds_min_grid=[1.0, 1.5, 2, 3, 4],
+    min_selected=200
+):
+    """
+    各foldで valデータで探索 → testデータで評価 する構成
+    """
+
+    folds = sorted(df_val[fold_col].unique())
+    all_val_results = []
+    all_test_results = []
+
+    for fold in folds:
+        val_fold_df = df_val[df_val[fold_col] == fold].reset_index(drop=True)
+        test_fold_df = df_test[df_test[fold_col] == fold].reset_index(drop=True)
+
+        # --- valでgrid search ---
+        val_results, best_params_df = grid_search_ev_policy(
+            val_fold_df,
+            df_payout=df_payout,
+            bet_type=bet_type,
+            fold_col=fold_col,
+            p_col=p_col,
+            odds_col=odds_col,
+            race_col=race_col,
+            stake=stake,
+            temperature_grid=temperature_grid,
+            ev_min_grid=ev_min_grid,
+            prob_min_grid=prob_min_grid,
+            odds_max_grid=odds_max_grid,
+            ev_max_grid=ev_max_grid,
+            odds_min_grid=odds_min_grid,
+            min_selected=min_selected
+        )
+        all_val_results.append(val_results)
+
+        # --- best_paramsをtestに適用 ---
+        best_params = best_params_df.iloc[0].to_dict()
+        test_sel = pick_ev_max_per_race(test_fold_df, T=best_params['temperature'],
+                                        p_col=p_col, odds_col=odds_col,
+                                        race_col=race_col, bet_type=bet_type)
+        test_sel = filter_by_thresholds(
+            test_sel,
+            ev_min=best_params['ev_min'],
+            prob_min=best_params['prob_min'],
+            odds_min=best_params['odds_min'],
+            odds_max=best_params['odds_max'],
+            ev_max=best_params['ev_max']
+        )
+
+        test_metrics = evaluate_selection(test_sel, df_payout=df_payout,
+                                          stake=stake, use_bootstrap=False,
+                                          bet_type=bet_type)
+        test_metrics.update(best_params)
+        test_metrics["fold"] = fold
+
+        all_test_results.append(test_metrics)
+
+    val_summary = pd.concat(all_val_results, ignore_index=True)
+    test_summary = pd.DataFrame(all_test_results)
+
+    return val_summary, test_summary
 
 
 def grid_search_bandit(
@@ -599,6 +676,8 @@ def grid_search_bandit(
     best_params_df = pd.DataFrame(best_params_per_fold)
 
     return all_results_df, best_params_df
+
+
 
 
 # --- nested fold eval ---
@@ -954,21 +1033,21 @@ if __name__ == '__main__':
     #     './csv/tokyo_result_ranknet_test_4.csv'
     # ]
 
-    csv_files = [
-        './csv/ooi_result_ranknet_test_0.csv',
-        './csv/ooi_result_ranknet_test_1.csv',
-        './csv/ooi_result_ranknet_test_2.csv',
-        './csv/ooi_result_ranknet_test_3.csv',
-        './csv/ooi_result_ranknet_test_4.csv'
-    ]
-
     # csv_files = [
-    #     './csv/nakayama2_result_ranknet_test_0.csv',
-    #     './csv/nakayama2_result_ranknet_test_1.csv',
-    #     './csv/nakayama2_result_ranknet_test_2.csv',
-    #     './csv/nakayama2_result_ranknet_test_3.csv',
-    #     './csv/nakayama2_result_ranknet_test_4.csv'
+    #     './csv/ooi_result_ranknet_test_0.csv',
+    #     './csv/ooi_result_ranknet_test_1.csv',
+    #     './csv/ooi_result_ranknet_test_2.csv',
+    #     './csv/ooi_result_ranknet_test_3.csv',
+    #     './csv/ooi_result_ranknet_test_4.csv'
     # ]
+
+    csv_files = [
+        f"./csv/nakayama_result.csv",
+        # './csv/nakayama2_result_ranknet_test_1.csv',
+        # './csv/nakayama2_result_ranknet_test_2.csv',
+        # './csv/nakayama2_result_ranknet_test_3.csv',
+        # './csv/nakayama2_result_ranknet_test_4.csv'
+    ]
 
     # csv_files = [
     #     './csv/monbetu_result_ranknet_test_0.csv',
@@ -1035,6 +1114,30 @@ if __name__ == '__main__':
 
     df = pd.concat(dfs, ignore_index=True)
 
+    csv_files = [
+        './csv/nakayama_act_ver_result_ranknet_val_0.csv',
+        # './csv/nakayama2_result_ranknet_val_1.csv',
+        # './csv/nakayama2_result_ranknet_val_2.csv',
+        # './csv/nakayama2_result_ranknet_val_3.csv',
+        # './csv/nakayama2_result_ranknet_val_4.csv'
+    ]
+
+    dfs = []
+    for i, path in enumerate(csv_files):
+        df_fold = pd.read_csv(path)
+        df_fold['fold'] = i
+        dfs.append(df_fold)
+        print(f"レース数: {len(df_fold['レースID'].unique())}")
+
+    df_val = pd.concat(dfs, ignore_index=True)
+
+    # print(df['レースID'].min())
+    # print(df['レースID'].max())
+    # print(len(df['レースID'].unique()))
+    # print(df_val['レースID'].min())
+    # print(df_val['レースID'].max())
+    # print(len(df_val['レースID'].unique()))
+
     # payout_df = pd.read_csv('./csv/nakayama_payouts_2012-2024.csv')
 
     # 複勝の払い戻しだけ抽出
@@ -1060,7 +1163,7 @@ if __name__ == '__main__':
     # print(params_df)   # foldごとの選ばれたパラメータ
 
 
-    # df = pd.read_csv('./csv/nagoya_result_ranknet_test_3.csv')  # または val データ専用ファイルを読み込む
+    # df = pd.read_csv('./csv/nakayama2_result_ranknet_test_0.csv')  # または val データ専用ファイルを読み込む
     # # レース数出力
     # print(f"レース数: {len(df['レースID'].unique())}")
     
@@ -1080,9 +1183,12 @@ if __name__ == '__main__':
     # pred_score は温度スケーリング後の確率（0~1推奨）
 
     # 例）グリッド探索して上位5条件を表示
-    res, best = grid_search_ev_policy(df)
+    val_summary, test_summary = grid_search_ev_policy_val_test(df_val, df)
+    # res, best = grid_search_ev_policy(df)
     # res, best = grid_search_bandit(df)
-    print(best)
+    # print(best)
+    print(val_summary)
+    print(test_summary)
 
     # res_df, params_df, summary, top = nested_fold_eval_temperature(df)
     # print(summary)

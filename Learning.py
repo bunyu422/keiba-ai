@@ -1,7 +1,9 @@
+import joblib
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import re
+from sklearn.discriminant_analysis import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import GroupKFold
@@ -26,6 +28,9 @@ from keras.callbacks import EarlyStopping
 import sys
 import category_encoders as ce
 import random
+import seaborn as sns
+
+import Listwise
 
 def save_csv(path, df_all):
     df_all.to_csv(path, na_rep='NaN')
@@ -329,21 +334,21 @@ def df_first_processing(df, name, type='推論'):
         jockey_mapping = create_unique_pickle(df['騎手'], jockey_path)
         df['騎手'] = df['騎手'].map(jockey_mapping)
 
-        df['勝率'] = 0
-        df['勝率'] = df['勝率'].mask(pd.to_numeric(df['着順'], errors='coerce') == 1, 1)
+        # df['勝率'] = 0
+        # df['勝率'] = df['勝率'].mask(pd.to_numeric(df['着順'], errors='coerce') == 1, 1)
 
-        d = df.groupby('騎手')['勝率'].mean()
-        dict = d.to_dict()
-        df['騎手'] = pd.to_numeric(df['騎手'].map(dict), errors='coerce')
+        # d = df.groupby('騎手')['勝率'].mean()
+        # dict = d.to_dict()
+        # df['騎手'] = pd.to_numeric(df['騎手'].map(dict), errors='coerce')
 
-        with open(f'./pickle-dict/jwin_dict_{name}.pkl', "wb") as dd:
-            pickle.dump(dict, dd)
+        # with open(f'./pickle-dict/jwin_dict_{name}.pkl', "wb") as dd:
+        #     pickle.dump(dict, dd)
     else:
         jockey_mapping = return_pickle(jockey_path)
         df['騎手'] = df['騎手'].map(jockey_mapping)
 
-        j_win = return_pickle(f'./pickle-dict/jwin_dict_{name}.pkl')
-        df['騎手'] = df['騎手'].map(j_win)
+        # j_win = return_pickle(f'./pickle-dict/jwin_dict_{name}.pkl')
+        # df['騎手'] = df['騎手'].map(j_win)
 
     
 
@@ -522,7 +527,7 @@ def df_end_processing(df_all, type='推論'):
     df_all['上昇度'] = (df_all['5過去着順'] - df_all['4過去着順']) + (df_all['4過去着順'] - df_all['3過去着順']) + (df_all['3過去着順'] - df_all['2過去着順']) + (df_all['2過去着順'] - df_all['1過去着順']) / (df_all[['1過去着順', '2過去着順', '3過去着順', '4過去着順', '5過去着順']].isnull().sum(axis=1) + 1)
     
     # df_all['rank'] = df_all['着順'].map(f_ranking)
-    df_all = df_all.replace(['', '未定'], np.nan)
+    df_all = df_all.replace(['', '未定', '除外', '取消', '失格', '中止'], np.nan)
     # df_all = df_all.replace('', '00000')  # ''をエラー検出文字に置換してくれる
     # df_all = df_all.replace('未定', '00000')
     # df_all = df_all[~df_all.astype(str).apply(lambda s: s.str.contains('00000', na=False), axis=1).any(axis=1)]  # エラー検出文字を入れた行以外を抽出
@@ -550,9 +555,9 @@ def create_label_gain(df_all):
     n_bins = 18
     df_all = df_all.copy()
     # 例）着順があるdfに対して、"gain"を相対スコアで計算
-    df_all['rank'] = df_all['着順'].apply(lambda r: 1 / r)  # 単純逆数
+    df_all['rank'] = df_all['着順'].astype(float).apply(lambda r: 1 / r)  # 単純逆数
     # 出走頭数で正規化してもよい
-    df_all['rank'] *= df_all['出走頭数'] / n_bins
+    df_all['rank'] *= df_all['出走頭数'].astype(float) / n_bins
     # ランクをラベル化
     bins = np.linspace(0, 1, df_all['rank'].nunique())  # ランクの境界値を計算
     df_all['rank'] = np.digitize(df_all['rank'], bins, right=True) - 1
@@ -560,6 +565,25 @@ def create_label_gain(df_all):
     label_gain = [np.sqrt(x) for x in range(0, df_all['rank'].max() + 1)]
     
     return df_all, label_gain
+
+# def create_label_gain(df_all, top_k=5):
+#     """
+#     各レース内で着順に応じたrelevanceラベルとlabel_gainを生成
+#     """
+#     df_all = df_all.copy()
+    
+#     # --- レースごとに relevance を作成（上位ほど高い値）---
+#     df_all['rank'] = df_all.groupby('レースID')['着順'] \
+#         .transform(lambda x: len(x) - x.rank(method='first') + 1)
+    
+#     # --- 0始まり整数に変換（LightGBM要件）---
+#     df_all['rank'] = df_all['rank'].astype(float) - 1
+
+#     # --- gain設定：上位を強調 ---
+#     max_rel = int(df_all['rank'].max())  # ← 型キャストを追加！
+#     label_gain = [int(2 ** x - 1) for x in range(max_rel + 1)]
+
+#     return df_all, label_gain
 
 # 1段階目の学習
 def first_train(df_all):
@@ -575,49 +599,54 @@ def first_train(df_all):
 
     # 説明変数,目的変数
     # '人気', 'オッズ'
-    X_train = df_all.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
-    X_test = df_test.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
-    y_train = df_all[['rank', 'レースID', '着順', '単勝オッズ', '馬単']]
-    y_test = df_test[['rank', 'レースID', 'オッズ', '着順', '単勝オッズ', '馬単']]
+    # X_train = df_all.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
+    # X_test = df_test.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
+    # y_train = df_all[['rank', 'レースID', '着順', '単勝オッズ', '馬単']]
+    # y_test = df_test[['rank', 'レースID', 'オッズ', '着順', '単勝オッズ', '馬単']]
 
-    # train, eval, testに分割
-    X_eval = df_eval.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
-    y_eval = df_eval[['rank', 'レースID', '着順', '単勝オッズ', '馬単']]
+    # # train, eval, testに分割
+    # X_eval = df_eval.drop(['着順', 'rank', 'オッズ', '単勝オッズ', '馬単'], axis=1)
+    # y_eval = df_eval[['rank', 'レースID', '着順', '単勝オッズ', '馬単']]
 
-    # クエリListを作成
-    id_count = X_train['レースID'].value_counts(sort=False)
+    # # クエリListを作成
+    id_count = df_all['レースID'].value_counts(sort=False)
     train_list = id_count.values.tolist()
 
-    id_count = X_test['レースID'].value_counts(sort=False)
+    id_count = df_test['レースID'].value_counts(sort=False)
     test_list = id_count.values.tolist()
 
-    id_count = X_eval['レースID'].value_counts(sort=False)
+    id_count = df_eval['レースID'].value_counts(sort=False)
     eval_list = id_count.values.tolist()
 
-    # 検証用のレースIDを保存
-    y_test_id = pd.DataFrame()
-    y_test_id['レースID'] = y_test['レースID']
-    y_test_id['着順'] = y_test['着順']
-    y_test_id['単勝オッズ'] = y_test['単勝オッズ']
-    y_test_id['オッズ'] = y_test['オッズ']
-    y_test_id['馬単'] = y_test['馬単'].astype(int)
-    y_test_id['rank'] = y_test['rank']
+    # print("train_list 前半:", train_list[:10])
+    # print("train_list の合計:", sum(train_list))
+    # print("X_train の長さ:", len(df_all))
+    # print("一致チェック:", sum(train_list) == len(df_all))
 
-    # レースIDカラムを削除
-    X_train = X_train.drop(['レースID'], axis=1)
-    X_test = X_test.drop(['レースID'], axis=1)
-    X_eval = X_eval.drop(['レースID'], axis=1)
-    y_train = y_train.drop(['レースID', '着順', '単勝オッズ', '馬単'], axis=1)
-    y_test = y_test.drop(['レースID', '着順', '単勝オッズ', '馬単', 'オッズ'], axis=1)
-    y_eval = y_eval.drop(['レースID', '着順', '単勝オッズ', '馬単'], axis=1)
+    # # 検証用のレースIDを保存
+    # y_test_id = pd.DataFrame()
+    # y_test_id['レースID'] = y_test['レースID']
+    # y_test_id['着順'] = y_test['着順']
+    # y_test_id['単勝オッズ'] = y_test['単勝オッズ']
+    # y_test_id['オッズ'] = y_test['オッズ']
+    # y_test_id['馬単'] = y_test['馬単'].astype(int)
+    # y_test_id['rank'] = y_test['rank']
 
-    # dataframeを値のみに
-    display(list(X_train.columns.values))
+    # # レースIDカラムを削除
+    # X_train = X_train.drop(['レースID'], axis=1)
+    # X_test = X_test.drop(['レースID'], axis=1)
+    # X_eval = X_eval.drop(['レースID'], axis=1)
+    # y_train = y_train.drop(['レースID', '着順', '単勝オッズ', '馬単'], axis=1)
+    # y_test = y_test.drop(['レースID', '着順', '単勝オッズ', '馬単', 'オッズ'], axis=1)
+    # y_eval = y_eval.drop(['レースID', '着順', '単勝オッズ', '馬単'], axis=1)
+
+    # # dataframeを値のみに
+    # display(list(X_train.columns.values))
 
     # パラメータ設定
     rate = 0.01
-    lgb_train = lgb.Dataset(X_train, label=y_train, group=train_list)
-    lgb_eval = lgb.Dataset(X_eval, label=y_eval, reference=lgb_train, group=eval_list)
+    lgb_train = lgb.Dataset(df_all[feature_cols], label=df_all['rank'], group=train_list)
+    lgb_eval = lgb.Dataset(df_eval[feature_cols], label=df_eval['rank'], reference=lgb_train, group=eval_list)
 
     for seed in range(1, file_num+1):
         params = {
@@ -640,15 +669,15 @@ def first_train(df_all):
         del lgb_train
         del lgb_eval
         gc.collect()
-        lgb_train = lgb.Dataset(X_train, label=y_train, group=train_list)
-        lgb_eval = lgb.Dataset(X_eval, label=y_eval, reference=lgb_train, group=eval_list)
+        lgb_train = lgb.Dataset(df_all[feature_cols], label=df_all['rank'], group=train_list)
+        lgb_eval = lgb.Dataset(df_eval[feature_cols], label=df_eval['rank'], reference=lgb_train, group=eval_list)
 
         # '''
         # クロスバリデーションによるハイパーパラメータの探索 3fold
         tuner = lgb.LightGBMTunerCV(params,
                                     lgb_train,
                                     folds=GroupKFold(n_splits=3),
-                                    # categorical_feature = cat_list,
+                                    categorical_feature = cat_list,
                                     return_cvbooster=True,
                                     verbose_eval=False
                                     )
@@ -692,17 +721,36 @@ def first_train(df_all):
                         lgb_train,  # トレーニングデータの指定
                         valid_names=['train', 'valid'],     # 学習経過で表示する名称
                         valid_sets=[lgb_train, lgb_eval],
-                        # categorical_feature = cat_list,
+                        categorical_feature = cat_list,
                         callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=False),
                                     lgbm.record_evaluation(evals_result)]
                         )
 
         # pklファイルとしてモデルを保存
-        with open(f"{tuner_path}{seed}.pickle", "wb") as mk:
-            pickle.dump(model, mk)
+        # with open(f"{tuner_path}{seed}.pickle", "wb") as mk:
+        #     pickle.dump(model, mk)
+
+        # 学習後のモデル
+        importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
+        importance_split = model.feature_importance(importance_type="split")  # 分割に使われた回数
+
+        feature_names = df_all[feature_cols].columns
+
+        feat_imp_df = pd.DataFrame({
+            "feature": feature_names,
+            "importance_gain": importance_gain,
+            "importance_split": importance_split
+        }).sort_values(by="importance_gain", ascending=False)
+
+        print(feat_imp_df)  # 上位20特徴量
+
+        plt.figure(figsize=(10,6))
+        sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
+        plt.title("Top 20 Feature Importance (LambdaRank)")
+        plt.show()
 
         # テストデータの予測 (予測クラスを返す)
-        y_pred = model.predict(X_test, group=test_list)
+        y_pred = model.predict(df_test[feature_cols], group=test_list)
         y_test_id[f'result{seed}'] = y_pred
     print(len(test_list))
 
@@ -854,8 +902,8 @@ def stacking(y_test_id):
         
         # pklファイルとしてモデルを保存
         # if seed == 1 or seed == 8:
-        with open(f"{tuner_path}{seed}-stack.pickle", "wb") as mk:
-            pickle.dump(model_s, mk)
+        # with open(f"{tuner_path}{seed}-stack.pickle", "wb") as mk:
+        #     pickle.dump(model_s, mk)
 
 def sort(result, num):
     result = result.copy()
@@ -973,9 +1021,10 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 17
-    field_name = 'ooi'
-    csv_path = f"./csv/{field_name}_2015-2024.csv" # 学習に使うcsvデータのパス
+    field = 1
+    field_name = 'nakayama'
+    csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
+    file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
     #  '帯広': 11, '門別': 12, '盛岡': 13, '水沢': 14, '浦和': 15, '船橋': 16, '大井': 17, '川崎': 18, '金沢': 19, '笠松': 20,
@@ -1036,20 +1085,54 @@ if __name__ == "__main__":
     
     # 今走の処理
     df = df_first_processing(df, field_name, type='a')
+    # df = df_first_processing(df, field_name)
     # 過去走の処理
     df_all = df_big_past_processing(df, field_name, field)
     # 過去のレベル
     df_all = past_level(df_all, type='a')
+    # df_all = past_level(df_all)
     # 終了処理
     df_all = df_end_processing(df_all, type='b')
+    # df_all = df_end_processing(df_all)
     # csv
     save_csv(f'./csv/df_all_{field_name}.csv', df_all)
     # ラベリング
-    df_all = encording(df_all)
+    # df_all = encording(df_all)
     # ラベル分割
     df_all, gain_list = create_label_gain(df_all)
+
+    df = Listwise.inversion(df_all)
+    df = Listwise.append_col(df)
+    df = Listwise.add_relative_features(df)
+
+    # feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+    feature_cols = [col for col in df.columns if col not in ['Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+    
+    pkl_path = f'./pickle-dict/sire_dict_{field_name}_fold0.pkl'
+    with open(pkl_path, "rb") as f:
+        sire_mapping = pickle.load(f)
+    df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
+
+    scaler = StandardScaler()
+    df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
+    df = Listwise.fill_nan(df, feature_cols)
+
+    # ----------------------------
+    # 場所列追加
+    # ----------------------------
+    # df['場所'] = field_num
+
+    # ----------------------------
+    # カテゴリ列数値化
+    # ----------------------------
+    df = Listwise.race_feature(df)
+
+    cat_list = Listwise.embedding_cols + Listwise.context_cat_cols
+
+    # feature_cols = [col for col in feature_cols if col not in Listwise.embedding_cols and col not in Listwise.common_cols]
+
     # 学習
-    y_test_id, test_list = first_train(df_all)
+    y_test_id, test_list = first_train(df)
     # test
     test(test_list, y_test_id, file_num)
 

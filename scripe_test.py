@@ -1,3 +1,6 @@
+import pickle
+import joblib
+import numpy as np
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -7,6 +10,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 import time
 import schedule
+from sklearn.discriminant_analysis import StandardScaler
+import torch
+import Listwise
+import Listwise_func
 import betting
 import function
 from selenium.webdriver.support import expected_conditions as EC
@@ -22,6 +29,9 @@ pd.set_option("display.max_rows", None)
 
 # 列を全表示（列の数）
 pd.set_option("display.max_columns", None)
+# セルの文字列を省略せずに全部表示
+pd.set_option("display.max_colwidth", None)
+
 
 # ブラウザ立ち上げ
 # options = Options()
@@ -64,6 +74,63 @@ pd.set_option("display.max_columns", None)
 # # url="https://www.ipat.jra.go.jp/sp/"
 # url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=20240922"
 # driver.get(url)
+
+def predict_multiple_races(model, df_all, feature_cols, cat_features,
+                           context_num_features, context_cat_features,
+                           group_col="レースID", device="cuda"):
+    """
+    複数レースをまとめて予測する。
+    各レースごとにモデルへ入力し、予測結果を結合して返す。
+
+    df_all : 全レースの特徴量を含む DataFrame
+    group_col : レースを識別する列名（通常 'レースID'）
+    """
+    model.eval()
+    all_results = []
+
+    for race_id, df_race in df_all.groupby(group_col):
+        df_race = df_race.copy()
+        num_horses = len(df_race)
+
+        # ---- 数値特徴 ----
+        X = torch.tensor(df_race[feature_cols].values.astype(np.float32), dtype=torch.float32).to(device)
+
+        # ---- カテゴリ特徴 ----
+        if len(cat_features) > 0:
+            cat_data = df_race[cat_features].values.astype(np.int64)
+            for i, num_classes in enumerate(model.embedding_sizes):
+                cat_data[:, i] = np.clip(cat_data[:, i], 0, num_classes - 1)
+            cat_X = torch.tensor(cat_data, dtype=torch.long).to(device)
+        else:
+            cat_X = None
+
+        # ---- コンテキスト数値特徴 ----
+        if len(context_num_features) > 0:
+            context_X = df_race[context_num_features].iloc[0].values.astype(np.float32)
+            context_X = torch.tensor(np.tile(context_X, (num_horses, 1)), dtype=torch.float32).to(device)
+        else:
+            context_X = None
+
+        # ---- コンテキストカテゴリ特徴 ----
+        if len(context_cat_features) > 0:
+            context_cat_data = df_race[context_cat_features].iloc[0].values.astype(np.int64).reshape(1, -1)
+            for i, num_classes in enumerate(model.context_embedding_sizes):
+                context_cat_data[:, i] = np.clip(context_cat_data[:, i], 0, num_classes - 1)
+            context_cat_X = torch.tensor(np.tile(context_cat_data, (num_horses, 1)), dtype=torch.long).to(device)
+        else:
+            context_cat_X = None
+
+        # ---- モデル予測 ----
+        with torch.no_grad():
+            pred_score = model(X, cat_X, context_X, context_cat_X)
+
+        df_race["pred_score"] = pred_score.detach().cpu().numpy()
+        all_results.append(df_race)
+
+    # ---- 全レース結合 ----
+    df_result = pd.concat(all_results, ignore_index=True)
+    return df_result
+
 
 def set_time(skip_list, url_race):
     time_list = []
@@ -163,8 +230,8 @@ def set_time(skip_list, url_race):
 # Learning.scraping_local('./csv/mizusawa_2015-2024.csv', '36')
 # Learning.scraping_local('./csv/hunabasi_2015-2024.csv', '43')
 # Learning.scraping_local('./csv/saga_2015-2024.csv', '55')
-Learning.scraping_local('./csv/ooi_2015-2024.csv', '44')
-Learning.scraping_local('./csv/urawa_2015-2024.csv', '42')
+# Learning.scraping_local('./csv/ooi_2015-2024.csv', '44')
+# Learning.scraping_local('./csv/urawa_2015-2024.csv', '42')
 
 # s = "マンハッタンカフェ ... 中3週 454kg"
 # import pandas as pd
@@ -176,8 +243,100 @@ Learning.scraping_local('./csv/urawa_2015-2024.csv', '42')
 # Learning.scraping('./csv/hakodate_2012-2024.csv', '02')
 # Learning.scraping('./csv/hukushima_2012-2024.csv', '03')
 # Learning.scraping('./csv/nigata_2012-2024.csv', '04')
-# Learning.scraping('./csv/nakayama_2012-2024.csv', '06')
+# Learning.scraping('./csv/nakayama_2025.csv', '06')
 # Learning.scraping('./csv/chukyo_2012-2024.csv', '07')
 # Learning.scraping('./csv/kyoto_2012-2024.csv', '08')
 # Learning.scraping('./csv/hanshin_2012-2024.csv', '09')
 # Learning.scraping('./csv/kokura_2012-2024.csv', '10')
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+field = 'nakayama'
+field_num = 1
+csv_path = f"./csv/{field}_2025.csv" # 学習に使うcsvデータのパス
+
+df = pd.read_csv(csv_path, index_col=0)
+df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+# print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
+
+df['is_win'] = (df['着順'] == 1).astype(int)
+df['場所'] = field_num
+# print(df.columns)
+# 今走の処理
+df = Learning.df_first_processing(df, field)
+# 過去走の処理
+df = Learning.df_big_past_processing(df, field, field_num)
+# 過去のレベル
+df = Learning.past_level(df)
+# 終了処理
+df = Learning.df_end_processing(df, 'a')
+# print(df.columns.values)
+# 逆数化
+df = Listwise.inversion(df)
+# カラム追加
+df = Listwise.append_col(df)
+df = Listwise.add_relative_features(df)
+
+with open('./pickle-dict/sire_dict_nakayama_fold0.pkl', mode="rb") as f:
+    sire_mapping = pickle.load(f)
+
+# 列情報読み込み
+feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
+
+with open(f'./pickle-dict/jwin_dict_nakayama.pkl', "rb") as dd:
+    j_mapping = pickle.load(dd)
+
+# val/test は train 全体の mapping を使う
+df['騎手_te'] = df['騎手'].map(j_mapping).fillna(-1)
+df['騎手'] = df['騎手_te']
+
+scaler = StandardScaler()
+df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
+
+# 欠損値補完
+df = Listwise.fill_nan(df, feature_cols)
+
+# カテゴリ列を数値化
+# df = Listwise.race_feature(df)
+category_mappings = joblib.load(f"./pickle-dict/category_mappings_nakayama_fold0.pkl")
+df = Listwise.race_feature_test(df, category_mappings)
+
+embedding_sizes = []
+context_embedding_sizes = []
+# state_dict をロード
+state_dict = torch.load(f"./model/nakayama_ranknet_0.pth", map_location=device)
+
+# 通常のカテゴリ埋め込み
+i = 0
+while f"embeddings.{i}.weight" in state_dict:
+    num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
+    embedding_sizes.append(num_classes)
+    # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
+    i += 1
+
+# コンテキストカテゴリ埋め込み
+j = 0
+while f"context_embeddings.{j}.weight" in state_dict:
+    num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
+    context_embedding_sizes.append(num_classes)
+    # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
+    j += 1
+
+# 読み込み
+model = Listwise.ListNet(
+    embedding_sizes=embedding_sizes,
+    num_features=len(feature_cols),
+    context_embedding_sizes=context_embedding_sizes,
+    context_num_sizes=len(Listwise.context_num_cols),
+    emb_dim=16
+)
+model.load_state_dict(state_dict)
+model.to(device)
+model.eval()
+
+df = predict_multiple_races(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device=device)
+
+df.to_csv(f"./csv/{field}_result_fold0.csv",na_rep='NaN')

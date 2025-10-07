@@ -13,7 +13,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-import evaluation
 from sklearn.preprocessing import StandardScaler
 import Learning
 import torch.nn.functional as F
@@ -49,7 +48,7 @@ numeric_diff_cols = ['1スピード指数', '2スピード指数', '3スピー�
 
 scale_cols = ['1着差', '2着差', '3着差', '4着差', '5着差', '1タイム', '2タイム', '3タイム', '4タイム', '5タイム',
             '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
-            '斤量', '1斤量', '2斤量', '3斤量', '4斤量', '5斤量', '父馬_te', '間隔', '1馬体重', '2馬体重', '3馬体重', '4馬体重', '5馬体重',
+            '斤量', '1斤量', '2斤量', '3斤量', '4斤量', '5斤量', '父馬_te', '騎手_te', '間隔', '1馬体重', '2馬体重', '3馬体重', '4馬体重', '5馬体重',
             '1体重増減', '2体重増減', '3体重増減', '4体重増減', '5体重増減', '1スピード指数', '2スピード指数', '3スピード指数', '4スピード指数', '5スピード指数',
             'best着差', 'bestスピード指数', 'av着差', 'avスピード指数', '上昇度', '1クラス差', '1ペース差']
 
@@ -58,7 +57,7 @@ inversion_cols = ['人気', '齢', '間隔', '1着差', '2着差', '3着差', '4
                 '1後3F', '2後3F', '3後3F', '4後3F', '5後3F', '1着差', '2着差', '3着差', '4着差', '5着差',
                 'best着差', 'av着差']
 
-feature_category = ['馬番', '性', '父馬',
+feature_category = ['馬番', '性', '父馬', '騎手',
                     '1場所', '2場所', '3場所', '4場所', '5場所', '1フィールド', '2フィールド', '3フィールド', '4フィールド', '5フィールド',
                     '1距離', '2距離', '3距離', '4距離', '5距離',
                     '1馬場', '2馬場', '3馬場', '4馬場', '5馬場','1コーナー通過順', '2コーナー通過順', '3コーナー通過順', '4コーナー通過順', '5コーナー通過順',
@@ -70,65 +69,283 @@ diff_category_field = ['1フィールド変化', '2フィールド変化', '3フ
 
 embedding_cols = feature_category + diff_category_place + diff_category_field
 
+def load_csv(path):
+    # 学習データを読み込む
+    df = pd.read_csv(path, index_col=0)
+    return df
+
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'ooi'
-# csv_path = f'./csv/df_all_tokyo.csv'
-csv_path = f'./csv/df_all_{field}.csv'
+field = 'tokyo_act_ver'
+csv_path = f'./csv/df_all_tokyo.csv'
+# csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
-df = evaluation.load_csv(csv_path)
+df = load_csv(csv_path)
 group_col = 'レースID'
 target_col = 'smooth_rel'
 feature_cols = []
 df['is_win'] = (df['着順'] == 1).astype(int)
 
-def append_col(df):
-    # df = add_history_features(df)
+# def append_col(df):
+#     df = add_history_features(df)
 
-    df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
-    df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
-    # ascending=True → 値が小さいほど小さい順位
-    # → 大きい数値ほど順位が大きくなる（方向性統一）
+#     df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
+#     df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
+#     # ascending=True → 値が小さいほど小さい順位
+#     # → 大きい数値ほど順位が大きくなる（方向性統一）
+#     df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
+#     df['av_speed_rank_num'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=True)
+#     df['best後3F_rank_num'] = df.groupby('レースID')['best後3F'].rank(method='min', ascending=False)
+#     df['av後3F_rank_num'] = df.groupby('レースID')['av後3F'].rank(method='min', ascending=False)
+
+    # df['best_speed_rank_cat'] = df['best_speed_rank_num']
+    # df['av_speed_rank_cat'] = df['av_speed_rank_num']
+    # df['best後3F_rank_cat'] = df['best後3F_rank_num']
+    # df['av後3F_rank_cat'] = df['av後3F_rank_num']
+
+#     feature_cols.append('best後3F')
+#     feature_cols.append('av後3F')
+#     feature_cols.append('best_speed_rank_num')
+#     feature_cols.append('av_speed_rank_num')
+#     feature_cols.append('best後3F_rank_num')
+#     feature_cols.append('av後3F_rank_num')
+#     feature_cols.append('同場所過去率')
+#     feature_cols.append('同距離過去率')
+
+#     scale_cols.append('best後3F')
+#     scale_cols.append('av後3F')
+#     scale_cols.append('best_speed_rank_num')
+#     scale_cols.append('av_speed_rank_num')
+#     scale_cols.append('best後3F_rank_num')
+#     scale_cols.append('av後3F_rank_num')
+#     scale_cols.append('同場所過去率')
+#     scale_cols.append('同距離過去率')
+
+#     feature_category.append('best_speed_rank_cat')
+#     feature_category.append('av_speed_rank_cat')
+#     feature_category.append('best後3F_rank_cat')
+#     feature_category.append('av後3F_rank_cat')
+#     feature_category.append('同距離過去数')
+#     feature_category.append('同距離過去3着内数')
+#     feature_category.append('同場所過去数')
+#     feature_category.append('同場所過去3着内数')
+    
+    
+    
+#     return df
+
+def append_col(df):
+    df = add_history_features(df)  # 元々の履歴特徴追加関数
+    df = add_course_bias_features(df)
+
+    # --- 過去後3F / スピード指数の min / mean ---
+    df['best後3F'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].astype(float).min(axis=1)
+    df['av後3F'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].astype(float).mean(axis=1)
+
     df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
     df['av_speed_rank_num'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=True)
     df['best後3F_rank_num'] = df.groupby('レースID')['best後3F'].rank(method='min', ascending=False)
     df['av後3F_rank_num'] = df.groupby('レースID')['av後3F'].rank(method='min', ascending=False)
 
+    # --- 過去3～5走の傾き / 標準偏差（Trend / 安定度） ---
+    df['speed_std_5r'] = df.loc[:, ['1スピード指数','2スピード指数','3スピード指数','4スピード指数','5スピード指数']].std(axis=1)
+    df['後3F_std_5r'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].std(axis=1)
+    df['着差_std_5r'] = df.loc[:, ['1着差','2着差','3着差','4着差','5着差']].std(axis=1)
+
+    # --- Trend（直近3走の回帰傾き） ---
+    for col_base, new_col in [('1スピード指数','speed_trend_3r'), ('1後3F','後3F_trend_3r'), ('1着差','着差_trend_3r'), ('1人気','人気_trend_3r')]:
+        df[new_col] = df[[f'{i}{col_base[1:]}' for i in range(1,4)]].astype(float).apply(lambda x: np.polyfit(range(3), x, 1)[0], axis=1)
+
+    # --- レース内相対差 / 相対順位 ---
+    df['speed_diff_best'] = df.groupby('レースID')['bestスピード指数'].transform(lambda x: x.max() - x)
+    df['speed_diff_av'] = df.groupby('レースID')['avスピード指数'].transform(lambda x: x.mean() - x)
+    df['後3F_diff_best'] = df.groupby('レースID')['best後3F'].transform(lambda x: x.min() - x)
+    df['後3F_diff_av'] = df.groupby('レースID')['av後3F'].transform(lambda x: x.mean() - x)
+    df['相対順位_best'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=False)
+    df['相対順位_av'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=False)
+
+    # --- 間隔 / 斤量差分 ---
+    # df['間隔_mean_3r'] = df[['1間隔','2間隔','3間隔']].astype(float).mean(axis=1)
+    # df['間隔_diff_last'] = df['間隔'].astype(float) - df['間隔'].astype(float).shift(1)
+    df['斤量_diff_last'] = df['斤量'].astype(float) - df['1斤量'].astype(float)
+
+    # --- 距離適性 / 期待値 ---
+    # 例として単純正規化
+    df['距離適性_score'] = df['bestスピード指数'] / df.groupby('距離')['bestスピード指数'].transform('max')
+    df['期待値'] = (1/df['オッズ']).fillna(0)  # 単勝期待値の簡易計算
+    # df['順位正規化'] = df.groupby('レースID')['着順'].rank(method='min', ascending=True) / df.groupby('レースID')['着順'].transform('max')
+
+    # --- カテゴリ特徴追加 ---
+    df['馬×距離'] = df['馬番'].astype(str) + '_' + df['距離'].astype(str)
+    df['馬×騎手'] = df['馬番'].astype(str) + '_' + df['騎手'].astype(str)
+    df['馬×コース'] = df['馬番'].astype(str) + '_' + df['場所'].astype(str)
+    df['馬×斤量帯'] = df['馬番'].astype(str) + '_' + pd.cut(df['斤量'], bins=[48,50,52,54,56,58,60], labels=False).astype(str)
     df['best_speed_rank_cat'] = df['best_speed_rank_num']
     df['av_speed_rank_cat'] = df['av_speed_rank_num']
     df['best後3F_rank_cat'] = df['best後3F_rank_num']
     df['av後3F_rank_cat'] = df['av後3F_rank_num']
 
-    feature_cols.append('best後3F')
-    feature_cols.append('av後3F')
-    feature_cols.append('best_speed_rank_num')
-    feature_cols.append('av_speed_rank_num')
-    feature_cols.append('best後3F_rank_num')
-    feature_cols.append('av後3F_rank_num')
-    # feature_cols.append('同場所過去率')
-    # feature_cols.append('同距離過去率')
+    # --- 新しい特徴列を feature_cols に追加 ---
+    new_cols = [
+        'best後3F','av後3F','best_speed_rank_num','av_speed_rank_num','best後3F_rank_num','av後3F_rank_num',
+        'speed_std_5r','後3F_std_5r','着差_std_5r','speed_trend_3r','後3F_trend_3r','着差_trend_3r','人気_trend_3r',
+        'speed_diff_best','speed_diff_av','後3F_diff_best','後3F_diff_av','相対順位_best','相対順位_av',
+        '斤量_diff_last','距離適性_score','期待値',
+        '馬×距離','馬×騎手','馬×コース','馬×斤量帯','同場所過去率','同距離過去率'
+    ]
+    feature_cols.extend(new_cols)
+    scale_cols.extend([
+        'best後3F','av後3F','best_speed_rank_num','av_speed_rank_num','best後3F_rank_num','av後3F_rank_num',
+        'speed_std_5r','後3F_std_5r','着差_std_5r','speed_trend_3r','後3F_trend_3r','着差_trend_3r','人気_trend_3r',
+        'speed_diff_best','speed_diff_av','後3F_diff_best','後3F_diff_av',
+        '斤量_diff_last','距離適性_score','期待値','同場所過去率','同距離過去率'
+    ])
+    feature_category.extend(['馬×距離','馬×騎手','馬×コース','馬×斤量帯','best_speed_rank_cat','av_speed_rank_cat','best後3F_rank_cat','av後3F_rank_cat',
+                             '同距離過去数','同距離過去3着内数','同場所過去数','同場所過去3着内数'])
 
-    scale_cols.append('best後3F')
-    scale_cols.append('av後3F')
-    scale_cols.append('best_speed_rank_num')
-    scale_cols.append('av_speed_rank_num')
-    scale_cols.append('best後3F_rank_num')
-    scale_cols.append('av後3F_rank_num')
-    # scale_cols.append('同場所過去率')
-    # scale_cols.append('同距離過去率')
+    return df
 
-    feature_category.append('best_speed_rank_cat')
-    feature_category.append('av_speed_rank_cat')
-    feature_category.append('best後3F_rank_cat')
-    feature_category.append('av後3F_rank_cat')
-    # feature_category.append('同距離過去数')
-    # feature_category.append('同距離過去3着内数')
-    # feature_category.append('同場所過去数')
-    # feature_category.append('同場所過去3着内数')
+def add_course_bias_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    中山芝・ダートの距離別コース傾向を特徴量化して追加
+    """
+    df = df.copy()
+
+    # --- 基本 ---
+    df['枠'] = ((df['馬番'] - 1) // 2 + 1).astype(int)
+    df['is_inner'] = (df['枠'] <= 3).astype(int)
+    df['is_middle'] = ((df['枠'] >= 4) & (df['枠'] <= 6)).astype(int)
+    df['is_outer'] = (df['枠'] >= 7).astype(int)
+    df['pos_ratio'] = df['1コーナー通過順'] / df['出走頭数']
+
+    # --- 持久力・上がり系 ---
+    if all(col in df.columns for col in ['1スピード指数', '1ペース差']):
+        df['持久力指数'] = df['1スピード指数'] - df['1ペース差'].abs()
+    else:
+        df['持久力指数'] = np.nan
+
+    past_3f_cols = [c for c in df.columns if '後3F' in c]
+    df['av_上がり'] = df[past_3f_cols].mean(axis=1) if past_3f_cols else np.nan
+
+    # --- 中山コース別傾向 ---
+    def course_profile(row):
+        f, d = row['フィールド'], row['距離']
+        pos, inner, mid, outer = row['pos_ratio'], row['is_inner'], row['is_middle'], row['is_outer']
+        stamina, agari = row['持久力指数'], row['av_上がり']
+
+        score = np.nan
+
+        if f == 1:
+            # --- 中山芝1200m ---
+            if d == 1200:
+                score = 0.6 * inner + 0.4 * (1 - pos)
+
+            # --- 中山芝1600m ---
+            elif d == 1600:
+                score = 0.4 * (1 - abs(pos - 0.4)) + 0.3 * stamina + 0.3 * agari
+
+            # --- 中山芝1800m ---
+            elif d == 1800:
+                score = 0.5 * (1 - pos) + 0.3 * outer + 0.2 * stamina
+
+            # --- 中山芝2000m ---
+            elif d == 2000:
+                score = (
+                    0.5 * (1 - pos) +           # 前有利
+                    0.3 * mid +                 # 真ん中〜外がベター
+                    0.2 * (1 - inner) -         # 内枠はややマイナス
+                    0.2 * (row['人気'] / 18.0)  # 人気先行馬は減点（上級クラスは逃げ苦戦）
+                )
+
+            # --- 中山芝2200m ---
+            elif d == 2200:
+                score = (
+                    0.5 * (1 - pos) +       # 前有利
+                    0.3 * inner +           # 内枠（特に1枠）が良い
+                    0.2 * (1 / (row['人気'] + 1))
+                )
+
+            # --- 中山芝2500m ---
+            elif d == 2500:
+                score = (
+                    0.4 * (1 - abs(pos - 0.4)) +  # 好位〜中位
+                    0.2 * (1 - row['pos_std']) +  # 安定性
+                    0.2 * agari +                 # 上がり性能
+                    0.2 * ((row['枠'] == 3) | (row['枠'] == 8))  # 3枠・8枠優位
+                )
+
+            # --- 中山芝3600m ---
+            elif d == 3600:
+                score = (
+                    0.4 * (1 - abs(pos - 0.35)) + # 好位有利
+                    0.3 * mid +                   # 中枠妙味
+                    0.3 * stamina                 # 長く脚を使えるタイプ
+                )
+
+        elif f == 2:
+            # --- 中山ダート1200m ---
+            if d == 1200:
+                score = (
+                    0.6 * (1 - pos) +           # 前有利
+                    0.3 * ((row['枠'] == 3) | (row['枠'] == 5)) +  # 3・5枠狙い目
+                    0.1 * (1 / (row['人気'] + 1))
+                )
+
+            # --- 中山ダート1800m ---
+            elif d == 1800:
+                score = (
+                    0.5 * (1 - pos) +     # 前有利
+                    0.3 * row['is_inner'] +  # 内枠優勢（2枠良）
+                    0.2 * stamina
+                )
+
+            # --- 中山ダート2400m・2500m ---
+            elif d in [2400, 2500]:
+                score = (
+                    0.4 * (1 - pos) +                # 前目
+                    0.3 * ((row['枠'] == 2) | (row['枠'] == 3)) +  # 2・3枠有利
+                    0.2 * stamina +
+                    0.1 * (1 - outer)                # 外枠割引
+                )
+
+        return score
+
     
-    
-    
+    # --- 安定性特徴 ---
+    pos_cols = [c for c in df.columns if 'コーナー通過順' in c]
+    df['pos_std'] = df[pos_cols].std(axis=1) if len(pos_cols) >= 2 else np.nan
+    df['上がり_std'] = df[past_3f_cols].std(axis=1) if len(past_3f_cols) >= 2 else np.nan
+
+    df['course_profile_score'] = df.apply(course_profile, axis=1)
+
+
+    # --- 総合コース適性 ---
+    df['コース適性総合'] = (
+        0.4 * (1 - df['pos_ratio']) +
+        0.2 * (1 - df['pos_std'].fillna(0)) +
+        0.2 * df['course_profile_score'].fillna(0) +
+        0.2 * df['持久力指数'].fillna(0)
+    )
+
+    # apply のあと
+    df['course_profile_score'] = df['course_profile_score'].replace([np.inf, -np.inf], np.nan).fillna(0)
+    df['コース適性総合'] = df['コース適性総合'].replace([np.inf, -np.inf], np.nan).fillna(0)
+
+    feature_cols.extend([
+    '枠', 'pos_ratio', '持久力指数', 'av_上がり',
+    'course_profile_score', 'pos_std', '上がり_std', 'コース適性総合'
+    ])
+
+    scale_cols.extend([
+    '枠', 'pos_ratio', '持久力指数', 'av_上がり',
+    'course_profile_score', 'pos_std', '上がり_std', 'コース適性総合'
+    ])
+
+    feature_category.extend([
+    '枠', 'is_inner', 'is_middle', 'is_outer'
+    ])
+
     return df
 
 def add_history_features(df):
@@ -246,6 +463,73 @@ def race_feature(df):
         df[col] = df[col].cat.codes
     
     
+    return df
+
+def race_feature_train(df):
+    """
+    Train用: カテゴリ列を整数に変換し、マッピングを作成して返す
+    """
+    category_mappings = {}  # 各列のカテゴリ→整数の対応を保存
+
+    # 通常カテゴリ列
+    category = feature_category + context_cat_cols
+    for col in category:
+        df[col] = df[col].astype('category')
+        category_mappings[col] = dict(enumerate(df[col].cat.categories))
+        df[col] = df[col].cat.codes
+
+    # 場所の変化特徴
+    for col in diff_category_place:
+        df[col] = df[col].astype(str) + '->' + df['場所'].astype(str)
+        df[col] = df[col].astype('category')
+        category_mappings[col] = dict(enumerate(df[col].cat.categories))
+        df[col] = df[col].cat.codes
+
+    # フィールドの変化特徴
+    for col in diff_category_field:
+        df[col] = df[col].astype(str) + '->' + df['フィールド'].astype(str)
+        df[col] = df[col].astype('category')
+        category_mappings[col] = dict(enumerate(df[col].cat.categories))
+        df[col] = df[col].cat.codes
+
+    # 保存
+    joblib.dump(category_mappings, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
+
+    return df, category_mappings
+
+def race_feature_test(df, category_mappings):
+    """
+    Test用: 学習時の mapping を使ってカテゴリ変換
+    未知カテゴリは -1 に置換
+    """
+    # 通常カテゴリ列
+    category = feature_category + context_cat_cols
+    for col in category:
+        if col in df.columns:
+            df[col] = df[col].astype(str)
+            inv_map = {v:k for k,v in category_mappings[col].items()}
+            # train にない値は 0 に置き換える
+            n_train_categories = len(category_mappings[col])
+            df[col] = df[col].map(lambda x: inv_map.get(x, n_train_categories)).astype(int)
+
+    # 場所の変化特徴
+    for col in diff_category_place:
+        if col in df.columns:
+            df[col] = df[col].astype(str) + '->' + df['場所'].astype(str)
+            inv_map = {v:k for k,v in category_mappings[col].items()}
+            # train にない値は 0 に置き換える
+            n_train_categories = len(category_mappings[col])
+            df[col] = df[col].map(lambda x: inv_map.get(x, n_train_categories)).astype(int)
+
+    # フィールドの変化特徴
+    for col in diff_category_field:
+        if col in df.columns:
+            df[col] = df[col].astype(str) + '->' + df['フィールド'].astype(str)
+            inv_map = {v:k for k,v in category_mappings[col].items()}
+            # train にない値は 0 に置き換える
+            n_train_categories = len(category_mappings[col])
+            df[col] = df[col].map(lambda x: inv_map.get(x, n_train_categories)).astype(int)
+
     return df
 
 # スケールの方向をそろえる
@@ -553,6 +837,68 @@ def lambdarank_loss(preds, labels):
     loss = torch.mean(delta_ndcg[mask] * bce)
 
     return loss
+
+def lambdarank_loss_at_k(preds, labels, k=3):
+    # preds: (n,) logits (higher = more likely)
+    # labels: (n,) relevance or rank-based label (higher is better)
+    n = preds.shape[0]
+    diff = preds.unsqueeze(0) - preds.unsqueeze(1)
+    pred_prob = torch.sigmoid(diff)
+    target = (labels.unsqueeze(0) > labels.unsqueeze(1)).float()
+
+    # gain & discount (位置はpredsのソート順)
+    gain = torch.pow(2.0, labels.float()) - 1.0
+    _, rank_order = torch.sort(preds, descending=True)
+    rank_pos = torch.argsort(rank_order).float() + 1.0
+    discount = 1.0 / torch.log2(rank_pos + 1.0)
+
+    delta_ndcg = torch.abs(
+        (gain.unsqueeze(0) * discount.unsqueeze(0) - gain.unsqueeze(1) * discount.unsqueeze(1))
+    )
+
+    # 上位kに寄与を集中させるマスク（ハードカット、または滑らかに）
+    mask_k = (rank_pos <= k).float()
+    weight_k = mask_k.unsqueeze(0) * mask_k.unsqueeze(1)
+    delta_ndcg = delta_ndcg * weight_k
+
+    mask = torch.ones_like(target, dtype=torch.bool)
+    mask.fill_diagonal_(False)
+    bce = F.binary_cross_entropy(pred_prob[mask], target[mask], reduction='none')
+    loss = torch.mean(delta_ndcg[mask] * bce)
+    return loss
+
+def calibration_brier_loss(preds, is_win):
+    """
+    preds : Tensor, shape (n_horses,)
+        モデル出力（logit）
+    is_win : Tensor, shape (n_horses,)
+        各馬の勝敗ラベル（勝ち馬=1, それ以外=0）
+        → 通常は 1頭のみが1、それ以外は0
+    """
+    probs = F.softmax(preds, dim=0)  # レース内で正規化
+    target = is_win / is_win.sum() if is_win.sum() > 0 else is_win  # 念のため正規化安全策
+    brier = torch.mean((probs - target) ** 2)
+    return brier
+
+
+def combined_loss(preds, labels, is_win, k=3, alpha=0.7):
+    """
+    preds : Tensor, shape (n_horses,)
+    labels : Tensor, shape (n_horses,)
+        着順などから作られたrelevance
+    is_win : Tensor, shape (n_horses,)
+        各馬の勝敗ラベル（0/1）
+    k : int
+        lambdarankでの上位k
+    alpha : float
+        ranking loss と calibration loss のバランス
+    """
+    loss_rank = lambdarank_loss_at_k(preds, labels, k=k)
+    loss_calib = calibration_brier_loss(preds, is_win)
+    total_loss = alpha * loss_rank + (1.0 - alpha) * loss_calib
+    # return total_loss, loss_rank, loss_calib
+    return total_loss
+
 
 def make_rank_labels(df, group_col='レースID', pos_col='着順', n_bins=18):
     """
@@ -949,6 +1295,27 @@ def time_series_group_cv_3split(df, group_col="レースID", n_splits=5):
 
     return splits
 
+def time_series_train_val_split(df, group_col="レースID", train_ratio=0.8):
+    """
+    時系列順（レースID昇順）でリークを防ぎながら、
+    train : val = 8 : 2 に分割し、test は val のダミーを返す
+    """
+    unique_races = np.sort(df[group_col].unique())
+    n_races = len(unique_races)
+
+    # train / val の境界
+    train_end = int(n_races * train_ratio)
+
+    train_races = unique_races[:train_end]
+    val_races = unique_races[train_end:]
+
+    # データ分割
+    train_df = df[df[group_col].isin(train_races)].reset_index(drop=True)
+    val_df = df[df[group_col].isin(val_races)].reset_index(drop=True)
+    test_df = val_df.copy()  # ダミー
+
+    return train_df, val_df, test_df
+
 if __name__ == '__main__':
     print(device)
     # print(df.head(10))
@@ -980,12 +1347,17 @@ if __name__ == '__main__':
     # gkf = GroupKFold(n_splits=n_splits)
     # for fold, (train_idx, test_idx) in enumerate(gkf.split(df, groups=df[group_col])):
     # --- 使用例 ---
-    splits = time_series_group_cv_3split(df, group_col="レースID", n_splits=5)
+    # splits = time_series_group_cv_3split(df, group_col="レースID", n_splits=5)
 
-    for fold, (train_idx, val_idx, test_idx) in enumerate(splits):
-        train_df = df.loc[train_idx]
-        val_df = df.loc[val_idx]
-        test_df = df.loc[test_idx]
+    train_df, val_df, test_df = time_series_train_val_split(df, group_col="レースID", train_ratio=0.8)
+    print(val_df["レースID"].min())
+    print(val_df["レースID"].max())
+
+    # for fold, (train_idx, val_idx, test_idx) in enumerate(splits):
+    for fold in range(1): 
+        # train_df = df.loc[train_idx]
+        # val_df = df.loc[val_idx]
+        # test_df = df.loc[test_idx]
 
         # trainval: test = 8 : 2（group単位）
         # trainval_df = df.iloc[train_idx]
@@ -1067,10 +1439,6 @@ if __name__ == '__main__':
         # val_df['win_prob'] = val_df.groupby('レースID')['win_prob'].transform(lambda x: x / x.sum())  # 正規化
         # test_df['win_prob'] = test_df.groupby('レースID')['win_prob'].transform(lambda x: x / x.sum())  # 正規化
 
-        # === 4. 特徴量エンコーディング ===
-
-        feature_cols = [col for col in df.columns if col not in ['Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
-
         # === 6. 特徴量エンコーディング ===
         train_df = train_df.copy()
         val_df = val_df.copy()
@@ -1084,6 +1452,16 @@ if __name__ == '__main__':
         # val/test は train 全体の mapping を使う
         val_df['父馬_te'] = val_df['父馬'].map(sire_mapping).fillna(-1)
         test_df['父馬_te'] = test_df['父馬'].map(sire_mapping).fillna(-1)
+
+        train_df, j_mapping = target_encoding(train_df, '騎手', target_col)
+        with open(f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl', "wb") as dd:
+            pickle.dump(j_mapping, dd)
+
+        # val/test は train 全体の mapping を使う
+        val_df['騎手_te'] = val_df['騎手'].map(j_mapping).fillna(-1)
+        test_df['騎手_te'] = test_df['騎手'].map(j_mapping).fillna(-1)
+
+        feature_cols = [col for col in df.columns if col not in ['Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 
         # zero_var = train_df[scale_cols].std()[train_df[scale_cols].std() == 0]
         # print("分散ゼロの列:", zero_var.index.tolist())
@@ -1105,7 +1483,10 @@ if __name__ == '__main__':
         # Nanの処理
         train_df, val_df, test_df = fill_nan(train_df, feature_cols), fill_nan(val_df, feature_cols), fill_nan(test_df, feature_cols)
         # カテゴリ変換
-        train_df, val_df, test_df = race_feature(train_df), race_feature(val_df), race_feature(test_df)
+        train_df, map_dict = race_feature_train(train_df)
+        val_df = race_feature_test(val_df, map_dict)
+        test_df = race_feature_test(test_df, map_dict)
+
 
         bad_vals = ~np.isfinite(train_df.select_dtypes(include=[np.number]))
         # print(bad_vals.sum())           # 各列ごとの個数
@@ -1119,11 +1500,13 @@ if __name__ == '__main__':
         embedding_cols = feature_category + diff_category_place + diff_category_field
 
         feature_cols = [col for col in feature_cols if col not in embedding_cols and col not in common_cols]
+
+        # print(f"feature_cols: {feature_cols}")
         
-        feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
-        embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
-        context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
-        context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+        # feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+        # embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
+        # context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
+        # context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
 
         # joblib.dump(feature_cols, "./pickle-dict/feature_cols.pkl")
         # joblib.dump(embedding_cols, "./pickle-dict/embedding_cols.pkl")
@@ -1175,7 +1558,7 @@ if __name__ == '__main__':
         #     optimizer, max_lr=1e-3, steps_per_epoch=len(train_loader), epochs=num_epochs
         # )
         
-        patience = 10  # 何エポック改善がなければ終了するか
+        patience = 20  # 何エポック改善がなければ終了するか
         best_val_loss = float('inf')
         best_ndcg = 0
         no_improve_count = 0
@@ -1192,7 +1575,8 @@ if __name__ == '__main__':
                 # ランク損失
                 preds = model(X, cat_X, context_X, context_cat_X)
                 # loss = listnet_loss(preds, y, gain)
-                loss = lambdarank_loss(preds, y)
+                # loss = lambdarank_loss(preds, y)
+                loss = combined_loss(preds, y, win_labels)
 
                 # 回帰損失（勝率ラベルとの直接比較）
                 # prob_preds = torch.softmax(preds, dim=0)
@@ -1228,7 +1612,7 @@ if __name__ == '__main__':
                     preds = model(X, cat_X, context_X, context_cat_X)
                     box.append(preds.squeeze().cpu().numpy())
                     # loss = listnet_loss(preds, y, gain)
-                    loss = lambdarank_loss(preds, y)
+                    loss = combined_loss(preds, y, win_labels)
                     # 回帰損失（勝率ラベルとの直接比較）
                     # prob_preds = torch.softmax(preds, dim=0)
                     # reg_loss = mse_loss_fn(prob_preds.squeeze(), y)
@@ -1236,7 +1620,7 @@ if __name__ == '__main__':
                     val_loss += loss.item()
             
             val_records['pred_score'] = np.concatenate(box)
-            ndcg = calc_mean_ndcg(val_records)
+            ndcg = calc_mean_ndcg(val_records, k=3)
             print(f"Epoch {epoch+1}: NDCG: {ndcg:.4f}")
 
             avg_train_loss = total_loss / len(train_loader)
@@ -1311,7 +1695,7 @@ if __name__ == '__main__':
         hit_count = (selected['着順'] == 1).sum()
         roi = total_return / total_bet
 
-        ndcg = calc_mean_ndcg(test_df)
+        ndcg = calc_mean_ndcg(test_df, k=3)
         print(f"embedding_dim={emb_dim}, NDCG={ndcg:.4f}")
 
         print(f"\n[評価結果]")
