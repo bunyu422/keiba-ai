@@ -69,7 +69,7 @@ def convert_to_float_if_possible(df):
     return df_converted
 
 # スクレイピング
-def scraping(csv_path, no):
+def scraping(csv_path, no, start, end):
     df = pd.DataFrame()
     # ヘッダー
     headers = {
@@ -88,7 +88,7 @@ def scraping(csv_path, no):
     session = requests.Session()
     session.headers.update(headers)
 
-    for year in range(2012, 2025):
+    for year in range(start, end):
         for number in range(1, 6):
             for day in range(1, 13):
                 for race_no in range(1, 13):
@@ -125,7 +125,7 @@ def scraping(csv_path, no):
     # 結果をcsvに保存
     df.to_csv(csv_path, na_rep='NaN')
 
-def scraping_local(csv_path, no):
+def scraping_local(csv_path, no, start, end):
     df = pd.DataFrame()
     # ヘッダー
     headers = {
@@ -143,7 +143,7 @@ def scraping_local(csv_path, no):
 
     session = requests.Session()
     session.headers.update(headers)
-    for year in range(2015, 2025):
+    for year in range(start, end):
         for month in range(1, 13):
             for day in range(1, 32):
                 for race_no in range(1, 13):
@@ -1021,9 +1021,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 1
-    field_name = 'nakayama'
-    csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
+    field = 12
+    field_name = 'monbetu'
+    csv_path = f"./csv/{field_name}_2015-2024.csv" # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,

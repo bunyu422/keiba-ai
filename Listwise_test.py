@@ -492,7 +492,7 @@ def grid_search_ev_policy_val_test(
         test_metrics = evaluate_selection(test_sel, df_payout=df_payout,
                                           stake=stake, use_bootstrap=False,
                                           bet_type=bet_type)
-        test_metrics.update(best_params)
+        # test_metrics.update(best_params)
         test_metrics["fold"] = fold
 
         all_test_results.append(test_metrics)
@@ -1041,21 +1041,21 @@ if __name__ == '__main__':
     #     './csv/ooi_result_ranknet_test_4.csv'
     # ]
 
-    csv_files = [
-        f"./csv/nakayama_result.csv",
-        # './csv/nakayama2_result_ranknet_test_1.csv',
-        # './csv/nakayama2_result_ranknet_test_2.csv',
-        # './csv/nakayama2_result_ranknet_test_3.csv',
-        # './csv/nakayama2_result_ranknet_test_4.csv'
-    ]
-
     # csv_files = [
-    #     './csv/monbetu_result_ranknet_test_0.csv',
-    #     './csv/monbetu_result_ranknet_test_1.csv',
-    #     './csv/monbetu_result_ranknet_test_2.csv',
-    #     './csv/monbetu_result_ranknet_test_3.csv',
-    #     './csv/monbetu_result_ranknet_test_4.csv'
+    #     f"./csv/nakayama_act_ver2_result_fold0.csv",
+    #     # './csv/nakayama2_result_ranknet_test_1.csv',
+    #     # './csv/nakayama2_result_ranknet_test_2.csv',
+    #     # './csv/nakayama2_result_ranknet_test_3.csv',
+    #     # './csv/nakayama2_result_ranknet_test_4.csv'
     # ]
+
+    csv_files = [
+        "./csv/monbetu_result_fold0.csv",
+        # './csv/monbetu_result_ranknet_test_1.csv',
+        # './csv/monbetu_result_ranknet_test_2.csv',
+        # './csv/monbetu_result_ranknet_test_3.csv',
+        # './csv/monbetu_result_ranknet_test_4.csv'
+    ]
 
     # csv_files = [
     # #     # './csv/monbetu_result_ranknet_test_0.csv',
@@ -1113,23 +1113,34 @@ if __name__ == '__main__':
         print(f"レース数: {len(df_fold['レースID'].unique())}")
 
     df = pd.concat(dfs, ignore_index=True)
+    # print(df['is_win'])
+    # print(df['pred_score'])
+    # print(df['着順'])
 
-    csv_files = [
-        './csv/nakayama_act_ver_result_ranknet_val_0.csv',
-        # './csv/nakayama2_result_ranknet_val_1.csv',
-        # './csv/nakayama2_result_ranknet_val_2.csv',
-        # './csv/nakayama2_result_ranknet_val_3.csv',
-        # './csv/nakayama2_result_ranknet_val_4.csv'
-    ]
+    # csv_files = [
+    #     './csv/nakayama_act_ver2_result_ranknet_val_0.csv',
+    # #     # './csv/nakayama2_result_ranknet_val_1.csv',
+    # #     # './csv/nakayama2_result_ranknet_val_2.csv',
+    # #     # './csv/nakayama2_result_ranknet_val_3.csv',
+    # #     # './csv/nakayama2_result_ranknet_val_4.csv'
+    # ]
 
-    dfs = []
-    for i, path in enumerate(csv_files):
-        df_fold = pd.read_csv(path)
-        df_fold['fold'] = i
-        dfs.append(df_fold)
-        print(f"レース数: {len(df_fold['レースID'].unique())}")
+    # # csv_files = [
+    # #     './csv/monbetu_result_ranknet_val_0.csv',
+    # #     # './csv/monbetu_result_ranknet_test_1.csv',
+    # #     # './csv/monbetu_result_ranknet_test_2.csv',
+    # #     # './csv/monbetu_result_ranknet_test_3.csv',
+    # #     # './csv/monbetu_result_ranknet_test_4.csv'
+    # # ]
 
-    df_val = pd.concat(dfs, ignore_index=True)
+    # dfs = []
+    # for i, path in enumerate(csv_files):
+    #     df_fold = pd.read_csv(path)
+    #     df_fold['fold'] = i
+    #     dfs.append(df_fold)
+    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
+
+    # df_val = pd.concat(dfs, ignore_index=True)
 
     # print(df['レースID'].min())
     # print(df['レースID'].max())
@@ -1183,12 +1194,12 @@ if __name__ == '__main__':
     # pred_score は温度スケーリング後の確率（0~1推奨）
 
     # 例）グリッド探索して上位5条件を表示
-    val_summary, test_summary = grid_search_ev_policy_val_test(df_val, df)
-    # res, best = grid_search_ev_policy(df)
+    # val_summary, test_summary = grid_search_ev_policy_val_test(df_val, df)
+    res, best = grid_search_ev_policy(df)
     # res, best = grid_search_bandit(df)
-    # print(best)
-    print(val_summary)
-    print(test_summary)
+    print(best)
+    # print(val_summary)
+    # print(test_summary)
 
     # res_df, params_df, summary, top = nested_fold_eval_temperature(df)
     # print(summary)

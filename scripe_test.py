@@ -223,7 +223,7 @@ def set_time(skip_list, url_race):
 
 # Learning.scrape_payouts_combination('./csv/nakayama_payouts_2012-2024.csv', '06')
 
-# Learning.scraping_local('./csv/monbetu_2015-2024.csv', '30')
+# Learning.scraping_local('./csv/monbetu_2025.csv', '30', 2025, 2026)
 # Learning.scraping_local('./csv/kasamatu_2015-2024.csv', '47')
 # Learning.scraping_local('./csv/sonoda_2015-2024.csv', '50')
 # Learning.scraping_local('./csv/nagoya_2015-2024.csv', '48')
@@ -248,6 +248,7 @@ def set_time(skip_list, url_race):
 # Learning.scraping('./csv/kyoto_2012-2024.csv', '08')
 # Learning.scraping('./csv/hanshin_2012-2024.csv', '09')
 # Learning.scraping('./csv/kokura_2012-2024.csv', '10')
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 field = 'nakayama'
 field_num = 1
@@ -256,8 +257,9 @@ csv_path = f"./csv/{field}_2025.csv" # 学習に使うcsvデータのパス
 df = pd.read_csv(csv_path, index_col=0)
 df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
 # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
-
-df['is_win'] = (df['着順'] == 1).astype(int)
+df = df.replace(['', '未定', '除外', '取消', '失格', '中止'], 0)
+df['is_win'] = (df['着順'].astype(int) == 1).astype(int)
+# print(df['is_win'].head(30))
 df['場所'] = field_num
 # print(df.columns)
 # 今走の処理
@@ -275,7 +277,7 @@ df = Listwise.inversion(df)
 df = Listwise.append_col(df)
 df = Listwise.add_relative_features(df)
 
-with open('./pickle-dict/sire_dict_nakayama_fold0.pkl', mode="rb") as f:
+with open(f'./pickle-dict/sire_dict_{field}_fold0.pkl', mode="rb") as f:
     sire_mapping = pickle.load(f)
 
 # 列情報読み込み
@@ -286,7 +288,7 @@ context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
 
 df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
 
-with open(f'./pickle-dict/jwin_dict_nakayama.pkl', "rb") as dd:
+with open(f'./pickle-dict/jwin_dict_{field}_fold0.pkl', "rb") as dd:
     j_mapping = pickle.load(dd)
 
 # val/test は train 全体の mapping を使う
@@ -301,13 +303,13 @@ df = Listwise.fill_nan(df, feature_cols)
 
 # カテゴリ列を数値化
 # df = Listwise.race_feature(df)
-category_mappings = joblib.load(f"./pickle-dict/category_mappings_nakayama_fold0.pkl")
+category_mappings = joblib.load(f"./pickle-dict/category_mappings_{field}_fold0.pkl")
 df = Listwise.race_feature_test(df, category_mappings)
 
 embedding_sizes = []
 context_embedding_sizes = []
 # state_dict をロード
-state_dict = torch.load(f"./model/nakayama_ranknet_0.pth", map_location=device)
+state_dict = torch.load(f"./model/{field}_ranknet_0.pth", map_location=device)
 
 # 通常のカテゴリ埋め込み
 i = 0

@@ -76,9 +76,9 @@ def load_csv(path):
 
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'tokyo_act_ver'
-csv_path = f'./csv/df_all_tokyo.csv'
-# csv_path = f'./csv/df_all_{field}.csv'
+field = 'monbetu'
+# csv_path = f'./csv/df_all_nakayama.csv'
+csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
 df = load_csv(csv_path)
@@ -87,266 +87,266 @@ target_col = 'smooth_rel'
 feature_cols = []
 df['is_win'] = (df['着順'] == 1).astype(int)
 
-# def append_col(df):
-#     df = add_history_features(df)
-
-#     df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
-#     df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
-#     # ascending=True → 値が小さいほど小さい順位
-#     # → 大きい数値ほど順位が大きくなる（方向性統一）
-#     df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
-#     df['av_speed_rank_num'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=True)
-#     df['best後3F_rank_num'] = df.groupby('レースID')['best後3F'].rank(method='min', ascending=False)
-#     df['av後3F_rank_num'] = df.groupby('レースID')['av後3F'].rank(method='min', ascending=False)
-
-    # df['best_speed_rank_cat'] = df['best_speed_rank_num']
-    # df['av_speed_rank_cat'] = df['av_speed_rank_num']
-    # df['best後3F_rank_cat'] = df['best後3F_rank_num']
-    # df['av後3F_rank_cat'] = df['av後3F_rank_num']
-
-#     feature_cols.append('best後3F')
-#     feature_cols.append('av後3F')
-#     feature_cols.append('best_speed_rank_num')
-#     feature_cols.append('av_speed_rank_num')
-#     feature_cols.append('best後3F_rank_num')
-#     feature_cols.append('av後3F_rank_num')
-#     feature_cols.append('同場所過去率')
-#     feature_cols.append('同距離過去率')
-
-#     scale_cols.append('best後3F')
-#     scale_cols.append('av後3F')
-#     scale_cols.append('best_speed_rank_num')
-#     scale_cols.append('av_speed_rank_num')
-#     scale_cols.append('best後3F_rank_num')
-#     scale_cols.append('av後3F_rank_num')
-#     scale_cols.append('同場所過去率')
-#     scale_cols.append('同距離過去率')
-
-#     feature_category.append('best_speed_rank_cat')
-#     feature_category.append('av_speed_rank_cat')
-#     feature_category.append('best後3F_rank_cat')
-#     feature_category.append('av後3F_rank_cat')
-#     feature_category.append('同距離過去数')
-#     feature_category.append('同距離過去3着内数')
-#     feature_category.append('同場所過去数')
-#     feature_category.append('同場所過去3着内数')
-    
-    
-    
-#     return df
-
 def append_col(df):
-    df = add_history_features(df)  # 元々の履歴特徴追加関数
-    df = add_course_bias_features(df)
+    df = add_history_features(df)
 
-    # --- 過去後3F / スピード指数の min / mean ---
-    df['best後3F'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].astype(float).min(axis=1)
-    df['av後3F'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].astype(float).mean(axis=1)
-
+    df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
+    df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
+    # ascending=True → 値が小さいほど小さい順位
+    # → 大きい数値ほど順位が大きくなる（方向性統一）
     df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
     df['av_speed_rank_num'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=True)
     df['best後3F_rank_num'] = df.groupby('レースID')['best後3F'].rank(method='min', ascending=False)
     df['av後3F_rank_num'] = df.groupby('レースID')['av後3F'].rank(method='min', ascending=False)
 
-    # --- 過去3～5走の傾き / 標準偏差（Trend / 安定度） ---
-    df['speed_std_5r'] = df.loc[:, ['1スピード指数','2スピード指数','3スピード指数','4スピード指数','5スピード指数']].std(axis=1)
-    df['後3F_std_5r'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].std(axis=1)
-    df['着差_std_5r'] = df.loc[:, ['1着差','2着差','3着差','4着差','5着差']].std(axis=1)
-
-    # --- Trend（直近3走の回帰傾き） ---
-    for col_base, new_col in [('1スピード指数','speed_trend_3r'), ('1後3F','後3F_trend_3r'), ('1着差','着差_trend_3r'), ('1人気','人気_trend_3r')]:
-        df[new_col] = df[[f'{i}{col_base[1:]}' for i in range(1,4)]].astype(float).apply(lambda x: np.polyfit(range(3), x, 1)[0], axis=1)
-
-    # --- レース内相対差 / 相対順位 ---
-    df['speed_diff_best'] = df.groupby('レースID')['bestスピード指数'].transform(lambda x: x.max() - x)
-    df['speed_diff_av'] = df.groupby('レースID')['avスピード指数'].transform(lambda x: x.mean() - x)
-    df['後3F_diff_best'] = df.groupby('レースID')['best後3F'].transform(lambda x: x.min() - x)
-    df['後3F_diff_av'] = df.groupby('レースID')['av後3F'].transform(lambda x: x.mean() - x)
-    df['相対順位_best'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=False)
-    df['相対順位_av'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=False)
-
-    # --- 間隔 / 斤量差分 ---
-    # df['間隔_mean_3r'] = df[['1間隔','2間隔','3間隔']].astype(float).mean(axis=1)
-    # df['間隔_diff_last'] = df['間隔'].astype(float) - df['間隔'].astype(float).shift(1)
-    df['斤量_diff_last'] = df['斤量'].astype(float) - df['1斤量'].astype(float)
-
-    # --- 距離適性 / 期待値 ---
-    # 例として単純正規化
-    df['距離適性_score'] = df['bestスピード指数'] / df.groupby('距離')['bestスピード指数'].transform('max')
-    df['期待値'] = (1/df['オッズ']).fillna(0)  # 単勝期待値の簡易計算
-    # df['順位正規化'] = df.groupby('レースID')['着順'].rank(method='min', ascending=True) / df.groupby('レースID')['着順'].transform('max')
-
-    # --- カテゴリ特徴追加 ---
-    df['馬×距離'] = df['馬番'].astype(str) + '_' + df['距離'].astype(str)
-    df['馬×騎手'] = df['馬番'].astype(str) + '_' + df['騎手'].astype(str)
-    df['馬×コース'] = df['馬番'].astype(str) + '_' + df['場所'].astype(str)
-    df['馬×斤量帯'] = df['馬番'].astype(str) + '_' + pd.cut(df['斤量'], bins=[48,50,52,54,56,58,60], labels=False).astype(str)
     df['best_speed_rank_cat'] = df['best_speed_rank_num']
     df['av_speed_rank_cat'] = df['av_speed_rank_num']
     df['best後3F_rank_cat'] = df['best後3F_rank_num']
     df['av後3F_rank_cat'] = df['av後3F_rank_num']
 
-    # --- 新しい特徴列を feature_cols に追加 ---
-    new_cols = [
-        'best後3F','av後3F','best_speed_rank_num','av_speed_rank_num','best後3F_rank_num','av後3F_rank_num',
-        'speed_std_5r','後3F_std_5r','着差_std_5r','speed_trend_3r','後3F_trend_3r','着差_trend_3r','人気_trend_3r',
-        'speed_diff_best','speed_diff_av','後3F_diff_best','後3F_diff_av','相対順位_best','相対順位_av',
-        '斤量_diff_last','距離適性_score','期待値',
-        '馬×距離','馬×騎手','馬×コース','馬×斤量帯','同場所過去率','同距離過去率'
-    ]
-    feature_cols.extend(new_cols)
-    scale_cols.extend([
-        'best後3F','av後3F','best_speed_rank_num','av_speed_rank_num','best後3F_rank_num','av後3F_rank_num',
-        'speed_std_5r','後3F_std_5r','着差_std_5r','speed_trend_3r','後3F_trend_3r','着差_trend_3r','人気_trend_3r',
-        'speed_diff_best','speed_diff_av','後3F_diff_best','後3F_diff_av',
-        '斤量_diff_last','距離適性_score','期待値','同場所過去率','同距離過去率'
-    ])
-    feature_category.extend(['馬×距離','馬×騎手','馬×コース','馬×斤量帯','best_speed_rank_cat','av_speed_rank_cat','best後3F_rank_cat','av後3F_rank_cat',
-                             '同距離過去数','同距離過去3着内数','同場所過去数','同場所過去3着内数'])
+    feature_cols.append('best後3F')
+    feature_cols.append('av後3F')
+    feature_cols.append('best_speed_rank_num')
+    feature_cols.append('av_speed_rank_num')
+    feature_cols.append('best後3F_rank_num')
+    feature_cols.append('av後3F_rank_num')
+    # feature_cols.append('同場所過去率')
+    # feature_cols.append('同距離過去率')
 
+    scale_cols.append('best後3F')
+    scale_cols.append('av後3F')
+    scale_cols.append('best_speed_rank_num')
+    scale_cols.append('av_speed_rank_num')
+    scale_cols.append('best後3F_rank_num')
+    scale_cols.append('av後3F_rank_num')
+    # scale_cols.append('同場所過去率')
+    # scale_cols.append('同距離過去率')
+
+    feature_category.append('best_speed_rank_cat')
+    feature_category.append('av_speed_rank_cat')
+    feature_category.append('best後3F_rank_cat')
+    feature_category.append('av後3F_rank_cat')
+    # feature_category.append('同距離過去数')
+    # feature_category.append('同距離過去3着内数')
+    # feature_category.append('同場所過去数')
+    # feature_category.append('同場所過去3着内数')
+    
+    
+    
     return df
 
-def add_course_bias_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    中山芝・ダートの距離別コース傾向を特徴量化して追加
-    """
-    df = df.copy()
+# def append_col(df):
+#     df = add_history_features(df)  # 元々の履歴特徴追加関数
+#     df = add_course_bias_features(df)
 
-    # --- 基本 ---
-    df['枠'] = ((df['馬番'] - 1) // 2 + 1).astype(int)
-    df['is_inner'] = (df['枠'] <= 3).astype(int)
-    df['is_middle'] = ((df['枠'] >= 4) & (df['枠'] <= 6)).astype(int)
-    df['is_outer'] = (df['枠'] >= 7).astype(int)
-    df['pos_ratio'] = df['1コーナー通過順'] / df['出走頭数']
+#     # --- 過去後3F / スピード指数の min / mean ---
+#     df['best後3F'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].astype(float).min(axis=1)
+#     df['av後3F'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].astype(float).mean(axis=1)
 
-    # --- 持久力・上がり系 ---
-    if all(col in df.columns for col in ['1スピード指数', '1ペース差']):
-        df['持久力指数'] = df['1スピード指数'] - df['1ペース差'].abs()
-    else:
-        df['持久力指数'] = np.nan
+#     df['best_speed_rank_num'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=True)
+#     df['av_speed_rank_num'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=True)
+#     df['best後3F_rank_num'] = df.groupby('レースID')['best後3F'].rank(method='min', ascending=False)
+#     df['av後3F_rank_num'] = df.groupby('レースID')['av後3F'].rank(method='min', ascending=False)
 
-    past_3f_cols = [c for c in df.columns if '後3F' in c]
-    df['av_上がり'] = df[past_3f_cols].mean(axis=1) if past_3f_cols else np.nan
+#     # --- 過去3～5走の傾き / 標準偏差（Trend / 安定度） ---
+#     df['speed_std_5r'] = df.loc[:, ['1スピード指数','2スピード指数','3スピード指数','4スピード指数','5スピード指数']].std(axis=1)
+#     df['後3F_std_5r'] = df.loc[:, ['1後3F','2後3F','3後3F','4後3F','5後3F']].std(axis=1)
+#     df['着差_std_5r'] = df.loc[:, ['1着差','2着差','3着差','4着差','5着差']].std(axis=1)
 
-    # --- 中山コース別傾向 ---
-    def course_profile(row):
-        f, d = row['フィールド'], row['距離']
-        pos, inner, mid, outer = row['pos_ratio'], row['is_inner'], row['is_middle'], row['is_outer']
-        stamina, agari = row['持久力指数'], row['av_上がり']
+#     # --- Trend（直近3走の回帰傾き） ---
+#     for col_base, new_col in [('1スピード指数','speed_trend_3r'), ('1後3F','後3F_trend_3r'), ('1着差','着差_trend_3r'), ('1人気','人気_trend_3r')]:
+#         df[new_col] = df[[f'{i}{col_base[1:]}' for i in range(1,4)]].astype(float).apply(lambda x: np.polyfit(range(3), x, 1)[0], axis=1)
 
-        score = np.nan
+#     # --- レース内相対差 / 相対順位 ---
+#     df['speed_diff_best'] = df.groupby('レースID')['bestスピード指数'].transform(lambda x: x.max() - x)
+#     df['speed_diff_av'] = df.groupby('レースID')['avスピード指数'].transform(lambda x: x.mean() - x)
+#     df['後3F_diff_best'] = df.groupby('レースID')['best後3F'].transform(lambda x: x.min() - x)
+#     df['後3F_diff_av'] = df.groupby('レースID')['av後3F'].transform(lambda x: x.mean() - x)
+#     df['相対順位_best'] = df.groupby('レースID')['bestスピード指数'].rank(method='min', ascending=False)
+#     df['相対順位_av'] = df.groupby('レースID')['avスピード指数'].rank(method='min', ascending=False)
 
-        if f == 1:
-            # --- 中山芝1200m ---
-            if d == 1200:
-                score = 0.6 * inner + 0.4 * (1 - pos)
+#     # --- 間隔 / 斤量差分 ---
+#     # df['間隔_mean_3r'] = df[['1間隔','2間隔','3間隔']].astype(float).mean(axis=1)
+#     # df['間隔_diff_last'] = df['間隔'].astype(float) - df['間隔'].astype(float).shift(1)
+#     df['斤量_diff_last'] = df['斤量'].astype(float) - df['1斤量'].astype(float)
 
-            # --- 中山芝1600m ---
-            elif d == 1600:
-                score = 0.4 * (1 - abs(pos - 0.4)) + 0.3 * stamina + 0.3 * agari
+#     # --- 距離適性 / 期待値 ---
+#     # 例として単純正規化
+#     df['距離適性_score'] = df['bestスピード指数'] / df.groupby('距離')['bestスピード指数'].transform('max')
+#     df['期待値'] = (1/df['オッズ']).fillna(0)  # 単勝期待値の簡易計算
+#     # df['順位正規化'] = df.groupby('レースID')['着順'].rank(method='min', ascending=True) / df.groupby('レースID')['着順'].transform('max')
 
-            # --- 中山芝1800m ---
-            elif d == 1800:
-                score = 0.5 * (1 - pos) + 0.3 * outer + 0.2 * stamina
+#     # --- カテゴリ特徴追加 ---
+#     df['馬×距離'] = df['馬番'].astype(str) + '_' + df['距離'].astype(str)
+#     df['馬×騎手'] = df['馬番'].astype(str) + '_' + df['騎手'].astype(str)
+#     df['馬×コース'] = df['馬番'].astype(str) + '_' + df['場所'].astype(str)
+#     df['馬×斤量帯'] = df['馬番'].astype(str) + '_' + pd.cut(df['斤量'], bins=[48,50,52,54,56,58,60], labels=False).astype(str)
+#     df['best_speed_rank_cat'] = df['best_speed_rank_num']
+#     df['av_speed_rank_cat'] = df['av_speed_rank_num']
+#     df['best後3F_rank_cat'] = df['best後3F_rank_num']
+#     df['av後3F_rank_cat'] = df['av後3F_rank_num']
 
-            # --- 中山芝2000m ---
-            elif d == 2000:
-                score = (
-                    0.5 * (1 - pos) +           # 前有利
-                    0.3 * mid +                 # 真ん中〜外がベター
-                    0.2 * (1 - inner) -         # 内枠はややマイナス
-                    0.2 * (row['人気'] / 18.0)  # 人気先行馬は減点（上級クラスは逃げ苦戦）
-                )
+#     # --- 新しい特徴列を feature_cols に追加 ---
+#     new_cols = [
+#         'best後3F','av後3F','best_speed_rank_num','av_speed_rank_num','best後3F_rank_num','av後3F_rank_num',
+#         'speed_std_5r','後3F_std_5r','着差_std_5r','speed_trend_3r','後3F_trend_3r','着差_trend_3r','人気_trend_3r',
+#         'speed_diff_best','speed_diff_av','後3F_diff_best','後3F_diff_av','相対順位_best','相対順位_av',
+#         '斤量_diff_last','距離適性_score','期待値',
+#         '馬×距離','馬×騎手','馬×コース','馬×斤量帯','同場所過去率','同距離過去率'
+#     ]
+#     feature_cols.extend(new_cols)
+#     scale_cols.extend([
+#         'best後3F','av後3F','best_speed_rank_num','av_speed_rank_num','best後3F_rank_num','av後3F_rank_num',
+#         'speed_std_5r','後3F_std_5r','着差_std_5r','speed_trend_3r','後3F_trend_3r','着差_trend_3r','人気_trend_3r',
+#         'speed_diff_best','speed_diff_av','後3F_diff_best','後3F_diff_av',
+#         '斤量_diff_last','距離適性_score','期待値','同場所過去率','同距離過去率'
+#     ])
+#     feature_category.extend(['馬×距離','馬×騎手','馬×コース','馬×斤量帯','best_speed_rank_cat','av_speed_rank_cat','best後3F_rank_cat','av後3F_rank_cat',
+#                              '同距離過去数','同距離過去3着内数','同場所過去数','同場所過去3着内数'])
 
-            # --- 中山芝2200m ---
-            elif d == 2200:
-                score = (
-                    0.5 * (1 - pos) +       # 前有利
-                    0.3 * inner +           # 内枠（特に1枠）が良い
-                    0.2 * (1 / (row['人気'] + 1))
-                )
+#     return df
 
-            # --- 中山芝2500m ---
-            elif d == 2500:
-                score = (
-                    0.4 * (1 - abs(pos - 0.4)) +  # 好位〜中位
-                    0.2 * (1 - row['pos_std']) +  # 安定性
-                    0.2 * agari +                 # 上がり性能
-                    0.2 * ((row['枠'] == 3) | (row['枠'] == 8))  # 3枠・8枠優位
-                )
+# def add_course_bias_features(df: pd.DataFrame) -> pd.DataFrame:
+#     """
+#     中山芝・ダートの距離別コース傾向を特徴量化して追加
+#     """
+#     df = df.copy()
 
-            # --- 中山芝3600m ---
-            elif d == 3600:
-                score = (
-                    0.4 * (1 - abs(pos - 0.35)) + # 好位有利
-                    0.3 * mid +                   # 中枠妙味
-                    0.3 * stamina                 # 長く脚を使えるタイプ
-                )
+#     # --- 基本 ---
+#     df['枠'] = ((df['馬番'] - 1) // 2 + 1).astype(int)
+#     df['is_inner'] = (df['枠'] <= 3).astype(int)
+#     df['is_middle'] = ((df['枠'] >= 4) & (df['枠'] <= 6)).astype(int)
+#     df['is_outer'] = (df['枠'] >= 7).astype(int)
+#     df['pos_ratio'] = df['1コーナー通過順'] / df['出走頭数']
 
-        elif f == 2:
-            # --- 中山ダート1200m ---
-            if d == 1200:
-                score = (
-                    0.6 * (1 - pos) +           # 前有利
-                    0.3 * ((row['枠'] == 3) | (row['枠'] == 5)) +  # 3・5枠狙い目
-                    0.1 * (1 / (row['人気'] + 1))
-                )
+#     # --- 持久力・上がり系 ---
+#     if all(col in df.columns for col in ['1スピード指数', '1ペース差']):
+#         df['持久力指数'] = df['1スピード指数'] - df['1ペース差'].abs()
+#     else:
+#         df['持久力指数'] = np.nan
 
-            # --- 中山ダート1800m ---
-            elif d == 1800:
-                score = (
-                    0.5 * (1 - pos) +     # 前有利
-                    0.3 * row['is_inner'] +  # 内枠優勢（2枠良）
-                    0.2 * stamina
-                )
+#     past_3f_cols = [c for c in df.columns if '後3F' in c]
+#     df['av_上がり'] = df[past_3f_cols].mean(axis=1) if past_3f_cols else np.nan
 
-            # --- 中山ダート2400m・2500m ---
-            elif d in [2400, 2500]:
-                score = (
-                    0.4 * (1 - pos) +                # 前目
-                    0.3 * ((row['枠'] == 2) | (row['枠'] == 3)) +  # 2・3枠有利
-                    0.2 * stamina +
-                    0.1 * (1 - outer)                # 外枠割引
-                )
+#     # --- 中山コース別傾向 ---
+#     def course_profile(row):
+#         f, d = row['フィールド'], row['距離']
+#         pos, inner, mid, outer = row['pos_ratio'], row['is_inner'], row['is_middle'], row['is_outer']
+#         stamina, agari = row['持久力指数'], row['av_上がり']
 
-        return score
+#         score = np.nan
+
+#         if f == 1:
+#             # --- 中山芝1200m ---
+#             if d == 1200:
+#                 score = 0.6 * inner + 0.4 * (1 - pos)
+
+#             # --- 中山芝1600m ---
+#             elif d == 1600:
+#                 score = 0.4 * (1 - abs(pos - 0.4)) + 0.3 * stamina + 0.3 * agari
+
+#             # --- 中山芝1800m ---
+#             elif d == 1800:
+#                 score = 0.5 * (1 - pos) + 0.3 * outer + 0.2 * stamina
+
+#             # --- 中山芝2000m ---
+#             elif d == 2000:
+#                 score = (
+#                     0.5 * (1 - pos) +           # 前有利
+#                     0.3 * mid +                 # 真ん中〜外がベター
+#                     0.2 * (1 - inner) -         # 内枠はややマイナス
+#                     0.2 * (row['人気'] / 18.0)  # 人気先行馬は減点（上級クラスは逃げ苦戦）
+#                 )
+
+#             # --- 中山芝2200m ---
+#             elif d == 2200:
+#                 score = (
+#                     0.5 * (1 - pos) +       # 前有利
+#                     0.3 * inner +           # 内枠（特に1枠）が良い
+#                     0.2 * (1 / (row['人気'] + 1))
+#                 )
+
+#             # --- 中山芝2500m ---
+#             elif d == 2500:
+#                 score = (
+#                     0.4 * (1 - abs(pos - 0.4)) +  # 好位〜中位
+#                     0.2 * (1 - row['pos_std']) +  # 安定性
+#                     0.2 * agari +                 # 上がり性能
+#                     0.2 * ((row['枠'] == 3) | (row['枠'] == 8))  # 3枠・8枠優位
+#                 )
+
+#             # --- 中山芝3600m ---
+#             elif d == 3600:
+#                 score = (
+#                     0.4 * (1 - abs(pos - 0.35)) + # 好位有利
+#                     0.3 * mid +                   # 中枠妙味
+#                     0.3 * stamina                 # 長く脚を使えるタイプ
+#                 )
+
+#         elif f == 2:
+#             # --- 中山ダート1200m ---
+#             if d == 1200:
+#                 score = (
+#                     0.6 * (1 - pos) +           # 前有利
+#                     0.3 * ((row['枠'] == 3) | (row['枠'] == 5)) +  # 3・5枠狙い目
+#                     0.1 * (1 / (row['人気'] + 1))
+#                 )
+
+#             # --- 中山ダート1800m ---
+#             elif d == 1800:
+#                 score = (
+#                     0.5 * (1 - pos) +     # 前有利
+#                     0.3 * row['is_inner'] +  # 内枠優勢（2枠良）
+#                     0.2 * stamina
+#                 )
+
+#             # --- 中山ダート2400m・2500m ---
+#             elif d in [2400, 2500]:
+#                 score = (
+#                     0.4 * (1 - pos) +                # 前目
+#                     0.3 * ((row['枠'] == 2) | (row['枠'] == 3)) +  # 2・3枠有利
+#                     0.2 * stamina +
+#                     0.1 * (1 - outer)                # 外枠割引
+#                 )
+
+#         return score
 
     
-    # --- 安定性特徴 ---
-    pos_cols = [c for c in df.columns if 'コーナー通過順' in c]
-    df['pos_std'] = df[pos_cols].std(axis=1) if len(pos_cols) >= 2 else np.nan
-    df['上がり_std'] = df[past_3f_cols].std(axis=1) if len(past_3f_cols) >= 2 else np.nan
+#     # --- 安定性特徴 ---
+#     pos_cols = [c for c in df.columns if 'コーナー通過順' in c]
+#     df['pos_std'] = df[pos_cols].std(axis=1) if len(pos_cols) >= 2 else np.nan
+#     df['上がり_std'] = df[past_3f_cols].std(axis=1) if len(past_3f_cols) >= 2 else np.nan
 
-    df['course_profile_score'] = df.apply(course_profile, axis=1)
+#     df['course_profile_score'] = df.apply(course_profile, axis=1)
 
 
-    # --- 総合コース適性 ---
-    df['コース適性総合'] = (
-        0.4 * (1 - df['pos_ratio']) +
-        0.2 * (1 - df['pos_std'].fillna(0)) +
-        0.2 * df['course_profile_score'].fillna(0) +
-        0.2 * df['持久力指数'].fillna(0)
-    )
+#     # --- 総合コース適性 ---
+#     df['コース適性総合'] = (
+#         0.4 * (1 - df['pos_ratio']) +
+#         0.2 * (1 - df['pos_std'].fillna(0)) +
+#         0.2 * df['course_profile_score'].fillna(0) +
+#         0.2 * df['持久力指数'].fillna(0)
+#     )
 
-    # apply のあと
-    df['course_profile_score'] = df['course_profile_score'].replace([np.inf, -np.inf], np.nan).fillna(0)
-    df['コース適性総合'] = df['コース適性総合'].replace([np.inf, -np.inf], np.nan).fillna(0)
+#     # apply のあと
+#     df['course_profile_score'] = df['course_profile_score'].replace([np.inf, -np.inf], np.nan).fillna(0)
+#     df['コース適性総合'] = df['コース適性総合'].replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    feature_cols.extend([
-    '枠', 'pos_ratio', '持久力指数', 'av_上がり',
-    'course_profile_score', 'pos_std', '上がり_std', 'コース適性総合'
-    ])
+#     feature_cols.extend([
+#     '枠', 'pos_ratio', '持久力指数', 'av_上がり',
+#     'course_profile_score', 'pos_std', '上がり_std', 'コース適性総合'
+#     ])
 
-    scale_cols.extend([
-    '枠', 'pos_ratio', '持久力指数', 'av_上がり',
-    'course_profile_score', 'pos_std', '上がり_std', 'コース適性総合'
-    ])
+#     scale_cols.extend([
+#     '枠', 'pos_ratio', '持久力指数', 'av_上がり',
+#     'course_profile_score', 'pos_std', '上がり_std', 'コース適性総合'
+#     ])
 
-    feature_category.extend([
-    '枠', 'is_inner', 'is_middle', 'is_outer'
-    ])
+#     feature_category.extend([
+#     '枠', 'is_inner', 'is_middle', 'is_outer'
+#     ])
 
-    return df
+#     return df
 
 def add_history_features(df):
     # 距離関連
