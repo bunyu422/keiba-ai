@@ -63,7 +63,7 @@ def convert_to_float_if_possible(df):
             converted = pd.to_numeric(df[col], errors='raise')
             # print(col, converted.dtype)
             if pd.api.types.is_numeric_dtype(converted):
-                df_converted[col] = converted
+                df_converted[col] = converted.astype(float)
         except:
             pass  # 変換できなかった列は無視
     return df_converted
@@ -1021,9 +1021,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 12
-    field_name = 'monbetu'
-    csv_path = f"./csv/{field_name}_2015-2024.csv" # 学習に使うcsvデータのパス
+    field = 1
+    field_name = 'nakayama'
+    csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -1085,6 +1085,7 @@ if __name__ == "__main__":
     
     # 今走の処理
     df = df_first_processing(df, field_name, type='a')
+    print(df['父馬'].head(10))
     # df = df_first_processing(df, field_name)
     # 過去走の処理
     df_all = df_big_past_processing(df, field_name, field)

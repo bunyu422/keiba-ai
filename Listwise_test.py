@@ -24,9 +24,10 @@ def pick_ev_max_per_race(df, p_col="pred_score", odds_col="オッズ", race_col=
     df = df.copy()
 
     # T = 0.6
-    softmax_T = make_softmax_with_temperature(T)
+    # softmax_T = make_softmax_with_temperature(T)
 
-    df['softmax_score'] = df.groupby('レースID')['pred_score'].transform(softmax_T)
+    # df['softmax_score'] = df.groupby('レースID')['pred_score'].transform(softmax_T)
+    df['softmax_score'] = df['pred_score']
     df['expected_value'] = df['softmax_score'] * df['オッズ']
     
     if bet_type != "ワイド":
@@ -314,13 +315,13 @@ def grid_search_ev_policy(
     odds_col="オッズ",
     race_col="レースID",
     stake=100,
-    temperature_grid=[0.2, 0.3, 0.4, 0.5, 0.6],
+    temperature_grid=[0.2],
     ev_min_grid=np.round(np.arange(0, 2.01, 0.1), 2),
     prob_min_grid=[0, 0.05, 0.1, 0.12, 0.15, 0.2],
     odds_max_grid=[8, 10, 12, 15, float('inf')],
     ev_max_grid=[3, 4, 5, float('inf')],
     odds_min_grid=[1.0, 1.5, 2, 3, 4],
-    min_selected=200
+    min_selected=0
 ):
     folds = sorted(df[fold_col].unique())
     all_results = []
@@ -338,7 +339,7 @@ def grid_search_ev_policy(
         with tqdm(total=total, desc=f"Fold {fold}", unit="param") as pbar:
             for T in temperature_grid:
                 # 温度 T で一度だけ softmax 適用
-                base = pick_ev_max_per_race(fold_df, p_col=p_col, odds_col=odds_col, race_col=race_col, T=T, bet_type=bet_type)
+                base = pick_score_max_per_race(fold_df, p_col=p_col, odds_col=odds_col, race_col=race_col, T=T, bet_type=bet_type)
                 # base = softmax_pred(fold_df, T)
                 
                 if bet_type == "ワイド":
@@ -392,9 +393,9 @@ def grid_search_ev_policy(
                     })
 
                     # ベストROI更新
-                    if metrics['roi_ci_low'] > best_roi:
-                    # if metrics['roi_ci_low'] > 1.0 and metrics['selected_races'] > best_selected_races:
-                        best_roi = metrics['roi_ci_low']
+                    # if metrics['roi'] is not None and metrics['roi'] > best_roi:
+                    if metrics['roi'] > 1.0 and metrics['selected_races'] > best_selected_races:
+                        best_roi = metrics['roi']
                         best_selected_races = metrics['selected_races']
                         best_params = {
                             "fold": fold,
@@ -435,13 +436,13 @@ def grid_search_ev_policy_val_test(
     odds_col="オッズ",
     race_col="レースID",
     stake=100,
-    temperature_grid=[0.2, 0.3, 0.4, 0.5, 0.6],
+    temperature_grid=[0.2],
     ev_min_grid=np.round(np.arange(0, 2.01, 0.1), 2),
     prob_min_grid=[0, 0.05, 0.1, 0.12, 0.15, 0.2],
     odds_max_grid=[8, 10, 12, 15, float('inf')],
     ev_max_grid=[3, 4, 5, float('inf')],
     odds_min_grid=[1.0, 1.5, 2, 3, 4],
-    min_selected=200
+    min_selected=0
 ):
     """
     各foldで valデータで探索 → testデータで評価 する構成
@@ -477,7 +478,7 @@ def grid_search_ev_policy_val_test(
 
         # --- best_paramsをtestに適用 ---
         best_params = best_params_df.iloc[0].to_dict()
-        test_sel = pick_ev_max_per_race(test_fold_df, T=best_params['temperature'],
+        test_sel = pick_score_max_per_race(test_fold_df, T=best_params['temperature'],
                                         p_col=p_col, odds_col=odds_col,
                                         race_col=race_col, bet_type=bet_type)
         test_sel = filter_by_thresholds(
@@ -874,13 +875,16 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
     # df_sorted = val_df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     # print(df_sorted[['レースID', 'pred_score']].head(30))
     
+    
+    
     # val_df['log_odds'] = np.log(val_df['オッズ'] + 1)
     for i in range(1, 21):
         # T = 0.1 * i  # 例：温度を0.5に設定（小さいほど尖る）
         T = i / 10
-        softmax_T = make_softmax_with_temperature(T)
+        # softmax_T = make_softmax_with_temperature(T)
 
-        val_df['softmax_score'] = val_df.groupby('レースID')['pred_score'].transform(softmax_T)
+        # val_df['softmax_score'] = val_df.groupby('レースID')['pred_score'].transform(softmax_T)
+        val_df['softmax_score'] = val_df['pred_score']
         val_df['expected_value'] = val_df['softmax_score'] * val_df['オッズ']
         # val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
         top_by_race = val_df.groupby('レースID').apply(
@@ -907,7 +911,35 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         #     top3_ev.loc[top3_ev.groupby('レースID')['expected_value'].idxmax()]
         # )
         
-        selected = val_df.loc[val_df.groupby('レースID')['expected_value'].idxmax()]
+        selected = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
+        
+        # 検証用
+        # selected['pred_score_scaled'] = (selected['pred_score'] - selected['pred_score'].mean()) / (selected['pred_score'].std() + 1e-9)
+        # selected['pred_score_pos'] = np.exp(selected['pred_score_scaled'])
+        # selected['ev_scaled'] = (selected['expected_value'] - selected['expected_value'].mean()) / (selected['expected_value'].std() + 1e-9)
+        # selected['ev_pos'] = np.exp(selected['ev_scaled'])
+
+        # print(f"mean: {selected['pred_score'].mean()}")
+        # print(f"std: {selected['pred_score'].std()}")
+        # threshold = selected['pred_score_pos'].quantile(0.5)
+        # ev_threshold = selected['ev_pos'].quantile(0.5)
+        
+        # # 実データ用
+        global_mean = 5.422899237652069
+        global_std = 2.314727952052557
+
+        selected['pred_score_scaled'] = (selected['pred_score'] - global_mean) / (global_std + 1e-9)
+        selected['pred_score_pos'] = np.exp(selected['pred_score_scaled'])
+        
+        # # # # 3. 下位除外
+        threshold = 1
+        selected = selected[selected['pred_score_pos'] > threshold]
+        # selected = selected[selected['ev_pos'] > ev_threshold]
+
+
+        print(f"threshold: {threshold}")
+        # print(f"ev_threshold: {ev_threshold}")
+        
         # selected = selected[selected['expected_value'] < 4]
         # selected = selected[selected['オッズ'] > i]
         # print(selected[selected['着順'] == 1][['pred_score', 'オッズ', 'expected_value']])
@@ -947,6 +979,14 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
     #     print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
     return val_df
+
+def scale_pred_score_per_race(df):
+    df = df.copy()
+    df['pred_score_scaled'] = df.groupby('レースID')['pred_score'].transform(
+        lambda x: (x - x.mean()) / (x.std() + 1e-9)
+    )
+    df['pred_score_pos'] = np.exp(df['pred_score_scaled'])
+    return df
 
 if __name__ == '__main__':
     # # テスト
@@ -1042,20 +1082,25 @@ if __name__ == '__main__':
     # ]
 
     # csv_files = [
-    #     f"./csv/nakayama_act_ver2_result_fold0.csv",
+    #     "./csv/nakayama2_result_ranknet_test_0.csv",
     #     # './csv/nakayama2_result_ranknet_test_1.csv',
     #     # './csv/nakayama2_result_ranknet_test_2.csv',
     #     # './csv/nakayama2_result_ranknet_test_3.csv',
-    #     # './csv/nakayama2_result_ranknet_test_4.csv'
+    #     # './csv/nakayama_result_ranknet_test_4.csv'
     # ]
 
     csv_files = [
-        "./csv/monbetu_result_fold0.csv",
+        "./csv/nakayama2_result_fold0.csv",
+        # "./csv/nakayama2_result_fold1.csv"
+    ]
+
+    # csv_files = [
+    #     "./csv/monbetu_result_fold0.csv",
         # './csv/monbetu_result_ranknet_test_1.csv',
         # './csv/monbetu_result_ranknet_test_2.csv',
         # './csv/monbetu_result_ranknet_test_3.csv',
         # './csv/monbetu_result_ranknet_test_4.csv'
-    ]
+    # ]
 
     # csv_files = [
     # #     # './csv/monbetu_result_ranknet_test_0.csv',
@@ -1117,13 +1162,13 @@ if __name__ == '__main__':
     # print(df['pred_score'])
     # print(df['着順'])
 
-    # csv_files = [
-    #     './csv/nakayama_act_ver2_result_ranknet_val_0.csv',
-    # #     # './csv/nakayama2_result_ranknet_val_1.csv',
-    # #     # './csv/nakayama2_result_ranknet_val_2.csv',
-    # #     # './csv/nakayama2_result_ranknet_val_3.csv',
-    # #     # './csv/nakayama2_result_ranknet_val_4.csv'
-    # ]
+    csv_files = [
+        './csv/nakayama2_result_ranknet_val_0.csv',
+        './csv/nakayama2_result_ranknet_val_1.csv',
+        './csv/nakayama2_result_ranknet_val_2.csv',
+        # './csv/nakayama2_result_ranknet_val_3.csv',
+        # './csv/nakayama_result_ranknet_val_4.csv'
+    ]
 
     # # csv_files = [
     # #     './csv/monbetu_result_ranknet_val_0.csv',
@@ -1133,14 +1178,19 @@ if __name__ == '__main__':
     # #     # './csv/monbetu_result_ranknet_test_4.csv'
     # # ]
 
-    # dfs = []
-    # for i, path in enumerate(csv_files):
-    #     df_fold = pd.read_csv(path)
-    #     df_fold['fold'] = i
-    #     dfs.append(df_fold)
-    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
+    dfs = []
+    for i, path in enumerate(csv_files):
+        df_fold = pd.read_csv(path)
+        df_fold['fold'] = i
+        dfs.append(df_fold)
+        print(f"レース数: {len(df_fold['レースID'].unique())}")
 
-    # df_val = pd.concat(dfs, ignore_index=True)
+    df_val = pd.concat(dfs, ignore_index=True)
+
+    print(df['pred_score'].min())
+    print(df['pred_score'].max())
+    print(df_val['pred_score'].min())
+    print(df_val['pred_score'].max())
 
     # print(df['レースID'].min())
     # print(df['レースID'].max())
@@ -1174,7 +1224,7 @@ if __name__ == '__main__':
     # print(params_df)   # foldごとの選ばれたパラメータ
 
 
-    # df = pd.read_csv('./csv/nakayama2_result_ranknet_test_0.csv')  # または val データ専用ファイルを読み込む
+    # df = pd.read_csv('./csv/nakayama_result_ranknet_test_0.csv')  # または val データ専用ファイルを読み込む
     # # レース数出力
     # print(f"レース数: {len(df['レースID'].unique())}")
     
@@ -1186,15 +1236,26 @@ if __name__ == '__main__':
     # df = pd.concat(df_list, ignore_index=True)
     # print(f"レース数: {len(df['レースID'].unique())}")
 
-    # val_df_result = evaluate_model_on_val_df(df, model_path='./model/tokyo_listnet_0.pth', fold=0)
+    val_df_result = evaluate_model_on_val_df(df, model_path='./model/tokyo_listnet_0.pth', fold=0)
 
     # ========== 使い方 ==========
     # df は検証・テスト用データフレーム
     # 必須列: ["レースID", "pred_score", "オッズ", "is_win"]
     # pred_score は温度スケーリング後の確率（0~1推奨）
 
+    # df['pred_score'] = df.groupby('レースID')['pred_score'].transform(lambda x: x - x.min())
+    # df_val['pred_score'] = df_val.groupby('レースID')['pred_score'].transform(lambda x: x - x.min())
+
+    
+
+    # df['pred_score'] = df.groupby('レースID')['pred_score'].transform(
+    # lambda x: (x - x.min()) / (x.max() - x.min() + 1e-9)
+    # )
+
     # 例）グリッド探索して上位5条件を表示
     # val_summary, test_summary = grid_search_ev_policy_val_test(df_val, df)
+    
+
     res, best = grid_search_ev_policy(df)
     # res, best = grid_search_bandit(df)
     print(best)

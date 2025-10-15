@@ -252,7 +252,7 @@ def set_time(skip_list, url_race):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 field = 'nakayama'
 field_num = 1
-csv_path = f"./csv/{field}_2025.csv" # 学習に使うcsvデータのパス
+csv_path = f"./csv/nakayama_2025.csv" # 学習に使うcsvデータのパス
 
 df = pd.read_csv(csv_path, index_col=0)
 df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
@@ -276,40 +276,43 @@ df = Listwise.inversion(df)
 # カラム追加
 df = Listwise.append_col(df)
 df = Listwise.add_relative_features(df)
+fold = 0
 
-with open(f'./pickle-dict/sire_dict_{field}_fold0.pkl', mode="rb") as f:
+with open(f'./pickle-dict/sire_dict_nakayama2_fold{fold}.pkl', mode="rb") as f:
     sire_mapping = pickle.load(f)
 
+
 # 列情報読み込み
-feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
-embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
-context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
-context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+feature_cols = joblib.load("./pickle-dict/feature_cols2.pkl")
+embedding_cols = joblib.load("./pickle-dict/embedding_cols2.pkl")
+context_num_cols = joblib.load("./pickle-dict/context_num_cols2.pkl")
+context_cat_cols = joblib.load("./pickle-dict/context_cat_cols2.pkl")
 
 df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
 
-with open(f'./pickle-dict/jwin_dict_{field}_fold0.pkl', "rb") as dd:
+with open(f'./pickle-dict/jwin_dict_nakayama2_fold{fold}.pkl', "rb") as dd:
     j_mapping = pickle.load(dd)
 
 # val/test は train 全体の mapping を使う
 df['騎手_te'] = df['騎手'].map(j_mapping).fillna(-1)
-df['騎手'] = df['騎手_te']
 
-scaler = StandardScaler()
-df[Listwise.scale_cols] = scaler.fit_transform(df[Listwise.scale_cols])
+scaler = joblib.load(f"./model/scaler_nakayama2_fold{fold}.pkl")
+df[Listwise.scale_cols] = scaler.transform(df[Listwise.scale_cols])
 
 # 欠損値補完
 df = Listwise.fill_nan(df, feature_cols)
 
 # カテゴリ列を数値化
 # df = Listwise.race_feature(df)
-category_mappings = joblib.load(f"./pickle-dict/category_mappings_{field}_fold0.pkl")
+category_mappings = joblib.load(f"./pickle-dict/category_mappings_nakayama2_fold{fold}.pkl")
 df = Listwise.race_feature_test(df, category_mappings)
+
+print(df.head(30))
 
 embedding_sizes = []
 context_embedding_sizes = []
 # state_dict をロード
-state_dict = torch.load(f"./model/{field}_ranknet_0.pth", map_location=device)
+state_dict = torch.load(f"./model/nakayama2_ranknet_{fold}.pth", map_location=device)
 
 # 通常のカテゴリ埋め込み
 i = 0
@@ -333,7 +336,7 @@ model = Listwise.ListNet(
     num_features=len(feature_cols),
     context_embedding_sizes=context_embedding_sizes,
     context_num_sizes=len(Listwise.context_num_cols),
-    emb_dim=16
+    emb_dim=32
 )
 model.load_state_dict(state_dict)
 model.to(device)
@@ -341,4 +344,4 @@ model.eval()
 
 df = predict_multiple_races(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device=device)
 
-df.to_csv(f"./csv/{field}_result_fold0.csv",na_rep='NaN')
+df.to_csv(f"./csv/nakayama2_result_fold{fold}.csv",na_rep='NaN')

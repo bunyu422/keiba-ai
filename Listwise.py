@@ -6,6 +6,7 @@ import joblib
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
+from scipy import stats
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import ndcg_score
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit, KFold
@@ -22,9 +23,12 @@ import lightgbm as lgbm
 from sklearn.model_selection import StratifiedGroupKFold
 
 
-# 行・列ともに省略せず全て表示する設定
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
+# 行を全表示（行の数）
+pd.set_option("display.max_rows", None)
+# 列を全表示（列の数）
+pd.set_option("display.max_columns", None)
+# セルの文字列を省略せずに全部表示
+pd.set_option("display.max_colwidth", None)
 import os
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
@@ -76,9 +80,9 @@ def load_csv(path):
 
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'monbetu'
-# csv_path = f'./csv/df_all_nakayama.csv'
-csv_path = f'./csv/df_all_{field}.csv'
+field = 'nakayama2'
+csv_path = f'./csv/df_all_nakayama.csv'
+# csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
 df = load_csv(csv_path)
@@ -88,7 +92,6 @@ feature_cols = []
 df['is_win'] = (df['着順'] == 1).astype(int)
 
 def append_col(df):
-    df = add_history_features(df)
 
     df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
     df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
@@ -110,8 +113,6 @@ def append_col(df):
     feature_cols.append('av_speed_rank_num')
     feature_cols.append('best後3F_rank_num')
     feature_cols.append('av後3F_rank_num')
-    # feature_cols.append('同場所過去率')
-    # feature_cols.append('同距離過去率')
 
     scale_cols.append('best後3F')
     scale_cols.append('av後3F')
@@ -119,17 +120,11 @@ def append_col(df):
     scale_cols.append('av_speed_rank_num')
     scale_cols.append('best後3F_rank_num')
     scale_cols.append('av後3F_rank_num')
-    # scale_cols.append('同場所過去率')
-    # scale_cols.append('同距離過去率')
 
     feature_category.append('best_speed_rank_cat')
     feature_category.append('av_speed_rank_cat')
     feature_category.append('best後3F_rank_cat')
     feature_category.append('av後3F_rank_cat')
-    # feature_category.append('同距離過去数')
-    # feature_category.append('同距離過去3着内数')
-    # feature_category.append('同場所過去数')
-    # feature_category.append('同場所過去3着内数')
     
     
     
@@ -508,27 +503,34 @@ def race_feature_test(df, category_mappings):
         if col in df.columns:
             df[col] = df[col].astype(str)
             inv_map = {v:k for k,v in category_mappings[col].items()}
+            # inv_map のキー型を確認
+            key_type = type(list(inv_map.keys())[0])
+            # print(inv_map)
             # train にない値は 0 に置き換える
             n_train_categories = len(category_mappings[col])
-            df[col] = df[col].map(lambda x: inv_map.get(x, n_train_categories)).astype(int)
+            df[col] = df[col].map(lambda x: inv_map.get(key_type(x), n_train_categories)).astype(int)
 
     # 場所の変化特徴
     for col in diff_category_place:
         if col in df.columns:
             df[col] = df[col].astype(str) + '->' + df['場所'].astype(str)
             inv_map = {v:k for k,v in category_mappings[col].items()}
+            # inv_map のキー型を確認
+            key_type = type(list(inv_map.keys())[0])
             # train にない値は 0 に置き換える
             n_train_categories = len(category_mappings[col])
-            df[col] = df[col].map(lambda x: inv_map.get(x, n_train_categories)).astype(int)
+            df[col] = df[col].map(lambda x: inv_map.get(key_type(x), n_train_categories)).astype(int)
 
     # フィールドの変化特徴
     for col in diff_category_field:
         if col in df.columns:
             df[col] = df[col].astype(str) + '->' + df['フィールド'].astype(str)
             inv_map = {v:k for k,v in category_mappings[col].items()}
+            # inv_map のキー型を確認
+            key_type = type(list(inv_map.keys())[0])
             # train にない値は 0 に置き換える
             n_train_categories = len(category_mappings[col])
-            df[col] = df[col].map(lambda x: inv_map.get(x, n_train_categories)).astype(int)
+            df[col] = df[col].map(lambda x: inv_map.get(key_type(x), n_train_categories)).astype(int)
 
     return df
 
@@ -752,7 +754,7 @@ class ListNet(nn.Module):
         return out.squeeze(-1)
 
 # === 4. Listwise loss ===
-def listnet_loss(preds, labels, gain):
+def listnet_loss(preds, labels):
     preds = preds - preds.max()
     P_z = torch.softmax(preds, dim=0)
     loss = -torch.sum(labels * torch.log(P_z + 1e-12))
@@ -802,10 +804,16 @@ def ranknet_loss(preds, labels):
 #             return max_rel / x  # 下位も微小な値
 #     return df['着順'].apply(relevance)
 
-def make_smooth_relevance_labels(df, max_rel=3):
-    return df['着順'].apply(lambda x: max_rel if x == 1 else 1/(x+1))
+# def make_smooth_relevance_labels(df, max_rel=3):
+#     return df['着順'].apply(lambda x: max_rel if x == 1 else 1/(x+1))
 
+def make_smooth_relevance_labels(df, max_rel=3.0):
+    return (max_rel / np.log1p(df['着順'] + 1)).clip(0, max_rel)
 
+# def make_smooth_relevance_labels(df, max_rel=3.0):
+#     rel = (max_rel / np.log1p(df['着順'] + 1)).clip(0, max_rel)
+#     popularity_penalty = np.log1p(df['人気']) / np.log1p(df['人気'].max())
+#     return rel * (1 - 0.3 * popularity_penalty)
 
 def lambdarank_loss(preds, labels):
     """
@@ -838,25 +846,19 @@ def lambdarank_loss(preds, labels):
 
     return loss
 
+# --- LambdaRank上位k損失 ---
 def lambdarank_loss_at_k(preds, labels, k=3):
-    # preds: (n,) logits (higher = more likely)
-    # labels: (n,) relevance or rank-based label (higher is better)
     n = preds.shape[0]
     diff = preds.unsqueeze(0) - preds.unsqueeze(1)
     pred_prob = torch.sigmoid(diff)
     target = (labels.unsqueeze(0) > labels.unsqueeze(1)).float()
 
-    # gain & discount (位置はpredsのソート順)
     gain = torch.pow(2.0, labels.float()) - 1.0
     _, rank_order = torch.sort(preds, descending=True)
     rank_pos = torch.argsort(rank_order).float() + 1.0
     discount = 1.0 / torch.log2(rank_pos + 1.0)
+    delta_ndcg = torch.abs((gain.unsqueeze(0) * discount.unsqueeze(0) - gain.unsqueeze(1) * discount.unsqueeze(1)))
 
-    delta_ndcg = torch.abs(
-        (gain.unsqueeze(0) * discount.unsqueeze(0) - gain.unsqueeze(1) * discount.unsqueeze(1))
-    )
-
-    # 上位kに寄与を集中させるマスク（ハードカット、または滑らかに）
     mask_k = (rank_pos <= k).float()
     weight_k = mask_k.unsqueeze(0) * mask_k.unsqueeze(1)
     delta_ndcg = delta_ndcg * weight_k
@@ -867,37 +869,72 @@ def lambdarank_loss_at_k(preds, labels, k=3):
     loss = torch.mean(delta_ndcg[mask] * bce)
     return loss
 
-def calibration_brier_loss(preds, is_win):
-    """
-    preds : Tensor, shape (n_horses,)
-        モデル出力（logit）
-    is_win : Tensor, shape (n_horses,)
-        各馬の勝敗ラベル（勝ち馬=1, それ以外=0）
-        → 通常は 1頭のみが1、それ以外は0
-    """
-    probs = F.softmax(preds, dim=0)  # レース内で正規化
-    target = is_win / is_win.sum() if is_win.sum() > 0 else is_win  # 念のため正規化安全策
-    brier = torch.mean((probs - target) ** 2)
-    return brier
+# --- 期待値ベース損失 ---
+def safe_ev_loss(preds, odds, is_win, clip_logits=10.0, clip_odds=50.0):
+    preds = torch.clamp(preds, -clip_logits, clip_logits)  # 勾配爆発防止
+    odds = torch.log1p(odds)
+    odds = torch.clamp(odds, 1.0, clip_odds)               # オッズ極端値防止
+    probs = F.softmax(preds, dim=0)
+    # ev = probs * odds
+    # loss = -torch.sum(is_win * ev)
+    # 勝ち馬の期待値と全体の期待値の差を最小化
+    ev_true = torch.sum(is_win * odds)
+    ev_pred = torch.sum(probs * odds)
+    loss = torch.abs(ev_true - ev_pred)  # → 確率分布全体が期待値構造を学ぶ
+    if torch.isnan(loss) or torch.isinf(loss):
+        # print("⚠️ EV loss unstable:", preds, odds, is_win)
+        loss = torch.tensor(0.0, device=preds.device)
+    return loss
 
+def roi_policy_loss(preds, odds, is_win, temperature=1.0):
+    probs = F.softmax(preds / temperature, dim=0)
+    reward = is_win * odds - 1.0  # 配当 - 賭け金
+    baseline = torch.sum(probs * reward)  # 平均ROI（baselineで分散低減）
+    advantage = reward - baseline.detach()
+    loss = -torch.sum(torch.log(probs + 1e-9) * advantage)
+    return loss
 
-def combined_loss(preds, labels, is_win, k=3, alpha=0.7):
-    """
-    preds : Tensor, shape (n_horses,)
-    labels : Tensor, shape (n_horses,)
-        着順などから作られたrelevance
-    is_win : Tensor, shape (n_horses,)
-        各馬の勝敗ラベル（0/1）
-    k : int
-        lambdarankでの上位k
-    alpha : float
-        ranking loss と calibration loss のバランス
-    """
+def roi_policy_sigmoid_loss(preds, odds, is_win, temperature=1.0):
+    # 各馬が買われる確率（方策）をsigmoidで定義
+    buy_prob = torch.sigmoid(preds / temperature)
+    reward = is_win * odds - 1.0
+    baseline = torch.sum(buy_prob * reward) / buy_prob.sum().clamp(min=1.0)
+    advantage = reward - baseline.detach()
+    loss = -torch.sum(torch.log(buy_prob + 1e-9) * advantage)
+    return loss
+
+def differentiable_roi_loss(preds, odds, is_win, threshold=1.0, beta=10.0):
+    probs = torch.sigmoid(preds)
+    buy_prob = torch.sigmoid(beta * (probs * odds - threshold))
+    roi = torch.sum(buy_prob * (is_win * odds - 1.0))
+    return -roi  # ROIを最大化
+
+def combined_roi_loss(preds, odds, is_win, alpha=0.5):
+    return alpha * roi_policy_loss(preds, odds, is_win) \
+         + (1 - alpha) * differentiable_roi_loss(preds, odds, is_win)
+
+# --- combined loss ---
+def combined_loss(preds, labels, odds, is_win, k=3, alpha=0.8):
     loss_rank = lambdarank_loss_at_k(preds, labels, k=k)
-    loss_calib = calibration_brier_loss(preds, is_win)
-    total_loss = alpha * loss_rank + (1.0 - alpha) * loss_calib
-    # return total_loss, loss_rank, loss_calib
-    return total_loss
+    # loss_ev = roi_policy_loss(preds, odds, is_win)
+    
+    # # スケール調整
+    # loss_ev = loss_ev / max(1.0, torch.abs(loss_ev))
+    # return alpha * loss_rank + (1 - alpha) * loss_ev
+    return loss_rank
+
+# def combined_loss(preds, labels, odds, is_win, k=3, alpha=0.8):
+#     # ランキング損失
+#     loss_rank = lambdarank_loss_at_k(preds, labels, k=k)
+    
+#     # 勝率回帰損失
+#     pred_prob = torch.sigmoid(preds)
+#     loss_prob = F.binary_cross_entropy(pred_prob, is_win.float())
+    
+#     # マルチタスク
+#     loss = alpha * loss_rank + (1 - alpha) * loss_prob
+#     return loss
+
 
 
 def make_rank_labels(df, group_col='レースID', pos_col='着順', n_bins=18):
@@ -1223,7 +1260,7 @@ def init_weights(m):
 
 
 # 各レースごとに計算して平均をとる
-def calc_mean_ndcg(df, label_col='着順', score_col='pred_score', k=None):
+def calc_mean_ndcg(df, label_col='着順', score_col='pred_score', k=3):
     ndcgs = []
 
     for _, group in df.groupby("レースID"):
@@ -1318,16 +1355,16 @@ def time_series_train_val_split(df, group_col="レースID", train_ratio=0.8):
 
 if __name__ == '__main__':
     print(device)
-    # print(df.head(10))
-    # print(torch.version.cuda)       # "12.7" が出ればOK
-    # print(torch.cuda.is_available())  # True が出ればGPU使用可能
-    # print(torch.cuda.get_device_name(0))  # GPU名表示
+
     seed = 1
     set_seed(seed)  # 先に乱数固定
+    fold_results = []
 
     # === 5. KFold処理 ===
     
     # ラベル作成
+    df['オッズ'] = df['オッズ'].fillna(df['オッズ'].median())
+    df['人気'] = df['人気'].fillna(df['人気'].median())
     df['smooth_rel'] = make_smooth_relevance_labels(df)
     # df = make_rank_labels(df)
 
@@ -1347,17 +1384,18 @@ if __name__ == '__main__':
     # gkf = GroupKFold(n_splits=n_splits)
     # for fold, (train_idx, test_idx) in enumerate(gkf.split(df, groups=df[group_col])):
     # --- 使用例 ---
-    # splits = time_series_group_cv_3split(df, group_col="レースID", n_splits=5)
+    splits = time_series_group_cv_3split(df, group_col="レースID", n_splits=5)
 
-    train_df, val_df, test_df = time_series_train_val_split(df, group_col="レースID", train_ratio=0.8)
-    print(val_df["レースID"].min())
-    print(val_df["レースID"].max())
+    # train_df, val_df, test_df = time_series_train_val_split(df, group_col="レースID", train_ratio=0.8)
+    # print(val_df["レースID"].min())
+    # print(val_df["レースID"].max())
 
-    # for fold, (train_idx, val_idx, test_idx) in enumerate(splits):
-    for fold in range(1): 
-        # train_df = df.loc[train_idx]
-        # val_df = df.loc[val_idx]
-        # test_df = df.loc[test_idx]
+    for fold, (train_idx, val_idx, test_idx) in enumerate(splits):
+        
+    # for fold in range(1): 
+        train_df = df.loc[train_idx]
+        val_df = df.loc[val_idx]
+        test_df = df.loc[test_idx]
 
         # trainval: test = 8 : 2（group単位）
         # trainval_df = df.iloc[train_idx]
@@ -1479,13 +1517,19 @@ if __name__ == '__main__':
         val_df[scale_cols] = scaler.transform(val_df[scale_cols])
         test_df[scale_cols] = scaler.transform(test_df[scale_cols])
 
+        # スケーラーを保存（モデルと同じディレクトリに置くのが一般的）
+        joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
+
         # === 0. データの前処理 ===
         # Nanの処理
         train_df, val_df, test_df = fill_nan(train_df, feature_cols), fill_nan(val_df, feature_cols), fill_nan(test_df, feature_cols)
         # カテゴリ変換
+        
         train_df, map_dict = race_feature_train(train_df)
         val_df = race_feature_test(val_df, map_dict)
         test_df = race_feature_test(test_df, map_dict)
+
+        # print(val_df.head(30))
 
 
         bad_vals = ~np.isfinite(train_df.select_dtypes(include=[np.number]))
@@ -1548,7 +1592,7 @@ if __name__ == '__main__':
         # context_embedding_sizes = [train_df[col].nunique() + 5 for col in context_cat_cols]  # 各カテゴリ列のクラス数
 
         # モデル
-        emb_dim = 64  
+        emb_dim = 32  
         model = ListNet(embedding_sizes=embedding_sizes, num_features=len(feature_cols), context_embedding_sizes=context_embedding_sizes, context_num_sizes=len(context_num_cols), emb_dim=emb_dim)
         model.apply(init_weights)
         model.to(device)
@@ -1558,7 +1602,7 @@ if __name__ == '__main__':
         #     optimizer, max_lr=1e-3, steps_per_epoch=len(train_loader), epochs=num_epochs
         # )
         
-        patience = 20  # 何エポック改善がなければ終了するか
+        patience = 10  # 何エポック改善がなければ終了するか
         best_val_loss = float('inf')
         best_ndcg = 0
         no_improve_count = 0
@@ -1574,31 +1618,15 @@ if __name__ == '__main__':
                 y_sum = y.detach().cpu().numpy().sum()
                 # ランク損失
                 preds = model(X, cat_X, context_X, context_cat_X)
-                # loss = listnet_loss(preds, y, gain)
                 # loss = lambdarank_loss(preds, y)
-                loss = combined_loss(preds, y, win_labels)
-
-                # 回帰損失（勝率ラベルとの直接比較）
-                # prob_preds = torch.softmax(preds, dim=0)
-                # reg_loss = mse_loss_fn(prob_preds.squeeze(), y)
-                # # print(loss.item(), reg_loss.item())
-
-                # loss = loss + alpha * reg_loss
+                loss = combined_loss(preds, y,gain, win_labels)
 
                 # 勾配計算
                 optimizer.zero_grad()
                 loss.backward()
 
-                # 勾配確認コード（例）
-                # for name, param in model.named_parameters():
-                #     if param.grad is not None:
-                #         print(f"{name}: grad mean={param.grad.mean():.6f}, std={param.grad.std():.6f}")
-                #     else:
-                #         print(f"{name}: grad is None")
-
-
                 optimizer.step()
-                # scheduler.step()  # ← ここでLR更新
+
                 total_loss += loss.item()
             # print(f"Epoch {epoch+1}: Train Loss: {total_loss:.4f}")
 
@@ -1611,16 +1639,12 @@ if __name__ == '__main__':
                     X, y, cat_X, context_X, context_cat_X, win_labels, gain = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), win_labels[0].to(device), gain[0].to(device)
                     preds = model(X, cat_X, context_X, context_cat_X)
                     box.append(preds.squeeze().cpu().numpy())
-                    # loss = listnet_loss(preds, y, gain)
-                    loss = combined_loss(preds, y, win_labels)
-                    # 回帰損失（勝率ラベルとの直接比較）
-                    # prob_preds = torch.softmax(preds, dim=0)
-                    # reg_loss = mse_loss_fn(prob_preds.squeeze(), y)
-                    # loss = loss + alpha * reg_loss
+                    # loss = listnet_loss(preds, y)
+                    loss = combined_loss(preds, y,gain, win_labels)
                     val_loss += loss.item()
             
             val_records['pred_score'] = np.concatenate(box)
-            ndcg = calc_mean_ndcg(val_records, k=3)
+            ndcg = calc_mean_ndcg(val_records)
             print(f"Epoch {epoch+1}: NDCG: {ndcg:.4f}")
 
             avg_train_loss = total_loss / len(train_loader)
@@ -1629,7 +1653,7 @@ if __name__ == '__main__':
             print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
             # Early Stopping 判定
-            if ndcg > best_ndcg + 1e-3:
+            if ndcg > best_ndcg:
                 best_ndcg = ndcg
                 best_model_weights = copy.deepcopy(model.state_dict())
                 no_improve_count = 0
@@ -1695,7 +1719,7 @@ if __name__ == '__main__':
         hit_count = (selected['着順'] == 1).sum()
         roi = total_return / total_bet
 
-        ndcg = calc_mean_ndcg(test_df, k=3)
+        ndcg = calc_mean_ndcg(test_df)
         print(f"embedding_dim={emb_dim}, NDCG={ndcg:.4f}")
 
         print(f"\n[評価結果]")
@@ -1721,12 +1745,50 @@ if __name__ == '__main__':
         print(f"的中率: {hit_count / len(top):.2%}")
         print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
+        # 上のコードそのまま
+        selected = test_df.loc[test_df.groupby('レースID')['expected_value'].idxmax()]
+        top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
+
+        # per-race で return 計算
+        selected['bet_return'] = np.where(selected['着順'] == 1, selected['単勝オッズ'], 0.0) - 1.0
+        top['bet_return'] = np.where(top['着順'] == 1, top['単勝オッズ'], 0.0) - 1.0
+
+        # foldごとに保存
+        fold_results.append({
+            'fold': fold,
+            'selected_returns': selected[['レースID', 'bet_return']],
+            'top_returns': top[['レースID', 'bet_return']],
+        })
+
         val_df.to_csv(f'./csv/{field}_result_ranknet_val_{fold}.csv', index=False)
         test_df.to_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv', index=False)
 
         # モデルを保存
         torch.save(model.state_dict(), f'./model/{field}_ranknet_{fold}.pth')
 
+    df_all = pd.concat([
+        r['selected_returns'].assign(fold=r['fold'], policy='expected')
+        for r in fold_results
+        ] + [
+            r['top_returns'].assign(fold=r['fold'], policy='top')
+            for r in fold_results
+        ], ignore_index=True)
+
+    # 集計
+    summary = df_all.groupby(['fold', 'policy'])['bet_return'].mean().unstack()
+    print(summary)
+    print("平均ROI (per fold):")
+    print(summary.mean())
+    print("標準偏差:")
+    print(summary.std())
+
+    # ペア検定 (fold単位)
+    t_stat, p_value = stats.ttest_rel(summary['expected'], summary['top'])
+    print(f"T-test: stat={t_stat:.3f}, p={p_value:.4f}")
+
+    # Wilcoxon (より頑健)
+    stat, p = stats.wilcoxon(summary['expected'], summary['top'])
+    print(f"Wilcoxon: stat={stat:.3f}, p={p:.4f}")
 
     # ['着順' '馬番' '斤量' '騎手' '人気' '単勝オッズ' '距離' 'フィールド' '馬場' '出走頭数' '馬単' 'レースID'
     #  '父馬' '間隔' '性' '齢' '1場所' '1過去着順' '1フィールド' '1距離' '1タイム' '1馬場' '1出走馬数' '1馬番'
