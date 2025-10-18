@@ -1069,6 +1069,9 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
+    df1 = pd.read_csv(f"./csv/nakayama_2025.csv", index_col=0)
+
+    df = pd.concat([df, df1], axis=0).reset_index(drop=True)
     # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
 
     df['場所'] = field
@@ -1096,7 +1099,7 @@ if __name__ == "__main__":
     df_all = df_end_processing(df_all, type='b')
     # df_all = df_end_processing(df_all)
     # csv
-    save_csv(f'./csv/df_all_{field_name}.csv', df_all)
+    save_csv(f'./csv/df_all_{field_name}_2025.csv', df_all)
     # ラベリング
     # df_all = encording(df_all)
     # ラベル分割
