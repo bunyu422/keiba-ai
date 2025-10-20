@@ -1022,7 +1022,7 @@ if __name__ == "__main__":
 
     # 開催場所番号
     field = 1
-    field_name = 'nakayama'
+    field_name = 'nakayama000'
     csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
     file_num = 1
 

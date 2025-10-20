@@ -886,7 +886,7 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         # T = i / 1000
         softmax_T = make_softmax_with_temperature(T)
 
-        val_df['softmax_score'] = val_df.groupby('レースID')['pred_score'].transform(softmax_T)
+        # val_df['softmax_score'] = val_df.groupby('レースID')['pred_score'].transform(softmax_T)
         # Xは出力スコア, yは1/0の勝ち負けラベル
 
         # X = val_df['pred_score']
@@ -907,11 +907,11 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         # val_df['softmax_score'] = platt.predict_proba(X)[:, 1]
 
         # val_df['softmax_score'] = val_df['pred_score']
-        val_df['expected_value'] = val_df['softmax_score'] * val_df['オッズ']
-        # val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
-        top_by_race = val_df.groupby('レースID').apply(
-            lambda df: df.sort_values('expected_value', ascending=False)
-        )
+        # val_df['expected_value'] = val_df['softmax_score'] * val_df['オッズ']
+        # # val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
+        # top_by_race = val_df.groupby('レースID').apply(
+        #     lambda df: df.sort_values('expected_value', ascending=False)
+        # )
 
     #     print(top_by_race[['softmax_score', 'オッズ', 'expected_value', 'win_prob']].head(100))
 
@@ -933,8 +933,9 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         #     top3_ev.loc[top3_ev.groupby('レースID')['expected_value'].idxmax()]
         # )
         
-        
-        selected = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
+        # print(df["pred"].head(30))
+        selected = val_df.loc[val_df.groupby('レースID')['pred'].idxmax()]
+        # print(df["馬番"].head(10))
         
         # 検証用
         # selected['pred_score_scaled'] = (selected['pred_score'] - selected['pred_score'].mean()) / (selected['pred_score'].std() + 1e-9)
@@ -956,7 +957,7 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         
         # # # # # 3. 下位除外
         # threshold = 0.9002883150000001
-        selected = selected[selected['オッズ'] >= 3]
+        # selected = selected[selected['オッズ'] >= 3]
         # selected = selected[selected['pred_score'] > threshold]
         # selected = selected[selected['expected_value'] > ev_threshold]
 
@@ -968,8 +969,8 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         # selected = selected[selected['オッズ'] > i]
         # print(selected[selected['着順'] == 1][['pred_score', 'オッズ', 'expected_value']])
         total_bet = len(selected) * 100
-        total_return = selected['単勝オッズ'].sum()
-        hit_count = (selected['is_win'] == 1).sum()
+        total_return = selected[selected['着順'] == 1]['単勝オッズ'].sum() *100
+        hit_count = (selected['着順'] == 1).sum()
         roi = total_return / total_bet
 
         print(f"\n[評価結果 - Fold {i}]")
@@ -1122,7 +1123,8 @@ if __name__ == '__main__':
     # ]
 
     csv_files = [
-        f'./csv/nakayama3_result_stacking_2025_0.csv'
+        # f'./csv/nakayama3_result_stacking_2025_0.csv'
+        './csv/nakayama3_real_test.csv'
     ]
 
     
@@ -1221,10 +1223,10 @@ if __name__ == '__main__':
 
     df_val = pd.concat(dfs, ignore_index=True)
 
-    print(df['pred_score'].min())
-    print(df['pred_score'].max())
-    print(df_val['pred_score'].min())
-    print(df_val['pred_score'].max())
+    # print(df['pred_score'].min())
+    # print(df['pred_score'].max())
+    # print(df_val['pred_score'].min())
+    # print(df_val['pred_score'].max())
 
     # print(df['レースID'].min())
     # print(df['レースID'].max())
@@ -1270,7 +1272,7 @@ if __name__ == '__main__':
     # df = pd.concat(df_list, ignore_index=True)
     # print(f"レース数: {len(df['レースID'].unique())}")
 
-    # val_df_result = evaluate_model_on_val_df(df, model_path='./model/tokyo_listnet_0.pth', fold=0)
+    val_df_result = evaluate_model_on_val_df(df, model_path='./model/tokyo_listnet_0.pth', fold=0)
 
     # ========== 使い方 ==========
     # df は検証・テスト用データフレーム
@@ -1287,14 +1289,14 @@ if __name__ == '__main__':
     # )
 
     # 例）グリッド探索して上位5条件を表示
-    val_summary, test_summary = grid_search_ev_policy_val_test(df_val, df)
+    # val_summary, test_summary = grid_search_ev_policy_val_test(df_val, df)
     
 
     # res, best = grid_search_ev_policy(df)
     # res, best = grid_search_bandit(df)
     # print(best)
     # print(val_summary)
-    print(test_summary)
+    # print(test_summary)
 
     # res_df, params_df, summary, top = nested_fold_eval_temperature(df)
     # print(summary)

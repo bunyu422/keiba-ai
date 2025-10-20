@@ -33,6 +33,8 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
+# 小数点をすべて表示（指数表記なし）
+pd.set_option('display.float_format', lambda x: f'{x:.16f}'.rstrip('0').rstrip('.'))
 import os
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
@@ -45,7 +47,7 @@ def oof_ridge(target_col, train_df, val_df, test_df, df_2025, feature_cols):
     oof_pred = np.zeros(len(train_df))
     gkf = GroupKFold(n_splits=5)
     not_pop = [c for c in feature_cols if c != target_col]
-    joblib.dump(clf, f"./model/clf_ninki_input_{field}_fold{fold}.pkl")
+    joblib.dump(not_pop, f"./model/clf_ninki_input_{field}.pkl")
 
     for tr_idx, va_idx in gkf.split(train_df, groups=train_df['レースID']):
         X = train_df.iloc[tr_idx][not_pop]
@@ -56,9 +58,6 @@ def oof_ridge(target_col, train_df, val_df, test_df, df_2025, feature_cols):
         clf.fit(X[mask], y[mask])
         oof_pred[va_idx] = clf.predict(train_df.iloc[va_idx][not_pop])
 
-    # train の残差（OOF）
-    train_df[target_col] = train_df[target_col] - oof_pred
-
     # valid/test は train で fit したモデルの全体版を使って予測
     X = train_df[not_pop]
     y = train_df[target_col]
@@ -68,39 +67,20 @@ def oof_ridge(target_col, train_df, val_df, test_df, df_2025, feature_cols):
     clf.fit(X[mask], y[mask])
     joblib.dump(clf, f"./model/clf_ninki_model_{field}_fold{fold}.pkl")
 
+    # train の残差（OOF）
+    train_df[target_col] = train_df[target_col].astype(float) - oof_pred
+
     pred_pop = clf.predict(val_df[not_pop])
-    val_df[target_col] = val_df[target_col] - pred_pop
+    val_df[target_col] = val_df[target_col].astype(float) - pred_pop
 
     pred_pop = clf.predict(test_df[not_pop])
-    test_df[target_col] = test_df[target_col] - pred_pop
+    test_df[target_col] = test_df[target_col].astype(float) - pred_pop
 
     pred_pop = clf.predict(df_2025[not_pop])
-    df_2025[target_col] = df_2025[target_col] - pred_pop
+    df_2025[target_col] = df_2025[target_col].astype(float) - pred_pop
 
     return train_df, val_df, test_df, df_2025
 
-
-
-# def add_score_diff_features(df):
-#     df = df.copy()
-    
-#     # レースごとに処理
-#     new_rows = []
-#     for race_id, race in df.groupby('レースID'):
-#         race = race.sort_values('pred_score', ascending=False).reset_index(drop=True)
-#         mean_score = race['pred_score'].mean()
-#         std_score = race['pred_score'].std()
-        
-#         # スコア差などを計算
-#         race['score_diff_prev'] = race['pred_score'].diff(-1)  # 下との差
-#         race['score_diff_next'] = race['pred_score'].diff()    # 上との差
-#         race['score_minus_mean'] = race['pred_score'] - mean_score
-#         race['score_minus_mean_std'] = (race['pred_score'] - mean_score) / std_score
-#         race['rank_in_race'] = range(1, len(race)+1)
-        
-#         new_rows.append(race)
-        
-#     return pd.concat(new_rows, axis=0).reset_index(drop=True)
 
 def add_score_diff_features(df):
     """
@@ -157,6 +137,7 @@ def add_score_diff_features(df):
 ###########################モデルごとに変更が必要############################
 field = 'nakayama3'
 csv_path = f'./csv/df_all_nakayama_2025.csv'
+model_type = "rank-to-rank"
 # csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
@@ -286,7 +267,7 @@ if __name__ == '__main__':
         df_2025_list = df_2025.groupby("レースID").size().to_list()
 
         # パラメータ設定
-        cat_list = lw.feature_category + lw.diff_category_place + lw.diff_category_field + lw.context_cat_cols
+        # cat_list = lw.feature_category + lw.diff_category_place + lw.diff_category_field + lw.context_cat_cols
         rate = 0.01
         lgb_train = lgb.Dataset(train_df[feature_cols], label=train_df[target_col], group=train_list)
         lgb_eval = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], reference=lgb_train, group=eval_list)
@@ -294,16 +275,16 @@ if __name__ == '__main__':
         params = {
             'task': 'train',
             'boosting_type': 'gbdt',
-            'objective': 'regression',  # ←ここでランキング学習と指定！
-            'metric': 'rmse',   # for lambdarank
+            # 'objective': 'regression',  # ←ここでランキング学習と指定！
+            # 'metric': 'rmse',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
             'learning_rate': rate,
             'random_state': seed,
             'verbose_eval': 1000,
-            # 'objective': 'lambdarank',
-            # 'metric': 'ndcg',
-            # 'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-            # 'label_gain': [0,3,5,10],
+            'objective': 'lambdarank',
+            'metric': 'ndcg',
+            'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+            'label_gain': [0,3,5,10],
             'bagging_seed': seed,
             'feature_fraction_seed': seed,
             'data_random_seed': seed,
@@ -343,7 +324,7 @@ if __name__ == '__main__':
         # )
 
         # pklファイルとしてモデルを保存
-        with open(f"./csv/{field}_first_model_lgb_{fold}.pickle", "wb") as mk:
+        with open(f"./model/{field}_first_model_lgb_{model_type}_{fold}.pickle", "wb") as mk:
             pickle.dump(model, mk)
 
         # 学習後のモデル
@@ -360,10 +341,10 @@ if __name__ == '__main__':
 
         print(feat_imp_df)  # 上位20特徴量
 
-        plt.figure(figsize=(10,6))
-        sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
-        plt.title("Top 20 Feature Importance (LambdaRank)")
-        plt.show()
+        # plt.figure(figsize=(10,6))
+        # sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
+        # plt.title("Top 20 Feature Importance (LambdaRank)")
+        # plt.show()
 
 ####### 第二学習 ########
         y_pred = model.predict(val_df[feature_cols])
@@ -384,6 +365,7 @@ if __name__ == '__main__':
         # print("test len",len(test_df))
 
         feature_cols = [col for col in val_df.columns if col not in ['label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        joblib.dump(feature_cols,"./pickle-dict/lgb_cols_second.pkl")
         # feature_cols = ['score_diff_prev','score_diff_next','score_minus_mean','score_minus_mean_std','rank_in_race']
         # feature_cols = [
         #     # 差分・順位系
@@ -470,7 +452,7 @@ if __name__ == '__main__':
         # )
 
         # pklファイルとしてモデルを保存
-        with open(f"./csv/{field}_second_model_lgb_{fold}.pickle", "wb") as mk:
+        with open(f"./model/{field}_second_model_lgb_{model_type}_{fold}.pickle", "wb") as mk:
             pickle.dump(model, mk)
 
         # 学習後のモデル
@@ -487,10 +469,10 @@ if __name__ == '__main__':
 
         print(feat_imp_df)  # 上位20特徴量
 
-        plt.figure(figsize=(10,6))
-        sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
-        plt.title("Top 20 Feature Importance (LambdaRank)")
-        plt.show()
+        # plt.figure(figsize=(10,6))
+        # sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
+        # plt.title("Top 20 Feature Importance (LambdaRank)")
+        # plt.show()
 
 
 ####### 評価 ########
@@ -592,6 +574,6 @@ if __name__ == '__main__':
         print(f"的中率: {hit_count / len(top):.2%}")
         print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-        val_df.to_csv(f'./csv/{field}_result_lgb_val_{fold}.csv', index=False)
-        test_df.to_csv(f'./csv/{field}_result_lgb_test_{fold}.csv', index=False)
-        df_2025.to_csv(f'./csv/{field}_result_lgb_2025_{fold}.csv', index=False)
+        val_df.to_csv(f'./csv/{field}_result_lgb_{model_type}_val_{fold}.csv', index=False)
+        test_df.to_csv(f'./csv/{field}_result_lgb_{model_type}_test_{fold}.csv', index=False)
+        df_2025.to_csv(f'./csv/{field}_result_lgb_{model_type}_2025_{fold}.csv', index=False)

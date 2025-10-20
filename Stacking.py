@@ -1,4 +1,5 @@
 import random
+import joblib
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -174,12 +175,20 @@ pd.set_option("display.max_colwidth", None)
 field = "nakayama3"
 fold = 0
 
-df = load_csv(f'./csv/nakayama3_result_lgb_val_0.csv')
-df1 = load_csv(f'./csv/nakayama3_result_lgb2_val_0.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb3_val_0.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb4_val_0.csv')
+# df = load_csv(f'./csv/nakayama3_result_lgb_val_0.csv')
+# df1 = load_csv(f'./csv/nakayama3_result_lgb2_val_0.csv')
+# df2 = load_csv(f'./csv/nakayama3_result_lgb3_val_0.csv')
+# df3 = load_csv(f'./csv/nakayama3_result_lgb4_val_0.csv')
+# df4 = load_csv(f'./csv/nakayama3_result_ranknet_val_0.csv')
+# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_val_0.csv')
+
+df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_val_0.csv')
+df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_val_0.csv')
+df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_val_0.csv')
+df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_val_0.csv')
 df4 = load_csv(f'./csv/nakayama3_result_ranknet_val_0.csv')
 df5 = load_csv(f'./csv/nakayama3_result_ranknet2_val_0.csv')
+
 
 # pred_score列をリネームして区別
 df  = df.rename(columns={'pred_score': 'pred_score_1'})
@@ -192,12 +201,12 @@ df5 = df5.rename(columns={'pred_score': 'pred_score_6'})
 # 必要な列だけを残す（is_winはどれか1つでOK）
 # 各dfで必要な列だけ残す（is_winは最初のdfだけでOK）
 dfs = [
-    df[['レースID', '馬番', 'pred_score_1', 'is_win', 'オッズ', '単勝オッズ', '人気']],
+    df[['レースID', '馬番', 'pred_score_1', 'is_win', 'オッズ', '単勝オッズ']],
     df1[['レースID', '馬番', 'pred_score_2']],
     df2[['レースID', '馬番', 'pred_score_3']],
     df3[['レースID', '馬番', 'pred_score_4']],
-    df4[['レースID', '馬番', 'pred_score_5']],
-    # df5[['レースID', '馬番', 'pred_score_6']],
+    # df4[['レースID', '馬番', 'pred_score_5']],
+    df5[['レースID', '馬番', 'pred_score_6']],
 ]
 
 # 結合（左から順に）
@@ -207,10 +216,17 @@ train_df = reduce(
     dfs
 )
 
-df = load_csv(f'./csv/nakayama3_result_lgb_test_0.csv')
-df1 = load_csv(f'./csv/nakayama3_result_lgb2_test_0.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb3_test_0.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb4_test_0.csv')
+# df = load_csv(f'./csv/nakayama3_result_lgb_test_0.csv')
+# df1 = load_csv(f'./csv/nakayama3_result_lgb2_test_0.csv')
+# df2 = load_csv(f'./csv/nakayama3_result_lgb3_test_0.csv')
+# df3 = load_csv(f'./csv/nakayama3_result_lgb4_test_0.csv')
+# df4 = load_csv(f'./csv/nakayama3_result_ranknet_test_0.csv')
+# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_test_0.csv')
+
+df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_test_0.csv')
+df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_test_0.csv')
+df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_test_0.csv')
+df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_test_0.csv')
 df4 = load_csv(f'./csv/nakayama3_result_ranknet_test_0.csv')
 df5 = load_csv(f'./csv/nakayama3_result_ranknet2_test_0.csv')
 
@@ -229,8 +245,8 @@ dfs = [
     df1[['レースID', '馬番', 'pred_score_2']],
     df2[['レースID', '馬番', 'pred_score_3']],
     df3[['レースID', '馬番', 'pred_score_4']],
-    df4[['レースID', '馬番', 'pred_score_5']],
-    # df5[['レースID', '馬番', 'pred_score_6']],
+    # df4[['レースID', '馬番', 'pred_score_5']],
+    df5[['レースID', '馬番', 'pred_score_6']],
 ]
 
 # 結合（左から順に）
@@ -239,10 +255,17 @@ val_df = reduce(
     dfs
 )
 
-df = load_csv(f'./csv/nakayama3_result_lgb_2025_0.csv')
-df1 = load_csv(f'./csv/nakayama3_result_lgb2_2025_0.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb3_2025_0.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb4_2025_0.csv')
+# df = load_csv(f'./csv/nakayama3_result_lgb_2025_0.csv')
+# df1 = load_csv(f'./csv/nakayama3_result_lgb2_2025_0.csv')
+# df2 = load_csv(f'./csv/nakayama3_result_lgb3_2025_0.csv')
+# df3 = load_csv(f'./csv/nakayama3_result_lgb4_2025_0.csv')
+# df4 = load_csv(f'./csv/nakayama3_result_ranknet_2025_0.csv')
+# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_2025_0.csv')
+
+df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_2025_0.csv')
+df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_2025_0.csv')
+df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_2025_0.csv')
+df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv')
 df4 = load_csv(f'./csv/nakayama3_result_ranknet_2025_0.csv')
 df5 = load_csv(f'./csv/nakayama3_result_ranknet2_2025_0.csv')
 
@@ -259,8 +282,8 @@ dfs = [
     df1[['レースID', '馬番', 'pred_score_2']],
     df2[['レースID', '馬番', 'pred_score_3']],
     df3[['レースID', '馬番', 'pred_score_4']],
-    df4[['レースID', '馬番', 'pred_score_5']],
-    # df5[['レースID', '馬番', 'pred_score_6']],
+    # df4[['レースID', '馬番', 'pred_score_5']],
+    df5[['レースID', '馬番', 'pred_score_6']],
 ]
 
 # 結合（左から順に）
@@ -290,6 +313,7 @@ test_list = test_df.groupby("レースID").size().to_list()
 target_col = 'is_win'
 feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 print(feature_cols)
+# joblib.dump(feature_cols, "./pickle-dict/stacking_feature_cols.pkl")
 rate = 0.01
 seed = 1
 set_seed(seed)
@@ -336,8 +360,7 @@ best_params = tuner.best_params
 model = tuner.get_best_booster()
 
 # pklファイルとしてモデルを保存
-# with open(f"{tuner_path}{seed}.pickle", "wb") as mk:
-#     pickle.dump(model, mk)
+# joblib.dump(model, f"./model/stacking_model_lgb.pickle")
 
 # 学習後のモデル
 importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
@@ -534,5 +557,5 @@ print(f"的中数: {int(hit_count)}")
 print(f"的中率: {hit_count / len(top):.2%}")
 print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-val_df.to_csv(f'./csv/{field}_result_stacking_test_{fold}.csv', index=False)
-test_df.to_csv(f'./csv/{field}_result_stacking_2025_{fold}.csv', index=False)
+# val_df.to_csv(f'./csv/{field}_result_stacking2_test_{fold}.csv', index=False)
+# test_df.to_csv(f'./csv/{field}_result_stacking2_2025_{fold}.csv', index=False)

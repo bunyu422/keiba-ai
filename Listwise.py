@@ -928,7 +928,7 @@ def combined_roi_loss(preds, odds, is_win, alpha=0.5):
 # --- combined loss ---
 def combined_loss(preds, labels, odds, is_win, k=3, alpha=0.8):
     loss_rank = lambdarank_loss_at_k(preds, labels, k=k)
-    loss_ev = safe_ev_loss(preds, odds, is_win)
+    loss_ev = roi_policy_loss(preds, odds, is_win)
     
     # # スケール調整
     loss_ev = loss_ev / max(1.0, torch.abs(loss_ev))
@@ -1571,8 +1571,8 @@ if __name__ == '__main__':
 
         
         train_df, sire_mapping = target_encoding(train_df, '父馬', target_col)
-        with open(f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl', "wb") as dd:
-            pickle.dump(sire_mapping, dd)
+        # with open(f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl', "wb") as dd:
+        #     pickle.dump(sire_mapping, dd)
 
         # val/test は train 全体の mapping を使う
         val_df['父馬_te'] = val_df['父馬'].map(sire_mapping).fillna(-1)
@@ -1580,8 +1580,8 @@ if __name__ == '__main__':
         df_2025['父馬_te'] = df_2025['父馬'].map(sire_mapping).fillna(-1)
 
         train_df, j_mapping = target_encoding(train_df, '騎手', target_col)
-        with open(f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl', "wb") as dd:
-            pickle.dump(j_mapping, dd)
+        # with open(f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl', "wb") as dd:
+        #     pickle.dump(j_mapping, dd)
 
         # val/test は train 全体の mapping を使う
         val_df['騎手_te'] = val_df['騎手'].map(j_mapping).fillna(-1)
@@ -1608,7 +1608,7 @@ if __name__ == '__main__':
         df_2025[scale_cols] = scaler.transform(df_2025[scale_cols])
 
         # スケーラーを保存（モデルと同じディレクトリに置くのが一般的）
-        joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
+        # joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
 
         # === 0. データの前処理 ===
         # Nanの処理
@@ -1621,7 +1621,7 @@ if __name__ == '__main__':
         df_2025 = race_feature_test(df_2025, map_dict)
 
         # 保存
-        joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
+        # joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
 
         # print(val_df.head(30))
 
@@ -1646,10 +1646,10 @@ if __name__ == '__main__':
         # context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
         # context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
 
-        # joblib.dump(feature_cols, "./pickle-dict/feature_cols.pkl")
-        # joblib.dump(embedding_cols, "./pickle-dict/embedding_cols.pkl")
-        # joblib.dump(context_num_cols, "./pickle-dict/context_num_cols.pkl")
-        # joblib.dump(context_cat_cols, "./pickle-dict/context_cat_cols.pkl")
+        joblib.dump(feature_cols, "./pickle-dict/feature_cols.pkl")
+        joblib.dump(embedding_cols, "./pickle-dict/embedding_cols.pkl")
+        joblib.dump(context_num_cols, "./pickle-dict/context_num_cols.pkl")
+        joblib.dump(context_cat_cols, "./pickle-dict/context_cat_cols.pkl")
 
         # print(f"feature_cols: {feature_cols}")
         # print(f"embedding_cols: {embedding_cols}")
