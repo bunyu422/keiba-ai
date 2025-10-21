@@ -934,7 +934,7 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         # )
         
         # print(df["pred"].head(30))
-        selected = val_df.loc[val_df.groupby('レースID')['pred'].idxmax()]
+        selected = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
         # print(df["馬番"].head(10))
         
         # 検証用
@@ -957,7 +957,7 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         
         # # # # # 3. 下位除外
         # threshold = 0.9002883150000001
-        # selected = selected[selected['オッズ'] >= 3]
+        selected = selected[selected['オッズ'] >= 2]
         # selected = selected[selected['pred_score'] > threshold]
         # selected = selected[selected['expected_value'] > ev_threshold]
 
@@ -969,8 +969,8 @@ def evaluate_model_on_val_df(val_df, model_path, fold=0):
         # selected = selected[selected['オッズ'] > i]
         # print(selected[selected['着順'] == 1][['pred_score', 'オッズ', 'expected_value']])
         total_bet = len(selected) * 100
-        total_return = selected[selected['着順'] == 1]['単勝オッズ'].sum() *100
-        hit_count = (selected['着順'] == 1).sum()
+        total_return = selected['単勝オッズ'].sum()
+        hit_count = (selected['is_win'] == 1).sum()
         roi = total_return / total_bet
 
         print(f"\n[評価結果 - Fold {i}]")
@@ -1123,8 +1123,8 @@ if __name__ == '__main__':
     # ]
 
     csv_files = [
-        # f'./csv/nakayama3_result_stacking_2025_0.csv'
-        './csv/nakayama3_real_test.csv'
+        f'./csv/nakayama3_result_stacking2_2025_0.csv'
+        # './csv/nakayama3_real_test.csv'
     ]
 
     
