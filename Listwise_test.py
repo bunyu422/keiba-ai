@@ -1122,10 +1122,13 @@ if __name__ == '__main__':
     #     # './csv/nakayama3_result_lgb_test_4.csv'
     # ]
 
-    csv_files = [
-        f'./csv/nakayama3_result_stacking2_2025_0.csv'
-        # './csv/nakayama3_real_test.csv'
-    ]
+    # csv_files = [
+    #     f'./csv/nakayama3_result_stacking2_2025_0.csv',
+    #     f'./csv/nakayama3_result_stacking2_2025_1.csv',
+    #     f'./csv/nakayama3_result_stacking2_2025_2.csv',
+    #     f'./csv/nakayama3_result_stacking2_2025_3.csv',
+    #     f'./csv/nakayama3_result_stacking2_2025_4.csv',
+    # ]
 
     
     # csv_files = [
@@ -1190,21 +1193,21 @@ if __name__ == '__main__':
     #     './csv/nagoya_result_ranknet_test_4.csv'
     # ]
 
-    dfs = []
-    for i, path in enumerate(csv_files):
-        df_fold = pd.read_csv(path)
-        df_fold['fold'] = i
-        dfs.append(df_fold)
-        print(f"レース数: {len(df_fold['レースID'].unique())}")
+    # dfs = []
+    # for i, path in enumerate(csv_files):
+    #     df_fold = pd.read_csv(path)
+    #     df_fold['fold'] = i
+    #     dfs.append(df_fold)
+    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
 
-    df = pd.concat(dfs, ignore_index=True)
+    # df = pd.concat(dfs, ignore_index=True)
     # print(df['is_win'])
     # print(df['pred_score'])
     # print(df['着順'])
 
-    csv_files = [
-        f'./csv/nakayama3_result_stacking_test_0.csv'
-    ]
+    # csv_files = [
+    #     f'./csv/nakayama3_result_stacking_test_0.csv'
+    # ]
 
     # # csv_files = [
     # #     './csv/monbetu_result_ranknet_val_0.csv',
@@ -1214,14 +1217,14 @@ if __name__ == '__main__':
     # #     # './csv/monbetu_result_ranknet_test_4.csv'
     # # ]
 
-    dfs = []
-    for i, path in enumerate(csv_files):
-        df_fold = pd.read_csv(path)
-        df_fold['fold'] = i
-        dfs.append(df_fold)
-        print(f"レース数: {len(df_fold['レースID'].unique())}")
+    # dfs = []
+    # for i, path in enumerate(csv_files):
+    #     df_fold = pd.read_csv(path)
+    #     df_fold['fold'] = i
+    #     dfs.append(df_fold)
+    #     print(f"レース数: {len(df_fold['レースID'].unique())}")
 
-    df_val = pd.concat(dfs, ignore_index=True)
+    # df_val = pd.concat(dfs, ignore_index=True)
 
     # print(df['pred_score'].min())
     # print(df['pred_score'].max())
@@ -1271,6 +1274,27 @@ if __name__ == '__main__':
     # df_list = [pd.read_csv(file) for file in csv_files]
     # df = pd.concat(df_list, ignore_index=True)
     # print(f"レース数: {len(df['レースID'].unique())}")
+
+    # CSVファイル一覧
+    csv_files = [
+        './csv/nakayama3_result_stacking2_2025_0.csv',
+        './csv/nakayama3_result_stacking2_2025_1.csv',
+        './csv/nakayama3_result_stacking2_2025_2.csv',
+        './csv/nakayama3_result_stacking2_2025_3.csv',
+        './csv/nakayama3_result_stacking2_2025_4.csv',
+    ]
+
+    # 最初のCSVをベースに読み込み
+    df = pd.read_csv(csv_files[0])[['レースID', '馬番', 'pred_score']].rename(columns={'pred_score': 'pred_score_0'})
+
+    # 2つ目以降を順次マージ
+    for i, file in enumerate(csv_files[1:], 1):
+        tmp = pd.read_csv(file)[['レースID', '馬番', 'pred_score']].rename(columns={'pred_score': f'pred_score_{i}'})
+        df = df.merge(tmp, on=['レースID', '馬番'], how='inner')  # inner推奨（全fold共通の馬のみ）
+
+    # 各foldの予測スコアの平均を計算
+    pred_cols = [c for c in df.columns if c.startswith('pred_score_')]
+    df['pred_mean'] = df[pred_cols].mean(axis=1)
 
     val_df_result = evaluate_model_on_val_df(df, model_path='./model/tokyo_listnet_0.pth', fold=0)
 

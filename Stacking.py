@@ -173,7 +173,46 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.max_colwidth", None)
 
 field = "nakayama3"
-fold = 3
+fold = 4
+seed = 7 # fold 4 
+# seed = 4 # fold 0
+# seed = 1 # fold 2
+# seed = 6 # fold 1, 3
+
+# fold0 
+# [top評価結果2025]
+# レース数: 379
+# 的中数: 147
+# 的中率: 38.79%
+# 回収率: 104.49%（39600円 / 37900円）
+
+# fold1
+# [top評価結果2025]
+# レース数: 379
+# 的中数: 137
+# 的中率: 36.15%
+# 回収率: 96.91%（36730円 / 37900円）
+
+# fold2
+# [top評価結果2025]
+# レース数: 379
+# 的中数: 145
+# 的中率: 38.26%
+# 回収率: 100.05%（37920円 / 37900円）
+
+# fold3
+# [top評価結果2025]
+# レース数: 379
+# 的中数: 146
+# 的中率: 38.52%
+# 回収率: 94.41%（35780円 / 37900円）
+
+# fold4
+# [top評価結果2025]
+# レース数: 379
+# 的中数: 152
+# 的中率: 40.11%
+# 回収率: 108.68%（41190円 / 37900円）
 
 # df = load_csv(f'./csv/nakayama3_result_lgb_val_0.csv')
 # df1 = load_csv(f'./csv/nakayama3_result_lgb2_val_0.csv')
@@ -354,10 +393,7 @@ feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 
 print(feature_cols)
 joblib.dump(feature_cols, "./pickle-dict/stacking_feature_cols.pkl")
 rate = 0.01
-# seed = 7 # fold 4 
-# seed = 4 # fold 0
-# seed = 1 # fold 2
-seed = 6 # fold 1, 3
+
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
@@ -601,3 +637,4 @@ print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
 val_df.to_csv(f'./csv/{field}_result_stacking2_test_{fold}.csv', index=False)
 test_df.to_csv(f'./csv/{field}_result_stacking2_2025_{fold}.csv', index=False)
+
