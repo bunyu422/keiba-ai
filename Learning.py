@@ -471,6 +471,9 @@ def past_level(df_all, type='推論'):
         df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
         df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
     else:
+        df_all['平均クラス'] = np.nan
+        df_all['平均ペース'] = np.nan
+        
         df_all['平均クラス'] = df_all['1クラス'].mean().astype(int)
         df_all['平均ペース'] = df_all['1コーナー通過順'].mean()
 

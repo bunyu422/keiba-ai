@@ -173,207 +173,38 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.max_colwidth", None)
 
 field = "nakayama3"
-fold = 4
-seed = 7 # fold 4 
-# seed = 4 # fold 0
-# seed = 1 # fold 2
-# seed = 6 # fold 1, 3
 
-# fold0 
-# [top評価結果2025]
-# レース数: 379
-# 的中数: 147
-# 的中率: 38.79%
-# 回収率: 104.49%（39600円 / 37900円）
-
-# fold1
-# [top評価結果2025]
-# レース数: 379
-# 的中数: 137
-# 的中率: 36.15%
-# 回収率: 96.91%（36730円 / 37900円）
-
-# fold2
-# [top評価結果2025]
-# レース数: 379
-# 的中数: 145
-# 的中率: 38.26%
-# 回収率: 100.05%（37920円 / 37900円）
-
-# fold3
-# [top評価結果2025]
-# レース数: 379
-# 的中数: 146
-# 的中率: 38.52%
-# 回収率: 94.41%（35780円 / 37900円）
-
-# fold4
-# [top評価結果2025]
-# レース数: 379
-# 的中数: 152
-# 的中率: 40.11%
-# 回収率: 108.68%（41190円 / 37900円）
-
-# df = load_csv(f'./csv/nakayama3_result_lgb_val_0.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb2_val_0.csv')
-# df2 = load_csv(f'./csv/nakayama3_result_lgb3_val_0.csv')
-# df3 = load_csv(f'./csv/nakayama3_result_lgb4_val_0.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_val_0.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_val_0.csv')
-
-# df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_val_0.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_val_0.csv')
-# df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_val_0.csv')
-# df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_val_0.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_val_0.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_val_0.csv')
-# df6 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank@18_val_0.csv')
-# df7 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg@18_val_0.csv')
-# df8 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank@18_val_0.csv')
-
-# # pred_score列をリネームして区別
-# df  = df.rename(columns={'pred_score': 'pred_score_1'})
-# df1 = df1.rename(columns={'pred_score': 'pred_score_2'})
-# df2 = df2.rename(columns={'pred_score': 'pred_score_3'})
-# df3 = df3.rename(columns={'pred_score': 'pred_score_4'})
-# df4 = df4.rename(columns={'pred_score': 'pred_score_5'})
-# df5 = df5.rename(columns={'pred_score': 'pred_score_6'})
-# df6 = df6.rename(columns={'pred_score': 'pred_score_7'})
-# df7 = df7.rename(columns={'pred_score': 'pred_score_8'})
-# df8 = df8.rename(columns={'pred_score': 'pred_score_9'})
-
-# df  = df.rename(columns={'result1': 'result1_1', 'result2': 'result2_1', 'result3': 'result3_1', 'result4': 'result4_1', 'result5': 'result5_1'})
-# df3 = df3.rename(columns={'result1': 'result1_5', 'result2': 'result2_5', 'result3': 'result3_5', 'result4': 'result4_5', 'result5': 'result5_5'})
-
-# 必要な列だけを残す（is_winはどれか1つでOK）
-# 各dfで必要な列だけ残す（is_winは最初のdfだけでOK）
-# dfs = [
-#     df[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1', 'is_win', 'オッズ', '単勝オッズ']],
-#     # df1[['レースID', '馬番', 'pred_score_2']],
-#     # df2[['レースID', '馬番', 'pred_score_3']],
-#     df3[['レースID', '馬番', 'pred_score_4', 'result1_5', 'result2_5', 'result3_5', 'result4_5', 'result5_5']],
-#     # df4[['レースID', '馬番', 'pred_score_5']],
-#     # df5[['レースID', '馬番', 'pred_score_6']],
-#     # df6[['レースID', '馬番', 'pred_score_7']],
-#     # df7[['レースID', '馬番', 'pred_score_8']],
-#     # df8[['レースID', '馬番', 'pred_score_9']]
-# ]
-
-# # 結合（左から順に）
-from functools import reduce
-# train_df = reduce(
-#     lambda left, right: pd.merge(left, right, on=['レースID', '馬番'], how='inner'),
-#     dfs
-# )
-
-# df = load_csv(f'./csv/nakayama3_result_lgb_test_0.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb2_test_0.csv')
-# df2 = load_csv(f'./csv/nakayama3_result_lgb3_test_0.csv')
-# df3 = load_csv(f'./csv/nakayama3_result_lgb4_test_0.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_test_0.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_test_0.csv')
-
-df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_test_{fold}.csv')
-df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_test_{fold}.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_test_{fold}.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_test_{fold}.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_test_{fold}.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_test_{fold}.csv')
-# df6 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank@18_test_{fold}.csv')
-# df7 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg@18_test_{fold}.csv')
-# df8 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank@18_test_{fold}.csv')
-
-
-# pred_score列をリネームして区別
-df  = df.rename(columns={'pred_score': 'pred_score_1'})
-df1 = df1.rename(columns={'pred_score': 'pred_score_2'})
-df2 = df2.rename(columns={'pred_score': 'pred_score_3'})
-df3 = df3.rename(columns={'pred_score': 'pred_score_4'})
-# df4 = df4.rename(columns={'pred_score': 'pred_score_5'})
-# df5 = df5.rename(columns={'pred_score': 'pred_score_6'})
-# df6 = df6.rename(columns={'pred_score': 'pred_score_7'})
-# df7 = df7.rename(columns={'pred_score': 'pred_score_8'})
-# df8 = df8.rename(columns={'pred_score': 'pred_score_9'})
-
-df  = df.rename(columns={'result1': 'result1_1', 'result2': 'result2_1', 'result3': 'result3_1', 'result4': 'result4_1', 'result5': 'result5_1'})
-df2 = df2.rename(columns={'result1': 'result1_3', 'result2': 'result2_3', 'result3': 'result3_3', 'result4': 'result4_3', 'result5': 'result5_3'})
-df3 = df3.rename(columns={'result1': 'result1_5', 'result2': 'result2_5', 'result3': 'result3_5', 'result4': 'result4_5', 'result5': 'result5_5'})
-
-dfs = [
-    df[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1', 'is_win', 'オッズ', '単勝オッズ']],
-    # df1[['レースID', '馬番', 'pred_score_2']],
-    df2[['レースID', '馬番', 'pred_score_3', 'result1_3', 'result2_3', 'result3_3', 'result4_3', 'result5_3']],
-    df3[['レースID', '馬番', 'pred_score_4', 'result1_5', 'result2_5', 'result3_5', 'result4_5', 'result5_5']],
-    # df4[['レースID', '馬番', 'pred_score_5']],
-    # df5[['レースID', '馬番', 'pred_score_6']],
-    # df6[['レースID', '馬番', 'pred_score_7']],
-    # df7[['レースID', '馬番', 'pred_score_8']],
-    # df8[['レースID', '馬番', 'pred_score_9']]
+csv_files = [
+    f'./csv/nakayama3_result_stacking2_2025_{i}.csv' for i in range(5)
 ]
 
-# 結合（左から順に）
-val_df = reduce(
-    lambda left, right: pd.merge(left, right, on=['レースID', '馬番'], how='inner'),
-    dfs
-)
+dfs = [pd.read_csv(f) for f in csv_files]
+df = dfs[0][['レースID', '馬番', '単勝オッズ', 'is_win', 'オッズ']].copy()
 
-# df = load_csv(f'./csv/nakayama3_result_lgb_2025_0.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb2_2025_0.csv')
-# df2 = load_csv(f'./csv/nakayama3_result_lgb3_2025_0.csv')
-# df3 = load_csv(f'./csv/nakayama3_result_lgb4_2025_0.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_2025_0.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_2025_0.csv')
+# 各foldのスコアから順位を算出
+for i, d in enumerate(dfs):
+    df[f'pred_score_{i}'] = d['pred_score']
 
-df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_2025_{fold}.csv')
-df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_2025_{fold}.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_2025_{fold}.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_{fold}.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_2025_{fold}.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_2025_{fold}.csv')
-# df6 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank@18_2025_{fold}.csv')
-# df7 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg@18_2025_{fold}.csv')
-# df8 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank@18_2025_{fold}.csv')
+# val_df = df[df['レースID'].astype(str).str[:4] == "2024"].reset_index(drop=True)
+# test_df = df[df['レースID'].astype(str).str[:4] != "2024"].reset_index(drop=True)
 
-# pred_score列をリネームして区別
-df  = df.rename(columns={'pred_score': 'pred_score_1'})
-df1 = df1.rename(columns={'pred_score': 'pred_score_2'})
-df2 = df2.rename(columns={'pred_score': 'pred_score_3'})
-df3 = df3.rename(columns={'pred_score': 'pred_score_4'})
-# df4 = df4.rename(columns={'pred_score': 'pred_score_5'})
-# df5 = df5.rename(columns={'pred_score': 'pred_score_6'})
-# df6 = df6.rename(columns={'pred_score': 'pred_score_7'})
-# df7 = df7.rename(columns={'pred_score': 'pred_score_8'})
-# df8 = df8.rename(columns={'pred_score': 'pred_score_9'})
+# group_col = "レースID" など、グループを示すカラム名を指定
+group_col = "レースID"
 
-df  = df.rename(columns={'result1': 'result1_1', 'result2': 'result2_1', 'result3': 'result3_1', 'result4': 'result4_1', 'result5': 'result5_1'})
-df2 = df2.rename(columns={'result1': 'result1_3', 'result2': 'result2_3', 'result3': 'result3_3', 'result4': 'result4_3', 'result5': 'result5_3'})
-df3 = df3.rename(columns={'result1': 'result1_5', 'result2': 'result2_5', 'result3': 'result3_5', 'result4': 'result4_5', 'result5': 'result5_5'})
+# レースIDを昇順に並べる（古い→新しい）
+race_ids = sorted(df[group_col].unique())
 
-dfs = [
-    df[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1', 'is_win', 'オッズ', '単勝オッズ']],
-    # df1[['レースID', '馬番', 'pred_score_2']],
-    df2[['レースID', '馬番', 'pred_score_3', 'result1_3', 'result2_3', 'result3_3', 'result4_3', 'result5_3']],
-    df3[['レースID', '馬番', 'pred_score_4', 'result1_5', 'result2_5', 'result3_5', 'result4_5', 'result5_5']],
-    # df4[['レースID', '馬番', 'pred_score_5']],
-    # df5[['レースID', '馬番', 'pred_score_6']],
-    # df6[['レースID', '馬番', 'pred_score_7']],
-    # df7[['レースID', '馬番', 'pred_score_8']],
-    # df8[['レースID', '馬番', 'pred_score_9']]
-]
+# 分割位置を決定（例：3:1）
+split_idx = int(len(race_ids) * 0.75)
 
-# 結合（左から順に）
-test_df = reduce(
-    lambda left, right: pd.merge(left, right, on=['レースID', '馬番'], how='inner'),
-    dfs
-)
+# val/test用のレースIDを取得
+val_races = race_ids[:split_idx]
+test_races = race_ids[split_idx:]
 
-# for i in range(1, 6):
-#     try:
-#         train_df = add_score_diff_features(train_df, i, target_col=f'pred_score_{i}')
-#         val_df = add_score_diff_features(val_df, i, target_col=f'pred_score_{i}')
-#         test_df = add_score_diff_features(test_df, i, target_col=f'pred_score_{i}')
-#     except:
-#         pass
+# データを分割（レース単位）
+val_df = df[df[group_col].isin(val_races)].reset_index(drop=True)
+test_df = df[df[group_col].isin(test_races)].reset_index(drop=True)
+
 
 # train_df = add_pred_features(train_df)
 val_df = add_pred_features(val_df)
@@ -391,9 +222,9 @@ test_list = test_df.groupby("レースID").size().to_list()
 target_col = 'is_win'
 feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 print(feature_cols)
-# joblib.dump(feature_cols, "./pickle-dict/stacking_feature_cols.pkl")
+joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
 rate = 0.01
-
+seed = 4
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
@@ -438,7 +269,7 @@ best_params = tuner.best_params
 model = tuner.get_best_booster()
 
 # pklファイルとしてモデルを保存
-# joblib.dump(model, f"./model/stacking_model_lgb_fold{fold}.pickle")
+joblib.dump(model, f"./model/stacking_fold_model_lgb.pickle")
 
 # 学習後のモデル
 importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
@@ -454,10 +285,10 @@ feat_imp_df = pd.DataFrame({
 
 print(feat_imp_df)  # 上位20特徴量
 
-plt.figure(figsize=(10,6))
-sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
-plt.title("Top 20 Feature Importance (LambdaRank)")
-plt.show()
+# plt.figure(figsize=(10,6))
+# sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
+# plt.title("Top 20 Feature Importance (LambdaRank)")
+# plt.show()
 
 ####### 第二学習 ########
 # y_pred = model.predict(val_df[feature_cols])
@@ -635,6 +466,6 @@ print(f"的中数: {int(hit_count)}")
 print(f"的中率: {hit_count / len(top):.2%}")
 print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-# val_df.to_csv(f'./csv/{field}_result_stacking2_test_{fold}.csv', index=False)
-# test_df.to_csv(f'./csv/{field}_result_stacking2_2025_{fold}.csv', index=False)
+val_df.to_csv(f'./csv/{field}_result_stacking_fold_test.csv', index=False)
+test_df.to_csv(f'./csv/{field}_result_stacking_fold_2025.csv', index=False)
 

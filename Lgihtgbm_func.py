@@ -1,3 +1,4 @@
+from functools import reduce
 import pickle
 from ssl import Options
 from bs4 import BeautifulSoup
@@ -25,31 +26,15 @@ pd.set_option("display.max_colwidth", None)
 # 小数点をすべて表示（指数表記なし）
 pd.set_option('display.float_format', lambda x: f'{x:.16f}'.rstrip('0').rstrip('.'))
 
-def get_race_predict(race_id, field, field_num, odds, central, fold):
-    df = get_race_info(race_id, field, field_num, odds, central, fold)
-    train_df = df.copy()
-    df['pred_score_1'] = predict_lgb(train_df, 'nakayama3', 'reg-to-rank', 0)
-    df['pred_score_2'] = predict_lgb(train_df, 'nakayama3', 'rank-to-reg', 0)
-    df['pred_score_3'] = predict_lgb(train_df, 'nakayama3', 'reg-to-reg', 0)
-    df['pred_score_4'] = predict_lgb(train_df, 'nakayama3', 'rank-to-rank', 0)
-    df['pred_score_6'] = predict_listnet(train_df, 'nakayama3', 0)
+def get_race_predict(race_id, field, field_num, odds, central):
+    dfs = get_race_info(race_id, field, field_num, odds, central)
+    
+    result_df = predict_lgb(dfs, field)
+    
+    result_df = result_df.sort_values('pred_score', ascending=False)
+    print(result_df[[ 'レースID', '馬番', 'pred_score']])
 
-    df = add_pred_features(df)
-    feature_cols = joblib.load("./pickle-dict/stacking_feature_cols.pkl")
-
-    model = joblib.load(f"./model/stacking_model_lgb.pickle")
-
-    print(df[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-
-    df['pred'] = model.predict(df[feature_cols])
-    df['馬番'] = df['馬番'].astype(int) + 1
-    df = df.sort_values('pred', ascending=False)
-    # print(df['pred'])
-
-    if df.iloc[0]['オッズ'] >= 3:
-        return df.iloc[0]['馬番']
-    else:
-        return None
+    return result_df.iloc[0]['馬番']
 
 def add_pred_features(df, prefix="pred"):
     """
@@ -138,7 +123,7 @@ def add_score_diff_features(df):
 
 
 
-def get_race_info(race_id, field, field_num, odds, central, fold):
+def get_race_info(race_id, field, field_num, odds, central):
     # ----------------------------
     # 基本設定
     # ----------------------------
@@ -238,30 +223,46 @@ def get_race_info(race_id, field, field_num, odds, central, fold):
     if field == 'nakayama':
         field = 'nakayama3'
     
-    pkl_path = f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl'
-    with open(pkl_path, "rb") as f:
-        sire_mapping = pickle.load(f)
-    df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
-
-    pkl_path = f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl'
-    with open(pkl_path, "rb") as f:
-        j_mapping = pickle.load(f)
-    df['騎手_te'] = df['騎手'].map(j_mapping).fillna(-1)
-
     # ----------------------------
+    # dfをfold毎に分ける
+    # ----------------------------
+
+    df = df.copy()
+    df1 = df.copy()
+    df2 = df.copy()
+    df3 = df.copy()
+    df4 = df.copy()
+    
+    # ----------------------------
+    # ターゲットエンコーディング
     # 標準化・欠損値処理
     # ----------------------------
-    # with open('log.txt', 'a', encoding='utf-8') as f:
-    #     print(df, file=f)
-    feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
-    scaler = joblib.load(f"./model/scaler_{field}_fold{fold}.pkl")
-    df[Listwise.scale_cols] = scaler.transform(df[Listwise.scale_cols])
-    df = Listwise.fill_nan(df, feature_cols)
 
-    map_dict = joblib.load(f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
-    df = Listwise.race_feature_test(df, map_dict)
+    dfs = [df, df1, df2, df3, df4]
+    feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
+
+    for fold, d in enumerate(dfs):
+        d = mapping(d, '父馬', f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl')
+        d = mapping(d, '騎手', f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl')
+        scaler = joblib.load(f"./model/scaler_{field}_fold{fold}.pkl")
+        d[Listwise.scale_cols] = scaler.transform(d[Listwise.scale_cols])
+        d = Listwise.fill_nan(d, feature_cols)
+        map_dict = joblib.load(f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
+        d = Listwise.race_feature_test(d, map_dict)
+
+        # ✅ 修正: 更新したDataFrameをリストに戻す
+        dfs[fold] = d
+    
     # with open("log.txt", "a", encoding="utf-8") as f:
     #     f.write(df.to_string())
+
+    return dfs
+
+def mapping(df, target, path):
+    df = df.copy()
+    with open(path, "rb") as f:
+        mapping = pickle.load(f)
+    df[f'{target}_te'] = df[target].map(mapping).fillna(-1)
 
     return df
 
@@ -314,64 +315,142 @@ def predict_listnet(
 
     return predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
 
-def predict_lgb(df, field, model_type, fold):
-    df = df.copy()
-    not_pop = joblib.load(f"./model/clf_ninki_input_{field}.pkl")
-    clf = joblib.load(f"./model/clf_ninki_model_{field}_fold{fold}.pkl")
+def predict_lgb(dfs, field):
+    answer = pd.read_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_2025_0.csv', index_col=0)
+    answer = answer.reset_index()
+    answer = answer[answer['レースID'] == 202506030809]
+    answer = answer.sort_values(by=['馬番'])
+    # dfs[0] = dfs[0].sample(frac=1).reset_index(drop=True)
 
-    pred_pop = clf.predict(df[not_pop])
-    df['人気'] = df['人気'].astype(float) - pred_pop
-    # print(df['人気'])
+    if field == 'nakayama':
+        field = 'nakayama3'
+    not_pop = joblib.load(f"./model/clf_ninki_input_{field}.pkl")
+    for fold, d in enumerate(dfs):
+        clf = joblib.load(f"./model/clf_ninki_model_{field}_fold{fold}.pkl")
+
+        pred_pop = clf.predict(d[not_pop])
+        d['人気'] = d['人気'].astype(float).to_numpy() - pred_pop
+
+        # ✅ 修正: 更新したDataFrameをリストに戻す
+        dfs[fold] = d
+    
+    # 除外したいカラム
+    exclude_cols = ["1人気", "2人気", "3人気", "4人気", "5人気"]
+
+    # not_popをロードして除外
+    not_pop = [c for c in not_pop if c not in exclude_cols]
+
+    # 差異チェック
+    df1 = dfs[0][not_pop].reset_index(drop=True)
+    df2 = answer[not_pop].reset_index(drop=True)
+
+    # 行数・列数チェック
+    if df1.shape != df2.shape:
+        print(f"⚠️ 形が違います: dfs[0]={df1.shape}, answer={df2.shape}")
+    else:
+        # 値の一致確認
+        diff = (df1 != df2) & ~(df1.isna() & df2.isna())
+        if diff.any().any():
+            print("⚠️ 一致しないセルがあります。")
+            # 差分のある箇所を抽出（最大5箇所）
+            rows, cols = np.where(diff)
+            for r, c in zip(rows, cols):
+                col = df1.columns[c]
+                print(f"行{r}, 列'{col}': dfs[0]={df1.iloc[r][col]}, answer={df2.iloc[r][col]}")
+        else:
+            print("✅ 完全一致しています！")
+
+    # with open("log.txt", "a", encoding="utf-8") as f:
+    #     f.write(answer.sort_values(by=['馬番'])[['馬番','人気']].to_string())
+    #     f.write(dfs[0].sort_values(by=['馬番'])[['馬番','人気']].to_string())
+
+    for i in range(1, 6):
+        not_pop = joblib.load(f"./model/clf_ninki{i}_input_{field}.pkl")
+        for fold, d in enumerate(dfs):
+            clf = joblib.load(f"./model/clf_ninki{i}_model_{field}_fold{fold}.pkl")
+
+            pred_pop = clf.predict(d[not_pop])
+            d[f'{i}人気'] = d[f'{i}人気'].astype(float) - pred_pop
+
+    
 
     feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
+    type_list = ['reg-to-rank', 'reg-to-reg', 'rank-to-rank']
+    dfs_list = [dfs, dfs.copy(), dfs.copy()]
 
-    model = joblib.load(f"./model/{field}_first_model_lgb_{model_type}_{fold}.pickle")
+    for model_type, dfs_l in zip(type_list, dfs_list): # for type in type_list:
+        for fold, d in enumerate(dfs_l):
+            model = joblib.load(f"./model/{field}_first_model_lgb_{model_type}_{fold}.pickle")
+            d['pred_score'] = model.predict(d[feature_cols])
+
+            # ✅ 修正: 更新したDataFrameをリストに戻す
+            dfs_list[type_list.index(model_type)][fold] = d
+
+
     # print(df[feature_cols])
     # with open("log.txt", "a", encoding="utf-8") as f:
     #     f.write(df.head(16)[['レースID', '馬番', '人気']].to_string())
 
-    df['pred_score'] = model.predict(df[feature_cols])
-    # print(df['pred_score'])
     
-    df = add_score_diff_features(df)
+    # print(df['pred_score'])
 
-    # cols = [
-    #         # 差分・順位系
-    #         'rank_in_race',
-    #         'score_diff_prev',
-    #         'score_diff_next',
-    #         'score_diff_top1',
-    #         'score_diff_top3_mean',
-
-    #         # 統計・分布系
-    #         'score_mean',
-    #         'score_std',
-    #         'score_range',
-    #         'score_cv',
-    #         'score_minus_mean',
-    #         'score_minus_mean_std',
-
-    #         # 正規化・確率化
-    #         'score_relative',
-    #         'score_softmax',
-    #         'score_z',
-
-    #         # 分布特性（レース単位）
-    #         'score_entropy',
-    #         'score_top_mean',
-    #         'score_bottom_mean',
-    #         'score_top_bottom_diff',
-    #         'score_top_ratio',
-    #         'score_rank_gap_ratio'
-    #     ]
-    # print(df[cols])
+    for i, dfs_l in enumerate(dfs_list):
+        for k, d in enumerate(dfs_l):
+            dfs_list[i][k] = add_score_diff_features(d)
 
     feature_cols = joblib.load("./pickle-dict/lgb_cols_second.pkl")
 
-    second_model = joblib.load(f"./model/{field}_second_model_lgb_{model_type}_{fold}.pickle")
+    for model_type, dfs_l in zip(type_list, dfs_list): # for type in type_list:
+        for fold, d in enumerate(dfs_l):
+            for seed in range(1, 6):
+                model = joblib.load(f"./model/{field}_second_model_lgb_{model_type}_seed{seed}_{fold}.pickle")
+                dfs_list[type_list.index(model_type)][fold][f'result{seed}'] = model.predict(d[feature_cols])
+
     # print(df[feature_cols].head(1))
 
-    return second_model.predict(df[feature_cols])
+
+    feature_cols = joblib.load("./pickle-dict/stacking_feature_cols.pkl")
+    result_df = dfs_list[0][fold][['レースID', '馬番']].copy()
+    for fold in range(5):
+        df = dfs_list[0][fold].copy()
+        df2 = dfs_list[1][fold].copy()
+        df3 = dfs_list[2][fold].copy()
+
+        # pred_score列をリネームして区別
+        df  = df.rename(columns={'pred_score': 'pred_score_1'})
+        df2 = df2.rename(columns={'pred_score': 'pred_score_3'})
+        df3 = df3.rename(columns={'pred_score': 'pred_score_4'})
+
+        df  = df.rename(columns={'result1': 'result1_1', 'result2': 'result2_1', 'result3': 'result3_1', 'result4': 'result4_1', 'result5': 'result5_1'})
+        df2 = df2.rename(columns={'result1': 'result1_3', 'result2': 'result2_3', 'result3': 'result3_3', 'result4': 'result4_3', 'result5': 'result5_3'})
+        df3 = df3.rename(columns={'result1': 'result1_5', 'result2': 'result2_5', 'result3': 'result3_5', 'result4': 'result4_5', 'result5': 'result5_5'})
+
+        temp_dfs = [
+            df[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1']],
+            df2[['レースID', '馬番', 'pred_score_3', 'result1_3', 'result2_3', 'result3_3', 'result4_3', 'result5_3']],
+            df3[['レースID', '馬番', 'pred_score_4', 'result1_5', 'result2_5', 'result3_5', 'result4_5', 'result5_5']],
+        ]
+        # 結合（左から順に）
+        temp_df = reduce(
+            lambda left, right: pd.merge(left, right, on=['レースID', '馬番'], how='inner'),
+            temp_dfs
+        )
+
+        temp_df = add_pred_features(temp_df)
+
+        model = joblib.load(f"./model/stacking_model_lgb_fold{fold}.pickle")
+
+        result_df[f'pred_score_{fold}'] = model.predict(temp_df[feature_cols])
+
+
+    result_df = add_pred_features(result_df)
+    feature_cols = joblib.load("./pickle-dict/stacking_fold_feature_cols.pkl")
+    model = joblib.load("./model/stacking_fold_model_lgb.pickle")
+
+    result_df['pred_score'] = model.predict(result_df[feature_cols])
+    result_df['馬番'] = result_df['馬番'].astype(int) + 1
+
+    return result_df
 
 def predict_new_data(model, df_new, feature_cols, cat_features, context_num_features, context_cat_features, device="cuda"):
     """
@@ -415,21 +494,22 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
     return pred_score.detach().cpu().numpy()
 
 if __name__ == "__main__":
-    df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
-    # df = pd.read_csv(f'./csv/nakayama3_result_stacking2_2025_0.csv', index_col=0)
+    # df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
+    # df = pd.read_csv(f'./csv/nakayama3_result_stacking_fold_2025.csv', index_col=0)
     
     # df = df.reset_index()
+    # df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     
-    feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
+    # feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
     # print(feature_cols)
     # not_pop = joblib.load(f"./model/clf_ninki_input_nakayama3.pkl")
     # print(df.head(1)[not_pop])
     # print(df.head(16)[feature_cols])
     # with open("log.txt", "a", encoding="utf-8") as f:
     #     f.write(df.head(16).to_string())
-    # print(df.head(16)[['レースID', '馬番','pred_score_1']])
+    # print(df.head(20)[['レースID', '馬番','pred_score']])
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central, fold = 202506010101, 'nakayama', 1, 0, True, 0
-    odds = [231.3, 50.1, 12.0, 8.4, 196.9, 75.8, 11.6, 211.8, 131.9, 2.8, 2.5, 7.3, 156.0, 189.5, 556.3, 73.0]
+    race_id, field, field_num, odds, central = 202506030809, 'nakayama', 1, 0, True
+    odds = [231.3, 50.1, 12.0, 8.4, 196.9, 75.8, 11.6, 211.8, 131.9, 2.8, 2.5, 7.3]
     # get_race_predict(race_id, field, field_num, odds, central, fold)
-    print(get_race_predict(race_id, field, field_num, odds, central, fold))
+    print(get_race_predict(race_id, field, field_num, odds, central))
