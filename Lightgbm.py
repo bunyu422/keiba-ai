@@ -91,7 +91,10 @@ def add_score_diff_features(df):
     new_rows = []
 
     for race_id, race in df.groupby('レースID'):
-        race = race.sort_values('pred_score', ascending=False).reset_index(drop=True)
+        race = race.sort_values(
+            by=['pred_score', '馬番'],  # 第二ソートキーを指定
+            ascending=[False, True]     # pred_scoreは降順、馬番は昇順
+        ).reset_index(drop=True)
         
         mean_score = race['pred_score'].mean()
         std_score = race['pred_score'].std() if race['pred_score'].std() != 0 else 1e-6
@@ -231,14 +234,14 @@ if __name__ == '__main__':
         # print("有効サンプル数:", train_df[scale_cols].notna().sum())
 
         # === 7. 特徴量スケーリング ===
-        scaler = StandardScaler()
-        train_df[lw.scale_cols] = scaler.fit_transform(train_df[lw.scale_cols])
-        val_df[lw.scale_cols] = scaler.transform(val_df[lw.scale_cols])
-        test_df[lw.scale_cols] = scaler.transform(test_df[lw.scale_cols])
-        df_2025[lw.scale_cols] = scaler.transform(df_2025[lw.scale_cols])
+        # scaler = StandardScaler()
+        # train_df[lw.scale_cols] = scaler.fit_transform(train_df[lw.scale_cols])
+        # val_df[lw.scale_cols] = scaler.transform(val_df[lw.scale_cols])
+        # test_df[lw.scale_cols] = scaler.transform(test_df[lw.scale_cols])
+        # df_2025[lw.scale_cols] = scaler.transform(df_2025[lw.scale_cols])
 
-        # スケーラーを保存（モデルと同じディレクトリに置くのが一般的）
-        joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
+        # # スケーラーを保存（モデルと同じディレクトリに置くのが一般的）
+        # joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
 
         # === 0. データの前処理 ===
         # Nanの処理
@@ -250,12 +253,17 @@ if __name__ == '__main__':
         test_df = lw.race_feature_test(test_df, map_dict)
         df_2025 = lw.race_feature_test(df_2025, map_dict)
 
-        train_df, val_df, test_df, df_2025 = oof_ridge('人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki")
-        train_df, val_df, test_df, df_2025 = oof_ridge('1人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki1")
-        train_df, val_df, test_df, df_2025 = oof_ridge('2人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki2")
-        train_df, val_df, test_df, df_2025 = oof_ridge('3人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki3")
-        train_df, val_df, test_df, df_2025 = oof_ridge('4人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki4")
-        train_df, val_df, test_df, df_2025 = oof_ridge('5人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki5")
+        train_df = train_df.round(10)
+        val_df = val_df.round(10)
+        test_df = test_df.round(10)
+        df_2025 = df_2025.round(10)
+
+        # train_df, val_df, test_df, df_2025 = oof_ridge('人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki")
+        # train_df, val_df, test_df, df_2025 = oof_ridge('1人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki1")
+        # train_df, val_df, test_df, df_2025 = oof_ridge('2人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki2")
+        # train_df, val_df, test_df, df_2025 = oof_ridge('3人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki3")
+        # train_df, val_df, test_df, df_2025 = oof_ridge('4人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki4")
+        # train_df, val_df, test_df, df_2025 = oof_ridge('5人気', train_df, val_df, test_df, df_2025, feature_cols, "ninki5")
 
         # 保存
         joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
@@ -367,9 +375,9 @@ if __name__ == '__main__':
         df_2025['pred_score'] = y_pred
 
         # print("test len",len(test_df))
-        val_df = add_score_diff_features(val_df)
-        test_df = add_score_diff_features(test_df)
-        df_2025 = add_score_diff_features(df_2025)
+        val_df = add_score_diff_features(val_df).round(10)
+        test_df = add_score_diff_features(test_df).round(10)
+        df_2025 = add_score_diff_features(df_2025).round(10)
         # print("test len",len(test_df))
 
         feature_cols = [col for col in val_df.columns if col not in ['label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
@@ -501,13 +509,13 @@ if __name__ == '__main__':
         # # テストデータの予測 (予測クラスを返す)
         # y_pred = model.predict(df_2025[feature_cols])
         # df_2025['pred_score'] = y_pred
-        test_df['pred_score'] = test_df[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1)
+        test_df['pred_score_second'] = test_df[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
         # print("test len",len(test_df))
 
         # テストデータの予測 (予測クラスを返す)
-        df_2025['pred_score'] = df_2025[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1)
+        df_2025['pred_score_second'] = df_2025[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
 
-        test_df['expected_value'] = test_df['pred_score'] * test_df['オッズ']
+        test_df['expected_value'] = test_df['pred_score_second'] * test_df['オッズ']
         selected = test_df.loc[test_df.groupby('レースID')['expected_value'].idxmax()]
         print("select len",len(selected))
         total_bet = len(selected) * 100
@@ -522,7 +530,7 @@ if __name__ == '__main__':
         print(f"的中率: {hit_count / len(selected):.2%}")
         print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
         
-        df_2025['expected_value'] = df_2025['pred_score'] * df_2025['オッズ']
+        df_2025['expected_value'] = df_2025['pred_score_second'] * df_2025['オッズ']
         selected = df_2025.loc[df_2025.groupby('レースID')['expected_value'].idxmax()]
 
         total_bet = len(selected) * 100
@@ -537,7 +545,7 @@ if __name__ == '__main__':
         print(f"的中率: {hit_count / len(selected):.2%}")
         print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-        top = df_2025.loc[df_2025.groupby('レースID')['pred_score'].idxmax()]
+        top = df_2025.loc[df_2025.groupby('レースID')['pred_score_second'].idxmax()]
 
         # # 1. 各レースで予想順位を付ける（スコアが高いほど1位）
         # df_2025['pred_rank'] = df_2025.groupby('レースID')['pred_score'] \
@@ -566,7 +574,7 @@ if __name__ == '__main__':
         print(f"的中率: {hit_count / len(top):.2%}")
         print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-        top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
+        top = test_df.loc[test_df.groupby('レースID')['pred_score_second'].idxmax()]
 
         # 1. 各レースで予想順位を付ける（スコアが高いほど1位）
         # test_df['pred_rank'] = test_df.groupby('レースID')['pred_score'] \

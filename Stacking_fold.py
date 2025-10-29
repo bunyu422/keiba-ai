@@ -7,6 +7,15 @@ import optuna.integration.lightgbm as lgb
 import torch
 import seaborn as sns
 
+# 行を全表示（行の数）
+pd.set_option("display.max_rows", None)
+# 列を全表示（列の数）
+pd.set_option("display.max_columns", None)
+# セルの文字列を省略せずに全部表示
+pd.set_option("display.max_colwidth", None)
+# 小数点をすべて表示（指数表記なし）
+pd.set_option('display.float_format', lambda x: f'{x:.16f}'.rstrip('0').rstrip('.'))
+
 def add_score_diff_features(df):
     """
     pred_score（モデルのスコア）を用いてレース内の相対的特徴量を追加する。
@@ -15,7 +24,10 @@ def add_score_diff_features(df):
     new_rows = []
 
     for race_id, race in df.groupby('レースID'):
-        race = race.sort_values('pred_score', ascending=False).reset_index(drop=True)
+        race = race.sort_values(
+            by=['pred_score', '馬番'],  # 第二ソートキーを指定
+            ascending=[False, True]     # pred_scoreは降順、馬番は昇順
+        ).reset_index(drop=True)
         
         mean_score = race['pred_score'].mean()
         std_score = race['pred_score'].std() if race['pred_score'].std() != 0 else 1e-6
@@ -207,8 +219,8 @@ test_df = df[df[group_col].isin(test_races)].reset_index(drop=True)
 
 
 # train_df = add_pred_features(train_df)
-val_df = add_pred_features(val_df)
-test_df = add_pred_features(test_df)
+val_df = add_pred_features(val_df).round(10)
+test_df = add_pred_features(test_df).round(10)
 
 # グルーピング
 # train_df = train_df.sort_values(["レースID"]).reset_index(drop=True)
@@ -223,8 +235,8 @@ target_col = 'is_win'
 feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 print(feature_cols)
 joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
-rate = 0.01
-seed = 4
+rate = 0.1
+seed = 4 # 4
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
@@ -267,6 +279,7 @@ tuner.run()
 
 best_params = tuner.best_params
 model = tuner.get_best_booster()
+print(best_params)
 
 # pklファイルとしてモデルを保存
 joblib.dump(model, f"./model/stacking_fold_model_lgb.pickle")
@@ -409,6 +422,7 @@ print(f"的中率: {hit_count / len(selected):.2%}")
 print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
 top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
+
 
 # # 1. 各レースで予想順位を付ける（スコアが高いほど1位）
 # df_2025['pred_rank'] = df_2025.groupby('レースID')['pred_score'] \

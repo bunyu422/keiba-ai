@@ -68,6 +68,18 @@ def convert_to_float_if_possible(df):
             pass  # 変換できなかった列は無視
     return df_converted
 
+def time_to_seconds(s):
+    """
+    安定変換: '1:34.5' → 94.5 秒
+    """
+    if pd.isna(s):
+        return np.nan
+    s = str(s).strip()
+    if not re.match(r'^\d+:\d+(\.\d+)?$', s):
+        return np.nan
+    m, sec = s.split(':')
+    return int(m) * 60 + float(sec)
+
 # スクレイピング
 def scraping(csv_path, no, start, end):
     df = pd.DataFrame()
@@ -116,8 +128,13 @@ def scraping(csv_path, no, start, end):
                         df_result_past['馬単'] = data3
                         df_result_past['レース名'] = data4.replace('\n', '')
                         print(url_race)
-                        time.sleep(1)
+                        sleep_time = random.uniform(0.5, 2.0)
+                        time.sleep(sleep_time)
+                        # time.sleep(1)
                     except:
+                        if race_no == 1:
+                            print("no:"+url_race)
+                            break
                         continue
                     df_result_past['レースID'] = race_id
                     df = pd.concat([df, df_result_past])
@@ -276,6 +293,11 @@ def return_pickle(file_path):
 def df_first_processing(df, name, type='推論'):
     horse_path = f"./pickle-dict/horse_jra_{name}.pkl" # 父馬のマッピング用辞書のパス
     jockey_path = f"./pickle-dict/jockey_jra_{name}.pkl" # 騎手のマッピング用辞書のパス
+    if type != '推論':
+        # 着順から文字列を排除
+        # indexNames = df[(df['着順'] != '中止') & (df['着順'] != '除外') & (df['着順'] != '取消') & (df['着順'] != '失格') & (df['着順'] != '未定')]
+        indexNames = df[(df['着順'] != '除外') & (df['着順'] != '取消') & (df['着順'] != '未定')]
+        df = indexNames
 
     df = df.copy()
     # 新たなカラムを作成
@@ -371,8 +393,24 @@ def df_big_past_processing(df, name, field_num):
     for sou in range(1, 6):
         sou = str(sou)
         if int(sou) == 1:
+            df['前走'] = (
+                df['前走']
+                .astype(str)
+                .str.replace(r'\s+', ' ', regex=True)        # 連続スペース → 1つの半角スペースに
+                .str.replace(u'\u3000', ' ', regex=False)    # 全角スペース → 半角スペースに
+                .str.replace(u'\xa0', ' ', regex=False)      # ノーブレークスペース → 半角スペースに
+                .str.strip()                                 # 前後の空白除去
+            )
             df_split = df['前走'].astype('object').str.extract(r'(\d{4}.\d{2}.\d{2})\s(\w+)\s(\d*)(.*)([ダ|芝])(\d+).*(\d:\d{2}.\d)\s(\w)\s(\d*)頭\s(\d*)番\s(\d*)人\s(\w+)\s(\d{2}[.]\d)(.+)(\d{2}[.]\d).\s(\d{3}).([+-0]\d*).+\((-?\d*.\d{1})', expand=True)
         else:
+            df[sou+'走'] = (
+                df[sou+'走']
+                .astype(str)
+                .str.replace(r'\s+', ' ', regex=True)        # 連続スペース → 1つの半角スペースに
+                .str.replace(u'\u3000', ' ', regex=False)    # 全角スペース → 半角スペースに
+                .str.replace(u'\xa0', ' ', regex=False)      # ノーブレークスペース → 半角スペースに
+                .str.strip()                                 # 前後の空白除去
+            )
             df_split = df[sou+'走'].astype('object').str.extract(r'(\d{4}.\d{2}.\d{2})\s(\w+)\s(\d*)(.*)([ダ|芝])(\d+).*(\d:\d{2}.\d)\s(\w)\s(\d*)頭\s(\d*)番\s(\d*)人\s(\w+)\s(\d{2}[.]\d)(.+)(\d{2}[.]\d).\s(\d{3}).([+-0]\d*).+\((-?\d*.\d{1})', expand=True)
         df_split.columns = ['日付', sou+'場所', sou+'過去着順', sou+'レース名', sou+'フィールド', sou+'距離', sou+'タイム', sou+'馬場', sou+'出走馬数', sou+'馬番', sou+'人気', sou+'騎手', sou+'斤量', sou+'コーナー通過順', sou+'後3F', sou+'馬体重', sou+'体重増減', sou+'着差']
 
@@ -400,8 +438,9 @@ def df_big_past_processing(df, name, field_num):
         df_split[sou+'騎手'] = df_split[sou+'騎手'].map(jockey_mapping)
 
         # タイムを秒表記にする
-        df_split[sou+'タイム'] = pd.to_datetime(df_split[sou+'タイム'], format='%M:%S.%f') - base_time
-        df_split[sou+'タイム'] = df_split[sou+'タイム'].dt.total_seconds()
+        df_split[sou+'タイム'] = df_split[sou+'タイム'].apply(time_to_seconds)
+        # df_split[sou+'タイム'] = pd.to_datetime(df_split[sou+'タイム'], format='%M:%S.%f') - base_time
+        # df_split[sou+'タイム'] = df_split[sou+'タイム'].dt.total_seconds()
 
         # # スピード指数の計算
         for i in range(1, 26):
@@ -455,30 +494,19 @@ def df_big_past_processing(df, name, field_num):
 def past_level(df_all, type='推論'):
     df_all = df_all.copy()
     if type != '推論':
-        # クエリListを作成
-        id_count = df_all['レースID'].value_counts(sort=False)
-        n_list = id_count.values.tolist()
+        # レースIDごとに平均を算出し、各行に割り当て
+        df_all['平均クラス'] = df_all.groupby('レースID')['1クラス'].transform('mean')
+        df_all['平均ペース'] = df_all.groupby('レースID')['1コーナー通過順'].transform('mean')
 
-        n_list = n_list[:-1]
-        n = 0
-        df_all['平均クラス'] = np.nan
-        df_all['平均ペース'] = np.nan
-        for i in n_list:
-            n += i
-            df_all.iloc[n-i:n, df_all.columns.get_loc('平均クラス')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1クラス')].mean().astype(int)
-            df_all.iloc[n-i:n, df_all.columns.get_loc('平均ペース')] = df_all.iloc[n-i:n, df_all.columns.get_loc('1コーナー通過順')].mean()
-
-        df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
-        df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
+        # 差分計算
+        df_all['1クラス差'] = df_all['平均クラス'] - df_all['1クラス']
+        df_all['1ペース差'] = (df_all['平均ペース'] - df_all['1コーナー通過順']).abs()
     else:
-        df_all['平均クラス'] = np.nan
-        df_all['平均ペース'] = np.nan
-        
-        df_all['平均クラス'] = df_all['1クラス'].mean().astype(int)
+        df_all['平均クラス'] = df_all['1クラス'].mean()
         df_all['平均ペース'] = df_all['1コーナー通過順'].mean()
 
-        df_all['1クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_all['1クラス'].astype(str) + df_all['1過去着順'].astype(str), errors='coerce')
-        df_all['1ペース差'] = df_all['平均ペース'] - df_all['1コーナー通過順']
+        df_all['1クラス差'] = df_all['平均クラス'] - df_all['1クラス']
+        df_all['1ペース差'] = (df_all['平均ペース'] - df_all['1コーナー通過順']).abs()
 
     return df_all
 
@@ -1025,8 +1053,8 @@ if __name__ == "__main__":
 
     # 開催場所番号
     field = 1
-    field_name = 'nakayama000'
-    csv_path = f"./csv/{field_name}_2012-2024.csv" # 学習に使うcsvデータのパス
+    field_name = 'nakayama'
+    csv_path = './csv/nakayama_2012_2025_all.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -1072,12 +1100,13 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
-    df1 = pd.read_csv(f"./csv/nakayama_2025.csv", index_col=0)
+    # df1 = pd.read_csv('./csv/nakayama_kensyou2_2025.csv', index_col=0)
 
-    df = pd.concat([df, df1], axis=0).reset_index(drop=True)
+    # df = pd.concat([df, df1], axis=0).reset_index(drop=True)
     # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
 
     df['場所'] = field
+    # df1['場所'] = field
     # print(df.columns)
     # print(df.head(5))
 
@@ -1086,20 +1115,27 @@ if __name__ == "__main__":
     # df = df[df['レースID'] < 202200000000]
 
     df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+    # df1 = df1.reset_index(drop=True)
+    
 
     #############################################ここから処理開始###############################################################
     
     # 今走の処理
-    df = df_first_processing(df, field_name, type='a')
-    print(df['父馬'].head(10))
+    df = df_first_processing(df, field_name, 'a')
+    # df1 = df_first_processing(df1, field_name)
+    # print(df['父馬'].head(10))
     # df = df_first_processing(df, field_name)
     # 過去走の処理
     df_all = df_big_past_processing(df, field_name, field)
+    # df_all1 = df_big_past_processing(df1, field_name, field)
     # 過去のレベル
-    df_all = past_level(df_all, type='a')
+    df_all = past_level(df_all, 'a')
+    # df_all1 = past_level(df_all1)
     # df_all = past_level(df_all)
     # 終了処理
-    df_all = df_end_processing(df_all, type='b')
+    df_all = df_end_processing(df_all, 'a')
+    # df_all1 = df_end_processing(df_all1)
+    
     # df_all = df_end_processing(df_all)
     # csv
     save_csv(f'./csv/df_all_{field_name}_2025.csv', df_all)

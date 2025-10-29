@@ -237,111 +237,162 @@ def set_time(skip_list, url_race):
 # import pandas as pd
 # print(pd.Series([s]).str.extract(r'(\d+)'))
 
+# nakayama 無印 ~2016
+# ver2 2017~2019
+# ver3 2020~2022
+# 4 2023~
+# 5 24~
+# csv_path = './csv/nakayama_2012_2025.csv' # 学習に使うcsvデータのパス
+# file_num = 1
+# df = pd.read_csv(csv_path, index_col=0)
+
+# # print(df['レースID'].unique().tail(20))
+# print(df['レースID'].unique()[-20:])
+
+# --- 1. メインファイルを読み込み ---
+# df = pd.read_csv('./csv/nakayama_2012_2025.csv')
+# df = pd.read_csv('./csv/nakayama_2012_2025_all.csv')
+# df = df[df['レースID'] == 202506040611].reset_index(drop=True)
+# # print(df['2走'])
+# with open("log.txt", "a", encoding="utf-8") as f:
+#     f.write(df.sort_values(by=['馬番'])['2走'].to_string())
+
+# --- 2. レースIDの先頭4文字が2017以上の行を削除 ---
+# df = df[df['レースID'].astype(str).str[:4].astype(int) < 2017].reset_index(drop=True)
+
+# # --- 3. 他のCSVを順に読み込み ---
+# paths = [
+#     './csv/nakayama_2012_2025_2.csv',
+#     './csv/nakayama_2012_2025_3.csv',
+#     './csv/nakayama_2012_2025_4.csv',
+#     './csv/nakayama_2012_2025_5.csv'
+# ]
+# dfs = [pd.read_csv(p) for p in paths]
+
+# # --- 4. 全部結合 ---
+# df_all = pd.concat([df] + dfs, ignore_index=True)
+
+# df = df_all[df_all['レースID'] == 202506040611].reset_index(drop=True)
+# print(df)
+
+# --- 5. 保存 ---
+# df_all.to_csv('./csv/nakayama_2012_2025_all.csv', index=False)
+
+# print("✅ 結合完了: ./csv/nakayama_2012_2025_all.csv に保存しました")
+# print(f"総行数: {len(df_all)}")
+
+csv_path = f'./csv/df_all_nakayama_2025_2.csv'
+
+df = pd.read_csv(csv_path, index_col=0)
+df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+# df = df[df['レースID'].astype(str).str[:4].astype(int) >= 2025].reset_index(drop=True)
+df = df[df['レースID'] == 202506040611]
+print(df.sort_values(by=['馬番'])[['馬番', '1斤量', '1馬場', '1タイム', '1フィールド', '1距離']])
 
 
 # Learning.scraping('./csv/sapporo_2012-2024.csv', '01')
 # Learning.scraping('./csv/hakodate_2012-2024.csv', '02')
 # Learning.scraping('./csv/hukushima_2012-2024.csv', '03')
 # Learning.scraping('./csv/nigata_2012-2024.csv', '04')
-# Learning.scraping('./csv/nakayama_2025.csv', '06')
+# Learning.scraping('./csv/nakayama_2012_2025_5.csv', '06', 2024, 2026)
 # Learning.scraping('./csv/chukyo_2012-2024.csv', '07')
 # Learning.scraping('./csv/kyoto_2012-2024.csv', '08')
 # Learning.scraping('./csv/hanshin_2012-2024.csv', '09')
 # Learning.scraping('./csv/kokura_2012-2024.csv', '10')
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-field = 'nakayama'
-field_num = 1
-csv_path = f"./csv/nakayama_2025.csv" # 学習に使うcsvデータのパス
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# field = 'nakayama'
+# field_num = 1
+# csv_path = f"./csv/nakayama_2025.csv" # 学習に使うcsvデータのパス
 
-df = pd.read_csv(csv_path, index_col=0)
-df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
-# print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
-df = df.replace(['', '未定', '除外', '取消', '失格', '中止'], 0)
-df['is_win'] = (df['着順'].astype(int) == 1).astype(int)
-# print(df['is_win'].head(30))
-df['場所'] = field_num
-# print(df.columns)
-# 今走の処理
-df = Learning.df_first_processing(df, field)
-# 過去走の処理
-df = Learning.df_big_past_processing(df, field, field_num)
-# 過去のレベル
-df = Learning.past_level(df)
-# 終了処理
-df = Learning.df_end_processing(df, 'a')
-# print(df.columns.values)
-# 逆数化
-df = Listwise.inversion(df)
-# カラム追加
-df = Listwise.append_col(df)
-df = Listwise.add_relative_features(df)
-fold = 0
+# df = pd.read_csv(csv_path, index_col=0)
+# df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+# # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
+# df = df.replace(['', '未定', '除外', '取消', '失格', '中止'], 0)
+# df['is_win'] = (df['着順'].astype(int) == 1).astype(int)
+# # print(df['is_win'].head(30))
+# df['場所'] = field_num
+# # print(df.columns)
+# # 今走の処理
+# df = Learning.df_first_processing(df, field)
+# # 過去走の処理
+# df = Learning.df_big_past_processing(df, field, field_num)
+# # 過去のレベル
+# df = Learning.past_level(df)
+# # 終了処理
+# df = Learning.df_end_processing(df, 'a')
+# # print(df.columns.values)
+# # 逆数化
+# df = Listwise.inversion(df)
+# # カラム追加
+# df = Listwise.append_col(df)
+# df = Listwise.add_relative_features(df)
+# fold = 0
 
-with open(f'./pickle-dict/sire_dict_nakayama3_fold{fold}.pkl', mode="rb") as f:
-    sire_mapping = pickle.load(f)
+# with open(f'./pickle-dict/sire_dict_nakayama3_fold{fold}.pkl', mode="rb") as f:
+#     sire_mapping = pickle.load(f)
 
 
-# 列情報読み込み
-feature_cols = joblib.load("./pickle-dict/feature_cols2.pkl")
-embedding_cols = joblib.load("./pickle-dict/embedding_cols2.pkl")
-context_num_cols = joblib.load("./pickle-dict/context_num_cols2.pkl")
-context_cat_cols = joblib.load("./pickle-dict/context_cat_cols2.pkl")
+# # 列情報読み込み
+# feature_cols = joblib.load("./pickle-dict/feature_cols2.pkl")
+# embedding_cols = joblib.load("./pickle-dict/embedding_cols2.pkl")
+# context_num_cols = joblib.load("./pickle-dict/context_num_cols2.pkl")
+# context_cat_cols = joblib.load("./pickle-dict/context_cat_cols2.pkl")
 
-df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
+# df['父馬_te'] = df['父馬'].map(sire_mapping).fillna(-1)
 
-with open(f'./pickle-dict/jwin_dict_nakayama3_fold{fold}.pkl', "rb") as dd:
-    j_mapping = pickle.load(dd)
+# with open(f'./pickle-dict/jwin_dict_nakayama3_fold{fold}.pkl', "rb") as dd:
+#     j_mapping = pickle.load(dd)
 
-# val/test は train 全体の mapping を使う
-df['騎手_te'] = df['騎手'].map(j_mapping).fillna(-1)
+# # val/test は train 全体の mapping を使う
+# df['騎手_te'] = df['騎手'].map(j_mapping).fillna(-1)
 
-scaler = joblib.load(f"./model/scaler_nakayama3_fold{fold}.pkl")
-df[Listwise.scale_cols] = scaler.transform(df[Listwise.scale_cols])
+# scaler = joblib.load(f"./model/scaler_nakayama3_fold{fold}.pkl")
+# df[Listwise.scale_cols] = scaler.transform(df[Listwise.scale_cols])
 
-# 欠損値補完
-df = Listwise.fill_nan(df, feature_cols)
+# # 欠損値補完
+# df = Listwise.fill_nan(df, feature_cols)
 
-# カテゴリ列を数値化
-# df = Listwise.race_feature(df)
-category_mappings = joblib.load(f"./pickle-dict/category_mappings_nakayama3_fold{fold}.pkl")
-df = Listwise.race_feature_test(df, category_mappings)
+# # カテゴリ列を数値化
+# # df = Listwise.race_feature(df)
+# category_mappings = joblib.load(f"./pickle-dict/category_mappings_nakayama3_fold{fold}.pkl")
+# df = Listwise.race_feature_test(df, category_mappings)
 
-# print(df.head(30))
+# # print(df.head(30))
 
-embedding_sizes = []
-context_embedding_sizes = []
-# state_dict をロード
-state_dict = torch.load(f"./model/nakayama3_ranknet_{fold}.pth", map_location=device)
+# embedding_sizes = []
+# context_embedding_sizes = []
+# # state_dict をロード
+# state_dict = torch.load(f"./model/nakayama3_ranknet_{fold}.pth", map_location=device)
 
-# 通常のカテゴリ埋め込み
-i = 0
-while f"embeddings.{i}.weight" in state_dict:
-    num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
-    embedding_sizes.append(num_classes)
-    # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
-    i += 1
+# # 通常のカテゴリ埋め込み
+# i = 0
+# while f"embeddings.{i}.weight" in state_dict:
+#     num_classes, emb_dim = state_dict[f"embeddings.{i}.weight"].shape
+#     embedding_sizes.append(num_classes)
+#     # print(f"embeddings.{i}: {num_classes} classes, {emb_dim} dim")
+#     i += 1
 
-# コンテキストカテゴリ埋め込み
-j = 0
-while f"context_embeddings.{j}.weight" in state_dict:
-    num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
-    context_embedding_sizes.append(num_classes)
-    # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
-    j += 1
+# # コンテキストカテゴリ埋め込み
+# j = 0
+# while f"context_embeddings.{j}.weight" in state_dict:
+#     num_classes, emb_dim = state_dict[f"context_embeddings.{j}.weight"].shape
+#     context_embedding_sizes.append(num_classes)
+#     # print(f"context_embeddings.{j}: {num_classes} classes, {emb_dim} dim")
+#     j += 1
 
-# 読み込み
-model = Listwise.ListNet(
-    embedding_sizes=embedding_sizes,
-    num_features=len(feature_cols),
-    context_embedding_sizes=context_embedding_sizes,
-    context_num_sizes=len(Listwise.context_num_cols),
-    emb_dim=32
-)
-model.load_state_dict(state_dict)
-model.to(device)
-model.eval()
+# # 読み込み
+# model = Listwise.ListNet(
+#     embedding_sizes=embedding_sizes,
+#     num_features=len(feature_cols),
+#     context_embedding_sizes=context_embedding_sizes,
+#     context_num_sizes=len(Listwise.context_num_cols),
+#     emb_dim=32
+# )
+# model.load_state_dict(state_dict)
+# model.to(device)
+# model.eval()
 
-df = predict_multiple_races(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device=device)
+# df = predict_multiple_races(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device=device)
 
-df.to_csv(f"./csv/nakayama3_result_fold{fold}.csv",na_rep='NaN')
+# df.to_csv(f"./csv/nakayama3_result_fold{fold}.csv",na_rep='NaN')
