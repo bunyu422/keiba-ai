@@ -184,7 +184,7 @@ pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
 
-field = "nakayama3"
+field = "tokyo"
 
 csv_files = [
     f'./csv/nakayama3_result_stacking2_2025_{i}.csv' for i in range(5)
@@ -260,6 +260,7 @@ params = {
     'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
     'force_col_wise': True,       # 再現性を高める（内部順序を固定）
     'num_threads': 1,             # 厳密再現のためスレッド固定
+    'num_leaves': 30,             # ← ここで指定
 }
 ####################################################################################
 

@@ -226,7 +226,7 @@ def set_time(skip_list, url_race):
 # Learning.scraping_local('./csv/monbetu_2025.csv', '30', 2025, 2026)
 # Learning.scraping_local('./csv/kasamatu_2015-2024.csv', '47')
 # Learning.scraping_local('./csv/sonoda_2015-2024.csv', '50')
-# Learning.scraping_local('./csv/nagoya_2015-2024.csv', '48')
+Learning.scraping_local('./csv/nagoya_2025.csv', '48', 2025, 2026)
 # Learning.scraping_local('./csv/mizusawa_2015-2024.csv', '36')
 # Learning.scraping_local('./csv/hunabasi_2015-2024.csv', '43')
 # Learning.scraping_local('./csv/saga_2015-2024.csv', '55')
@@ -281,13 +281,13 @@ def set_time(skip_list, url_race):
 # print("✅ 結合完了: ./csv/nakayama_2012_2025_all.csv に保存しました")
 # print(f"総行数: {len(df_all)}")
 
-csv_path = f'./csv/df_all_nakayama_2025_2.csv'
+# csv_path = f'./csv/df_all_nakayama_2025_2.csv'
 
-df = pd.read_csv(csv_path, index_col=0)
-df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
-# df = df[df['レースID'].astype(str).str[:4].astype(int) >= 2025].reset_index(drop=True)
-df = df[df['レースID'] == 202506040611]
-print(df.sort_values(by=['馬番'])[['馬番', '1斤量', '1馬場', '1タイム', '1フィールド', '1距離']])
+# df = pd.read_csv(csv_path, index_col=0)
+# df = df.reset_index(drop=True) # 行番号に重複があると.locがエラーを起こすので振り直し
+# # df = df[df['レースID'].astype(str).str[:4].astype(int) >= 2025].reset_index(drop=True)
+# df = df[df['レースID'] == 202506040611]
+# print(df.sort_values(by=['馬番'])[['馬番', '1斤量', '1馬場', '1タイム', '1フィールド', '1距離']])
 
 
 # Learning.scraping('./csv/sapporo_2012-2024.csv', '01')
@@ -295,6 +295,7 @@ print(df.sort_values(by=['馬番'])[['馬番', '1斤量', '1馬場', '1タイム
 # Learning.scraping('./csv/hukushima_2012-2024.csv', '03')
 # Learning.scraping('./csv/nigata_2012-2024.csv', '04')
 # Learning.scraping('./csv/nakayama_2012_2025_5.csv', '06', 2024, 2026)
+# Learning.scraping('./csv/tokyo_2025.csv', '05', 2025, 2026)
 # Learning.scraping('./csv/chukyo_2012-2024.csv', '07')
 # Learning.scraping('./csv/kyoto_2012-2024.csv', '08')
 # Learning.scraping('./csv/hanshin_2012-2024.csv', '09')

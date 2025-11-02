@@ -2,6 +2,7 @@ from functools import reduce
 import importlib
 import pickle
 from ssl import Options
+import time
 from bs4 import BeautifulSoup
 import joblib
 import pandas as pd
@@ -27,17 +28,35 @@ pd.set_option("display.max_colwidth", None)
 # 小数点をすべて表示（指数表記なし）
 pd.set_option('display.float_format', lambda x: f'{x:.16f}'.rstrip('0').rstrip('.'))
 
-def get_race_predict(race_id, field, field_num, odds, central):
+race_params = {
+    # "hanshin": {"field_num": 4, "central": True},
+    "tokyo": {"field_num": 2, "central": True},
+    "nakayama": {"field_num": 1, "central": True},
+    # "kyoto": {"field_num": 3, "central": True},
+    "monbetu": {"field_num": 12, "central": False},
+    "kasamatu": {"field_num": 20, "central": False},
+    "sonoda": {"field_num": 22, "central": False},
+    "nagoya": {"field_num": 21, "central": False},
+    "saga": {"field_num": 25, "central": False},
+    # "hunabasi": {"field_num": 16, "central": False},
+}
+
+def get_race_predict(race_id, field, odds):
     importlib.reload(Listwise)  # ←これでモジュール空間を完全初期化
     importlib.reload(Learning)  # ←これでモジュール空間を完全初期化
-    dfs = get_race_info(race_id, field, field_num, odds, central)
+
+    params = race_params.get(field.lower())
+    if params is None:
+        raise ValueError(f"Unknown venue: {field}")
+    
+    dfs = get_race_info(race_id, field, params["field_num"], odds, params["central"])
     
     result_df = predict_lgb(dfs, field)
     
     result_df = result_df.sort_values('pred_score', ascending=False)
-    # print(result_df[['レースID', '馬番', 'pred_score']])
+    print(result_df[['レースID', '馬番', 'pred_score']])
 
-    return result_df.iloc[0]['馬番']
+    return int(result_df.iloc[0]['馬番']), None
 
 def add_pred_features(df, prefix="pred"):
     """
@@ -221,8 +240,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     df1.columns = df1.columns.droplevel()
 
     df_shutuba = pd.concat([df_shutuba, df_result_past])
-    # df_shutuba['オッズ'] = odds
-    df_shutuba['オッズ'] = 0
+    df_shutuba['オッズ'] = odds
+    # df_shutuba['オッズ'] = 0
     df_shutuba['人気'] = df1['人気']
 
     driver.quit()
@@ -231,8 +250,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     # 取り消し馬削除
     # ----------------------------
     df = df_shutuba.copy()
-    # df = df[df['オッズ'] != '--']
-    df = df[df['人気'] != '--']
+    df = df[df['オッズ'] != '--']
+    # df = df[df['人気'] != '--']
 
     # ----------------------------
     # Learning / Listwise 前処理
@@ -269,21 +288,12 @@ def get_race_info(race_id, field, field_num, odds, central):
     for fold, d in enumerate(dfs):
         d = mapping(d, '父馬', f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl')
         d = mapping(d, '騎手', f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl')
-        # scaler = joblib.load(f"./model/scaler_{field}_fold{fold}.pkl")
-        # d[Listwise.scale_cols] = scaler.transform(d[Listwise.scale_cols])
         d = Listwise.fill_nan(d, feature_cols)
         map_dict = joblib.load(f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
         d = Listwise.race_feature_test(d, map_dict).round(10)
 
         # ✅ 修正: 更新したDataFrameをリストに戻す
         dfs[fold] = d
-    # print(dfs[1])
-    
-    # with open("log.txt", "a", encoding="utf-8") as f:
-    #     f.write(df.to_string())
-    # print(map_dict['best後3F_rank_cat'])
-    # print(dfs[1][['best後3F_rank_cat', 'best_speed_rank_num', 'bestスピード指数']])
-
 
     return dfs
 
@@ -345,79 +355,8 @@ def predict_listnet(
     return predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
 
 def predict_lgb(dfs, field):
-    # answer = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_1.csv', index_col=0)
-    # answer = pd.read_csv(f'./csv/nakayama3_result_stacking2_2025_0.csv', index_col=0)
-    answer = pd.read_csv(f'./csv/nakayama3_result_stacking_fold_2025.csv', index_col=0)
-    
-    answer = answer.reset_index()
-    answer = answer[answer['レースID'] == race_id]
-    answer = answer.sort_values(by=['馬番'])
-    # # print(answer)
-    # answer['馬番'] = answer['馬番']
-    # dfs[0] = dfs[0].sample(frac=1).reset_index(drop=True)
-
-    # print(dfs[0][['2斤量', '2馬場', '2タイム', '2フィールド', '2距離']])
-    # print(answer[['2斤量', '2馬場', '2タイム', '2フィールド', '2距離']])
-    # print(dfs[0][['馬番', 'best後3F_rank_cat', 'best_speed_rank_num', 'bestスピード指数']])
-    # print(answer[['馬番', 'best後3F_rank_cat', 'best_speed_rank_num', 'bestスピード指数']])
-    # print(dfs[0][['1後3F', '1着差']])
-    # print(answer[['1後3F', '1着差']])
-    # print(dfs[0])
-    # print(answer)
-
-
     if field == 'nakayama':
         field = 'nakayama3'
-    # not_pop = joblib.load(f"./model/clf_ninki_input_{field}.pkl")
-    not_pop = joblib.load("./pickle-dict/lgb_cols.pkl")
-    # for fold, d in enumerate(dfs):
-    #     clf = joblib.load(f"./model/clf_ninki_model_{field}_fold{fold}.pkl")
-
-    #     pred_pop = clf.predict(d[not_pop])
-    #     d['人気'] = d['人気'].astype(float) - pred_pop
-
-    #     # ✅ 修正: 更新したDataFrameをリストに戻す
-    #     dfs[fold] = d
-    
-    # 除外したいカラム
-    # exclude_cols = ["1人気", "2人気", "3人気", "4人気", "5人気"]
-
-    # # not_popをロードして除外
-    # not_pop = [c for c in not_pop if c not in exclude_cols]
-
-    # # 差異チェック
-    # df1 = dfs[1].sort_values(by=['馬番'])[not_pop].reset_index(drop=True)
-    # df2 = answer[not_pop].reset_index(drop=True)
-
-    # # 行数・列数チェック
-    # if df1.shape != df2.shape:
-    #     print(f"⚠️ 形が違います: dfs[0]={df1.shape}, answer={df2.shape}")
-    # else:
-    #     # 値の一致確認
-    #     diff = (df1 != df2) & ~(df1.isna() & df2.isna())
-    #     if diff.any().any():
-    #         print("⚠️ 一致しないセルがあります。")
-    #         # 差分のある箇所を抽出（最大5箇所）
-    #         rows, cols = np.where(diff)
-    #         for r, c in zip(rows, cols):
-    #             col = df1.columns[c]
-    #             print(f"行{r}, 列'{col}': dfs[0]={df1.iloc[r][col]}, answer={df2.iloc[r][col]}")
-    #     else:
-    #         print("✅ 完全一致しています！")
-
-    # with open("log.txt", "a", encoding="utf-8") as f:
-    #     f.write(answer.sort_values(by=['馬番'])[['馬番','人気']].to_string())
-    #     f.write(dfs[0].sort_values(by=['馬番'])[['馬番','人気']].to_string())
-
-    # for i in range(1, 6):
-    #     not_pop = joblib.load(f"./model/clf_ninki{i}_input_{field}.pkl")
-    #     for fold, d in enumerate(dfs):
-    #         clf = joblib.load(f"./model/clf_ninki{i}_model_{field}_fold{fold}.pkl")
-
-    #         pred_pop = clf.predict(d[not_pop])
-    #         d[f'{i}人気'] = d[f'{i}人気'].astype(float) - pred_pop
-
-    
 
     feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
     type_list = ['reg-to-rank', 'reg-to-reg', 'rank-to-rank']
@@ -432,42 +371,11 @@ def predict_lgb(dfs, field):
             # ✅ 修正: 更新したDataFrameをリストに戻す
             dfs_list[type_list.index(model_type)][fold] = d
 
-    # print(dfs_list[2][1].round(10)[['レースID', '馬番', 'pred_score']])
-    # print(answer[['レースID', '馬番', 'pred_score']])
-
-
-    # print(df[feature_cols])
-    # with open("log.txt", "a", encoding="utf-8") as f:
-    #     f.write(df.head(16)[['レースID', '馬番', '人気']].to_string())
-
-    
-    # print(df['pred_score'])
-
     for i, dfs_l in enumerate(dfs_list):
         for k, d in enumerate(dfs_l):
             dfs_list[i][k] = add_score_diff_features(d).round(10) # 同率スコアがある場合順位が不定 修正必要
 
     feature_cols = joblib.load("./pickle-dict/lgb_cols_second.pkl")
-
-    # # 差異チェック
-    # df1 = dfs_list[2][1].sort_values(by=['馬番'])[feature_cols].reset_index(drop=True)
-    # df2 = answer[feature_cols].reset_index(drop=True)
-
-    # # 行数・列数チェック
-    # if df1.shape != df2.shape:
-    #     print(f"⚠️ 形が違います: dfs[0]={df1.shape}, answer={df2.shape}")
-    # else:
-    #     # 値の一致確認
-    #     diff = (df1 != df2) & ~(df1.isna() & df2.isna())
-    #     if diff.any().any():
-    #         print("⚠️ 一致しないセルがあります。")
-    #         # 差分のある箇所を抽出（最大5箇所）
-    #         rows, cols = np.where(diff)
-    #         for r, c in zip(rows, cols):
-    #             col = df1.columns[c]
-    #             print(f"行{r}, 列'{col}': dfs[0]={df1.iloc[r][col]}, answer={df2.iloc[r][col]}")
-    #     else:
-    #         print("✅ 完全一致しています！")
 
 
     for model_type, dfs_l in zip(type_list, dfs_list): # for type in type_list:
@@ -477,9 +385,6 @@ def predict_lgb(dfs, field):
                 dfs_list[type_list.index(model_type)][fold][f'result{seed}'] = model.predict(d[feature_cols])
 
             dfs_list[type_list.index(model_type)][fold]['pred_score'] = dfs_list[type_list.index(model_type)][fold][['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
-
-    # print(dfs_list[2][1].sort_values(by=['馬番'])[['レースID', '馬番', 'pred_score', 'result1', 'result2', 'result3', 'result4', 'result5']])
-    # print(answer[['レースID', '馬番', 'pred_score_second', 'result1', 'result2', 'result3', 'result4', 'result5']])
 
 
     feature_cols = joblib.load("./pickle-dict/stacking_feature_cols.pkl")
@@ -509,15 +414,7 @@ def predict_lgb(dfs, field):
             temp_dfs
         )
 
-        # print(temp_df.sort_values(by=['馬番'])[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1']])
-        # print(answer[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1']])
-
         temp_df = add_pred_features(temp_df).round(10)
-        # print(temp_df.sort_values(by=['馬番'])[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1']])
-        # print(answer[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1']])
-        # with open("log.txt", "a", encoding="utf-8") as f:
-        #     f.write(temp_df.sort_values(by=['馬番'])[['馬番']+feature_cols].to_string())
-        #     f.write(answer.sort_values(by=['馬番'])[['馬番']+feature_cols].to_string())
 
         model = joblib.load(f"./model/stacking_model_lgb_fold{fold}.pickle")
 
@@ -530,20 +427,8 @@ def predict_lgb(dfs, field):
     feature_cols = joblib.load("./pickle-dict/stacking_fold_feature_cols.pkl")
     model = joblib.load("./model/stacking_fold_model_lgb.pickle")
 
-    # print(result_df.sort_values(by=['馬番'])[feature_cols])
-    # print(answer[feature_cols])
-
     result_df['pred_score'] = model.predict(result_df[feature_cols])
-    # result_df['馬番'] = result_df['馬番'].astype(int) + 1
     result_df = result_df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
-    print(result_df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])[['レースID', '馬番', 'pred_score']])
-    print(answer.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])[['レースID', '馬番', 'pred_score']])
-    
-    # top = result_df.loc[result_df.groupby('レースID')['pred_score'].idxmax()]
-    # print(top[['レースID', '馬番', 'pred_score']])
-    # with open("log.txt", "a", encoding="utf-8") as f:
-    #     f.write(top[['レースID', '馬番', 'pred_score']].to_string())
-    
 
     return result_df
 
@@ -600,7 +485,7 @@ if __name__ == "__main__":
     df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     # print(df['レースID'].unique().tolist())
     # df['馬番'] = df['馬番'].astype(int) + 1
-    # df = df[df['レースID'] == 202506040108]
+    df = df[df['レースID'] == 202506040508]
     # print(df[['レースID', '馬番', '1出走馬数', '2出走馬数', '3出走馬数', '4出走馬数', '5出走馬数']])
     
     # feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
@@ -622,7 +507,7 @@ if __name__ == "__main__":
     # # # # print(df[['レースID', '馬番','pred_score']])
     # race_l = df['レースID'].unique().tolist()
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = 202506040507, 'nakayama', 1, 0, True
+    race_id, field, field_num, odds, central = 202506040508, 'nakayama', 1, 0, True
     odds = [i for i in range(len(df))]
     # race_l = [202506040304, 202506040304]
     # get_race_predict(race_id, field, field_num, odds, central, fold)
@@ -630,5 +515,11 @@ if __name__ == "__main__":
     #     race_id = int(race_id)
     #     # print(i)
     #     get_race_predict(race_id, field, field_num, odds, central)
+    start = time.time()
+    
+    print(get_race_predict(race_id, field, odds))
+    
+    end = time.time()
+    print("実行時間：", end - start)
 
-    get_race_predict(race_id, field, field_num, odds, central)
+    

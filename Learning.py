@@ -1052,9 +1052,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 1
-    field_name = 'nakayama'
-    csv_path = './csv/nakayama_2012_2025_all.csv' # 学習に使うcsvデータのパス
+    field = 2
+    field_name = 'tokyo'
+    csv_path = './csv/tokyo_2012-2024.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -1100,9 +1100,9 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
-    # df1 = pd.read_csv('./csv/nakayama_kensyou2_2025.csv', index_col=0)
+    df1 = pd.read_csv('./csv/tokyo_2025.csv', index_col=0)
 
-    # df = pd.concat([df, df1], axis=0).reset_index(drop=True)
+    df = pd.concat([df, df1], axis=0).reset_index(drop=True)
     # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
 
     df['場所'] = field

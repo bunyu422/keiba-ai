@@ -175,13 +175,22 @@ pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
 
-field = "nakayama3"
-fold = 4
+# field = "nakayama3"
+# fold = 4
 # seed = 9 # fold 0 \9
 # seed = 2 # fold 1 \2
 # seed = 2 # fold 2 \2
 # seed = 4 # fold 3 \4
-seed = 2 # fold 4 \2
+# seed = 2 # fold 4 \2
+
+field = 'tokyo'
+fold = 4
+# seed = 6 # fold 0 \6
+# seed = 1 # fold 1 \1
+# seed = 4 # fold 2 \4
+# seed = 3 # fold 3 \3
+seed = 7 # fold 4 \7
+
 
 
 # fold0 
@@ -278,15 +287,15 @@ from functools import reduce
 # df4 = load_csv(f'./csv/nakayama3_result_ranknet_test_0.csv')
 # df5 = load_csv(f'./csv/nakayama3_result_ranknet2_test_0.csv')
 
-df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_test_{fold}.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_test_{fold}.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_test_{fold}.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_test_{fold}.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_test_{fold}.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_test_{fold}.csv')
-# df6 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank@18_test_{fold}.csv')
-# df7 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg@18_test_{fold}.csv')
-# df8 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank@18_test_{fold}.csv')
+df = load_csv(f'./csv/{field}_result_lgb_reg-to-rank_test_{fold}.csv')
+# df1 = load_csv(f'./csv/{field}_result_lgb_rank-to-reg_test_{fold}.csv')
+df2 = load_csv(f'./csv/{field}_result_lgb_reg-to-reg_test_{fold}.csv')
+df3 = load_csv(f'./csv/{field}_result_lgb_rank-to-rank_test_{fold}.csv')
+# df4 = load_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv')
+# df5 = load_csv(f'./csv/{field}_result_ranknet2_test_{fold}.csv')
+# df6 = load_csv(f'./csv/{field}_result_lgb_reg-to-rank@18_test_{fold}.csv')
+# df7 = load_csv(f'./csv/{field}_result_lgb_rank-to-reg@18_test_{fold}.csv')
+# df8 = load_csv(f'./csv/{field}_result_lgb_rank-to-rank@18_test_{fold}.csv')
 
 
 # pred_score列をリネームして区別
@@ -322,22 +331,22 @@ val_df = reduce(
     dfs
 )
 
-# df = load_csv(f'./csv/nakayama3_result_lgb_2025_0.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb2_2025_0.csv')
-# df2 = load_csv(f'./csv/nakayama3_result_lgb3_2025_0.csv')
-# df3 = load_csv(f'./csv/nakayama3_result_lgb4_2025_0.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_2025_0.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_2025_0.csv')
+# df = load_csv(f'./csv/{field}_result_lgb_2025_0.csv')
+# df1 = load_csv(f'./csv/{field}_result_lgb2_2025_0.csv')
+# df2 = load_csv(f'./csv/{field}_result_lgb3_2025_0.csv')
+# df3 = load_csv(f'./csv/{field}_result_lgb4_2025_0.csv')
+# df4 = load_csv(f'./csv/{field}_result_ranknet_2025_0.csv')
+# df5 = load_csv(f'./csv/{field}_result_ranknet2_2025_0.csv')
 
-df = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank_2025_{fold}.csv')
-# df1 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg_2025_{fold}.csv')
-df2 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-reg_2025_{fold}.csv')
-df3 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_{fold}.csv')
-# df4 = load_csv(f'./csv/nakayama3_result_ranknet_2025_{fold}.csv')
-# df5 = load_csv(f'./csv/nakayama3_result_ranknet2_2025_{fold}.csv')
-# df6 = load_csv(f'./csv/nakayama3_result_lgb_reg-to-rank@18_2025_{fold}.csv')
-# df7 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-reg@18_2025_{fold}.csv')
-# df8 = load_csv(f'./csv/nakayama3_result_lgb_rank-to-rank@18_2025_{fold}.csv')
+df = load_csv(f'./csv/{field}_result_lgb_reg-to-rank_2025_{fold}.csv')
+# df1 = load_csv(f'./csv/{field}_result_lgb_rank-to-reg_2025_{fold}.csv')
+df2 = load_csv(f'./csv/{field}_result_lgb_reg-to-reg_2025_{fold}.csv')
+df3 = load_csv(f'./csv/{field}_result_lgb_rank-to-rank_2025_{fold}.csv')
+# df4 = load_csv(f'./csv/{field}_result_ranknet_2025_{fold}.csv')
+# df5 = load_csv(f'./csv/{field}_result_ranknet2_2025_{fold}.csv')
+# df6 = load_csv(f'./csv/{field}_result_lgb_reg-to-rank@18_2025_{fold}.csv')
+# df7 = load_csv(f'./csv/{field}_result_lgb_rank-to-reg@18_2025_{fold}.csv')
+# df8 = load_csv(f'./csv/{field}_result_lgb_rank-to-rank@18_2025_{fold}.csv')
 
 # pred_score列をリネームして区別
 df  = df.rename(columns={'pred_score_second': 'pred_score_1'})

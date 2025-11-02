@@ -801,4 +801,183 @@ append_colのランク系の不定を排除
 1 202506040909   3 0.2660847669851551         レースID  馬番         pred_score
 2 202506040910  11 0.2187443113405612         レースID  馬番         pred_score
 0 202506040911   7 0.2405644591967654         レースID  馬番         pred_score
-0 202506040912  10 0.4475429091717081
+0 202506040912  10 0.4475429091717081[2025-11-01 10:02:28.693479] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 10:32:13.466041] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 11:02:27.081419] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 11:32:21.666881] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 13:22:26.657115] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 13:52:10.679847] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 14:28:24.269071] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 15:02:08.353827] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 15:42:22.029564] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-01 16:22:06.309196] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 09:42:18.417233] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 10:12:02.412163] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 11:12:07.278853] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 12:32:04.004771] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 13:02:20.009622] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 13:32:04.589769] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 14:07:18.188962] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 14:42:02.556981] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 15:22:16.303825] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+
+[2025-11-02 16:02:07.073448] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: kyoto
+

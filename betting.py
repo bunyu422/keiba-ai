@@ -8,7 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 import time
 import schedule
-import Listwise_func
+import Lgihtgbm_func as lf
 import function
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
@@ -101,7 +101,7 @@ def job(n1, n2, n3):
         field = None
 
     # 馬を選択
-    buyList, buyList_wide = Listwise_func.select_horse(n3, field, odds)
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
 
     if buyList is None:
         print(f"{n1}{n2}R は購入しない")
