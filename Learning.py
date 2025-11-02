@@ -1,3 +1,4 @@
+import os
 import joblib
 import pandas as pd
 import requests
@@ -140,7 +141,15 @@ def scraping(csv_path, no, start, end):
                     df = pd.concat([df, df_result_past])
 
     # 結果をcsvに保存
-    df.to_csv(csv_path, na_rep='NaN')
+    # ファイルが存在するか確認
+    if not os.path.exists(csv_path):
+        # 新規作成（ヘッダーあり）
+        df.to_csv(csv_path, na_rep='NaN')
+    else:
+        # 追記（ヘッダーなし）
+        df.to_csv(csv_path, mode='a', header=False, na_rep='NaN')
+    
+    # df.to_csv(csv_path, na_rep='NaN')
 
 def scraping_local(csv_path, no, start, end):
     df = pd.DataFrame()
@@ -199,7 +208,16 @@ def scraping_local(csv_path, no, start, end):
                     df = pd.concat([df, df_result_past])
 
     # 結果をcsvに保存
-    df.to_csv(csv_path, na_rep='NaN')
+    # df.to_csv(csv_path, na_rep='NaN')
+
+    # 結果をcsvに保存
+    # ファイルが存在するか確認
+    if not os.path.exists(csv_path):
+        # 新規作成（ヘッダーあり）
+        df.to_csv(csv_path, na_rep='NaN')
+    else:
+        # 追記（ヘッダーなし）
+        df.to_csv(csv_path, mode='a', header=False, na_rep='NaN')
 
 def scrape_payouts_combination(csv_path, no):
     df = pd.DataFrame(columns=['レースID', '券種', '馬番', '払い戻し金額'])
@@ -1052,9 +1070,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 2
-    field_name = 'tokyo'
-    csv_path = './csv/tokyo_2012-2024.csv' # 学習に使うcsvデータのパス
+    field = 12
+    field_name = 'monbetu'
+    csv_path = './csv/monbetu_2015-2024.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -1100,7 +1118,7 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
-    df1 = pd.read_csv('./csv/tokyo_2025.csv', index_col=0)
+    df1 = pd.read_csv('./csv/monbetu_2025.csv', index_col=0)
 
     df = pd.concat([df, df1], axis=0).reset_index(drop=True)
     # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))

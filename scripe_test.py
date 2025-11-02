@@ -221,14 +221,19 @@ def set_time(skip_list, url_race):
 # set_time([], url)
 # print(betting.set_info())
 
+df = pd.read_csv('./csv/kasamatu_2015-2025.csv', index_col=0)
+print(df['レースID'].head(5))
+print(df['レースID'].tail(5))
+
 # Learning.scrape_payouts_combination('./csv/nakayama_payouts_2012-2024.csv', '06')
 
 # Learning.scraping_local('./csv/monbetu_2025.csv', '30', 2025, 2026)
-# Learning.scraping_local('./csv/kasamatu_2015-2024.csv', '47')
+# Learning.scraping_local('./csv/morioka_2015-2025.csv', '35', 2015, 2026)
+# Learning.scraping_local('./csv/kasamatu_2015-2025.csv', '47', 2025, 2026)
 # Learning.scraping_local('./csv/sonoda_2015-2024.csv', '50')
-Learning.scraping_local('./csv/nagoya_2025.csv', '48', 2025, 2026)
+# Learning.scraping_local('./csv/nagoya_2025.csv', '48', 2025, 2026)
 # Learning.scraping_local('./csv/mizusawa_2015-2024.csv', '36')
-# Learning.scraping_local('./csv/hunabasi_2015-2024.csv', '43')
+Learning.scraping_local('./csv/hunabasi_2015-2025.csv', '43', 2025, 2026)
 # Learning.scraping_local('./csv/saga_2015-2024.csv', '55')
 # Learning.scraping_local('./csv/ooi_2015-2024.csv', '44')
 # Learning.scraping_local('./csv/urawa_2015-2024.csv', '42')

@@ -183,15 +183,21 @@ pd.set_option("display.max_colwidth", None)
 # seed = 4 # fold 3 \4
 # seed = 2 # fold 4 \2
 
-field = 'tokyo'
-fold = 4
+# field = 'tokyo'
+# fold = 4
 # seed = 6 # fold 0 \6
 # seed = 1 # fold 1 \1
 # seed = 4 # fold 2 \4
 # seed = 3 # fold 3 \3
-seed = 7 # fold 4 \7
+# seed = 7 # fold 4 \7
 
-
+field = 'monbetu'
+fold = 4
+# seed = 4 # fold 0 \4
+# seed = 5 # fold 1 \5
+# seed = 2 # fold 2 \2
+# seed = 4 # fold 3 \4
+seed = 3 # fold 4 \3
 
 # fold0 
 # [top評価結果2025]
