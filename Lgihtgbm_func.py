@@ -240,8 +240,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     df1.columns = df1.columns.droplevel()
 
     df_shutuba = pd.concat([df_shutuba, df_result_past])
-    df_shutuba['オッズ'] = odds
-    # df_shutuba['オッズ'] = 0
+    # df_shutuba['オッズ'] = odds
+    df_shutuba['オッズ'] = 0
     df_shutuba['人気'] = df1['人気']
 
     driver.quit()
@@ -250,8 +250,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     # 取り消し馬削除
     # ----------------------------
     df = df_shutuba.copy()
-    df = df[df['オッズ'] != '--']
-    # df = df[df['人気'] != '--']
+    # df = df[df['オッズ'] != '--']
+    df = df[df['人気'] != '--']
 
     # ----------------------------
     # Learning / Listwise 前処理
@@ -358,7 +358,7 @@ def predict_lgb(dfs, field):
     if field == 'nakayama':
         field = 'nakayama3'
 
-    feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
+    feature_cols = joblib.load(f"./pickle-dict/{field}_lgb_cols.pkl")
     type_list = ['reg-to-rank', 'reg-to-reg', 'rank-to-rank']
     # 各タイプごとに完全独立したDataFrameリストを作成
     dfs_list = [[df.copy(deep=True) for df in dfs] for _ in type_list]
@@ -375,7 +375,7 @@ def predict_lgb(dfs, field):
         for k, d in enumerate(dfs_l):
             dfs_list[i][k] = add_score_diff_features(d).round(10) # 同率スコアがある場合順位が不定 修正必要
 
-    feature_cols = joblib.load("./pickle-dict/lgb_cols_second.pkl")
+    feature_cols = joblib.load(f"./pickle-dict/{field}_lgb_cols_second.pkl")
 
 
     for model_type, dfs_l in zip(type_list, dfs_list): # for type in type_list:
@@ -430,6 +430,10 @@ def predict_lgb(dfs, field):
     result_df['pred_score'] = model.predict(result_df[feature_cols])
     result_df = result_df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
 
+    top = result_df.loc[result_df.groupby('レースID')['pred_score'].idxmax()]
+    with open("log.txt", "a", encoding="utf-8") as f:
+        f.write(top[['レースID', '馬番', 'pred_score']].to_string())
+
     return result_df
 
 def predict_new_data(model, df_new, feature_cols, cat_features, context_num_features, context_cat_features, device="cuda"):
@@ -475,7 +479,7 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
 
 if __name__ == "__main__":
     # df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
-    df = pd.read_csv(f'./csv/nakayama3_result_stacking_fold_2025.csv', index_col=0)
+    df = pd.read_csv(f'./csv/monbetu_result_stacking_fold_2025.csv', index_col=0)
     # df = pd.read_csv('./csv/nakayama_kensyou_2025.csv', index_col=0)
     # df = pd.read_csv('./csv/df_all_nakayama_2025.csv', index_col=0)
     
@@ -485,7 +489,7 @@ if __name__ == "__main__":
     df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     # print(df['レースID'].unique().tolist())
     # df['馬番'] = df['馬番'].astype(int) + 1
-    df = df[df['レースID'] == 202506040508]
+    # df = df[df['レースID'] == 202506040508]
     # print(df[['レースID', '馬番', '1出走馬数', '2出走馬数', '3出走馬数', '4出走馬数', '5出走馬数']])
     
     # feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
@@ -501,25 +505,25 @@ if __name__ == "__main__":
     # # 1位と2位を抽出
     # top2 = df[df['rank'] <= 2]
 
-    # top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
-    # with open("log.txt", "a", encoding="utf-8") as f:
-    #     f.write(top[['レースID', '馬番', 'pred_score']].to_string())
+    top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+    with open("log.txt", "a", encoding="utf-8") as f:
+        f.write(top[['レースID', '馬番', 'pred_score']].to_string())
     # # # # print(df[['レースID', '馬番','pred_score']])
-    # race_l = df['レースID'].unique().tolist()
+    race_l = df['レースID'].unique().tolist()
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = 202506040508, 'nakayama', 1, 0, True
+    race_id, field, field_num, odds, central = 202506040508, 'monbetu', 12, 0, False
     odds = [i for i in range(len(df))]
     # race_l = [202506040304, 202506040304]
     # get_race_predict(race_id, field, field_num, odds, central, fold)
-    # for race_id in race_l:
-    #     race_id = int(race_id)
-    #     # print(i)
-    #     get_race_predict(race_id, field, field_num, odds, central)
-    start = time.time()
+    for race_id in race_l:
+        race_id = int(race_id)
+        # print(i)
+        get_race_predict(race_id, field, odds)
+    # start = time.time()
     
-    print(get_race_predict(race_id, field, odds))
+    # print(get_race_predict(race_id, field, odds))
     
-    end = time.time()
-    print("実行時間：", end - start)
+    # end = time.time()
+    # print("実行時間：", end - start)
 
     

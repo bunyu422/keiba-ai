@@ -236,7 +236,7 @@ feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 
 print(feature_cols)
 joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
 rate = 0.1
-seed = 4 # 4
+seed = 1 # 4
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
@@ -260,7 +260,7 @@ params = {
     'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
     'force_col_wise': True,       # 再現性を高める（内部順序を固定）
     'num_threads': 1,             # 厳密再現のためスレッド固定
-    'num_leaves': 30,             # ← ここで指定
+    # 'num_leaves': 30,             # ← ここで指定
 }
 ####################################################################################
 

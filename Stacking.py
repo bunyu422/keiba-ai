@@ -193,11 +193,11 @@ pd.set_option("display.max_colwidth", None)
 
 field = 'monbetu'
 fold = 4
-# seed = 4 # fold 0 \4
-# seed = 5 # fold 1 \5
-# seed = 2 # fold 2 \2
-# seed = 4 # fold 3 \4
-seed = 3 # fold 4 \3
+# seed = 2 # fold 0 \2
+# seed = 2 # fold 1 \2
+# seed = 9 # fold 2 \9
+# seed = 5 # fold 3 \5
+seed = 5 # fold 4 \5
 
 # fold0 
 # [top評価結果2025]
@@ -658,3 +658,50 @@ print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 val_df.to_csv(f'./csv/{field}_result_stacking2_test_{fold}.csv', index=False)
 test_df.to_csv(f'./csv/{field}_result_stacking2_2025_{fold}.csv', index=False)
 
+###########################################################
+# 1. ワイドのみ抽出
+# wide_df = payout_df[payout_df['券種'] == 'ワイド'].copy()
+
+# # 払戻列名の統一
+# if '払い戻し金額' in wide_df.columns:
+#     wide_df['払戻'] = wide_df['払い戻し金額']
+
+# # 2. 馬番をsetで扱いやすく
+# wide_df['pair'] = wide_df['馬番'].apply(
+#     lambda x: frozenset(map(int, x.split('-')))
+# )
+
+# # 3. 各レースの上位3頭を取得
+# top3 = (
+#     val_df
+#     .sort_values(['レースID', 'pred_score'], ascending=[True, False])
+#     .groupby('レースID')
+#     .head(3)
+# )
+
+# # 4. 予想順位1→2,3 の組み合わせを作成
+# bets = []
+# for rid, group in top3.groupby('レースID'):
+#     if len(group) < 3:
+#         continue
+#     horses = group.sort_values('pred_score', ascending=False)['馬番'].tolist()
+#     # (1位-2位), (1位-3位)
+#     bets.append({'レースID': rid, 'pair': frozenset([horses[0], horses[1]])})
+#     bets.append({'レースID': rid, 'pair': frozenset([horses[0], horses[2]])})
+# bets_df = pd.DataFrame(bets)
+
+# # 5. ワイド払い戻しと突き合わせ
+# merged = bets_df.merge(wide_df[['レースID', 'pair', '払戻']], on=['レースID', 'pair'], how='left')
+
+# # 6. 的中判定
+# merged['hit'] = merged['払戻'].notnull()
+# merged['払戻'] = merged['払戻'].fillna(0)
+
+# # 7. 集計
+# total_bet = len(merged) * 100  # 各点100円
+# total_return = merged['払戻'].sum()
+# hit_rate = merged['hit'].mean()
+# roi = total_return / total_bet * 100
+
+# print(f"的中率: {hit_rate:.2%}")
+# print(f"回収率: {roi:.2f}%")

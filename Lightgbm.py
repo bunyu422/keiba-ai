@@ -141,7 +141,7 @@ def add_score_diff_features(df):
 ###########################モデルごとに変更が必要############################
 field = 'monbetu'
 csv_path = f'./csv/df_all_monbetu_2025.csv'
-model_type = "reg-to-reg"
+model_type = "rank-to-rank"
 # csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
@@ -221,7 +221,7 @@ if __name__ == '__main__':
         df_2025['騎手_te'] = df_2025['騎手'].map(j_mapping).fillna(-1)
 
 
-        feature_cols = [col for col in train_df.columns if col not in ['label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        feature_cols = [col for col in train_df.columns if col not in ['人気', 'label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 
         # zero_var = train_df[scale_cols].std()[train_df[scale_cols].std() == 0]
         # print("分散ゼロの列:", zero_var.index.tolist())
@@ -267,6 +267,7 @@ if __name__ == '__main__':
 
         # 保存
         joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
+        joblib.dump(feature_cols, f"./pickle-dict/{field}_lgb_cols.pkl")
 
         # print(val_df.head(30))
 
@@ -291,16 +292,16 @@ if __name__ == '__main__':
         params = {
             'task': 'train',
             'boosting_type': 'gbdt',
-            'objective': 'regression',  # ←ここでランキング学習と指定！
-            'metric': 'rmse',   # for lambdarank
+            # 'objective': 'regression',  # ←ここでランキング学習と指定！
+            # 'metric': 'rmse',   # for lambdarank
             'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
             'learning_rate': rate,
             'random_state': seed,
             'verbose_eval': 1000,
-            # 'objective': 'lambdarank',
-            # 'metric': 'ndcg',
-            # 'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-            # 'label_gain': [0,3,5,10],
+            'objective': 'lambdarank',
+            'metric': 'ndcg',
+            'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+            'label_gain': [0,3,5,10],
             'bagging_seed': seed,
             'feature_fraction_seed': seed,
             'data_random_seed': seed,
@@ -380,8 +381,8 @@ if __name__ == '__main__':
         df_2025 = add_score_diff_features(df_2025).round(10)
         # print("test len",len(test_df))
 
-        feature_cols = [col for col in val_df.columns if col not in ['label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
-        joblib.dump(feature_cols,"./pickle-dict/lgb_cols_second.pkl")
+        feature_cols = [col for col in val_df.columns if col not in ['人気', 'label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        joblib.dump(feature_cols,f"./pickle-dict/{field}_lgb_cols_second.pkl")
         # feature_cols = ['score_diff_prev','score_diff_next','score_minus_mean','score_minus_mean_std','rank_in_race']
         # feature_cols = [
         #     # 差分・順位系
@@ -420,16 +421,16 @@ if __name__ == '__main__':
             params = {
                 'task': 'train',
                 'boosting_type': 'gbdt',
-                'objective': 'regression',  # ←ここでランキング学習と指定！
-                'metric': 'rmse',   # for lambdarank
+                # 'objective': 'regression',  # ←ここでランキング学習と指定！
+                # 'metric': 'rmse',   # for lambdarank
                 'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
                 'learning_rate': rate,
                 'random_state': seed,
                 'verbose_eval': 1000,
-                # 'objective': 'lambdarank',
-                # 'metric': 'ndcg',
-                # 'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-                # 'label_gain': [0,3,5,10],
+                'objective': 'lambdarank',
+                'metric': 'ndcg',
+                'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+                'label_gain': [0,3,5,10],
                 'bagging_seed': seed,
                 'feature_fraction_seed': seed,
                 'data_random_seed': seed,

@@ -219,12 +219,12 @@ def scraping_local(csv_path, no, start, end):
         # 追記（ヘッダーなし）
         df.to_csv(csv_path, mode='a', header=False, na_rep='NaN')
 
-def scrape_payouts_combination(csv_path, no):
+def scrape_payouts_combination(csv_path, no, start, end):
     df = pd.DataFrame(columns=['レースID', '券種', '馬番', '払い戻し金額'])
 
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    for year in range(2012, 2025):
+    for year in range(start, end):
         for number in range(1, 6):
             for day in range(1, 13):
                 for race_no in range(1, 13):

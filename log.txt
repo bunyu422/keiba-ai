@@ -801,183 +801,222 @@ append_colのランク系の不定を排除
 1 202506040909   3 0.2660847669851551         レースID  馬番         pred_score
 2 202506040910  11 0.2187443113405612         レースID  馬番         pred_score
 0 202506040911   7 0.2405644591967654         レースID  馬番         pred_score
-0 202506040912  10 0.4475429091717081[2025-11-01 10:02:28.693479] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
+0 202506040912  10 0.4475429091717081
 
-[2025-11-01 10:32:13.466041] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 11:02:27.081419] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 11:32:21.666881] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 13:22:26.657115] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 13:52:10.679847] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 14:28:24.269071] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 15:02:08.353827] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 15:42:22.029564] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
 
-[2025-11-01 16:22:06.309196] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
+            レースID  馬番         pred_score
+8    202530082804   1 0.1204069629115094
+11   202530082805  10 0.4153683417994114
+23   202530082806   2 0.4153683417994114
+33   202530082807   1 0.4648198633229567
+44   202530082808  12 0.2849363676616207
+63   202530082809  12 0.1851803941810957
+67   202530082810   3 0.4153683417994114
+84   202530082811   3 0.4449601032748997
+88   202530082812   8 0.1924631991606423
+96   202530090201   6 0.4153683417994114
+106  202530090202   7 0.4927590929346038
+114  202530090203   9 0.4811886337357453
+128  202530090204   4 0.1578876559716612
+136  202530090205   1 0.4153683417994114
+146  202530090206   5 0.0986706163373385
+161  202530090207   4 0.4153683417994114
+164  202530090208  10 0.2332921964956469
+174  202530090209   4 0.3142563411412911
+187  202530090210   3 0.2176157513350765
+197  202530090211   5 0.1872219513766555
+209  202530090212   3 0.4592700726139462
+213  202530090301   4 0.0106173104087963
+222  202530090302   8 0.4153683417994114
+234  202530090303   4 0.4170208736632526
+243  202530090304   4 0.0389060365342452
+250  202530090305   1 0.2656109637349167
+257  202530090306  10 0.2427068798413064
+276  202530090307   5 0.1947409317333307
+279  202530090308   2 0.4449601032748997
+285  202530090309   9 0.4927590929346038
+297  202530090310   7 0.4153683417994114
+308  202530090311   4 0.4153683417994114
+315  202530090312   7 0.3166550873079076
+325  202530090401   7 0.2423555872214274
+334  202530090402   3  0.134578942004143
+346  202530090403   7 0.1222507511405014
+357  202530090404   5 0.4927590929346038
+368  202530090405   2 0.0793924348647835
+370  202530090406   1 0.1161586164185098
+383  202530090407   6 0.0942301764357216
+394  202530090408   3 0.1161586164185098
+400  202530090409   7 0.4592700726139462
+415  202530090410  10 0.3770861534662542
+420  202530090411   9 0.4153683417994114
+429  202530090412  10 0.0143677808770888
+438  202530090901   3 0.4170208736632526
+453  202530090902   7 0.1250152441932263
+462  202530090903   8 0.1621068828381408
+473  202530090904   3 0.4631673314591155
+481  202530090905   2 0.2656109637349167
+487  202530090906   2  0.283162464149069
+502  202530090907   8 0.2280632542735663
+513  202530090908   5 0.3657624385577741
+531  202530090909  10 0.4811886337357453
+537  202530090910  12 0.4153683417994114
+549  202530090911   2 0.1637062714580782
+561  202530090912   5 0.4153683417994114
+566  202530091001   9 0.4153683417994114
+579  202530091002   7 0.3602002935629879
+586  202530091003  12 0.0420737684765872
+599  202530091004   3 0.4449601032748997
+616  202530091005   7 0.4153683417994114
+622  202530091006   5 0.1187546281148334
+631  202530091007   8 0.4153683417994114
+639  202530091008   6 0.1257902381797951
+647  202530091009   7 0.4153683417994114
+659  202530091010   7 0.2280632542735663
+671  202530091011  11 0.4927590929346038
+685  202530091012   2 0.2034496018950155
+688  202530091101  10 0.2332921964956469
+701  202530091102   7 0.0720762757455177
+707  202530091103   3 0.3183076191717487
+713  202530091104   5 0.1799529443680576
+720  202530091105   3 0.4927590929346038
+731  202530091106   1 0.1287036317481865
+739  202530091107   4 0.4811886337357453
+751  202530091108   3  0.261487039071484
+758  202530091109   6 0.3602002935629879
+769  202530091110   4 0.0539405521138956
+779  202530091111   6 0.4153683417994114
+791  202530091112   1 0.1093796555237826
+796  202530091601   3 0.3022961933602108
+813  202530091602   7 0.3770861534662542
+816  202530091603   9 0.1612187729514919
+828  202530091604   2 0.3265007361230394
+838  202530091605   4 0.3430686135762301
+844  202530091606   3 0.4153683417994114
+855  202530091607   6 0.4631673314591155
+864  202530091608  10 0.3913961228053007
+879  202530091609   6 0.4631673314591155
+884  202530091610   2 0.1612187729514919
+899  202530091611   4 0.1551674777690497
+904  202530091612   2 0.2423555872214274
+916  202530091701   4 0.2307969717338074
+926  202530091702   6 0.2332921964956469
+938  202530091703   8 0.3166550873079076
+949  202530091704   4 0.2268832112762071
+953  202530091705   1 0.1163225449795635
+964  202530091706   8 0.0777080106845255
+977  202530091707  11 0.2836604649317328
+988  202530091708  10 0.3166550873079076
+1005 202530091709   7 0.4153683417994114
+1009 202530091710   4 0.4449601032748997
+1020 202530091711   6 0.4153683417994114
+1030 202530091712   6  0.136740540405499
+1041 202530091801   7 0.1222507511405014
+1050 202530091802   3 0.4442960551165243
+1065 202530091803   6 0.1167334720585704
+1071 202530091804   4 0.1436036874675137
+1076 202530091805   1 0.3166550873079076
+1085 202530091806   1 0.3602002935629879
+1096 202530091807   6 0.0071218442515073
+1105 202530091808   2 0.3602002935629879
+1112 202530091809   4 0.2566594418904431
+1122 202530091810   9 0.4927590929346038
+1137 202530091811   1 0.0942301764357216
+1147 202530091812   7 0.1885085381427076
+1153 202530092301   8 0.4153683417994114
+1166 202530092302  10 0.2280632542735663
+1177 202530092303   6 0.4449601032748997
+1188 202530092304   7 0.4648198633229567
+1200 202530092305   2 0.2062793242873131
+1219 202530092306   9 0.1329133934284596
+1225 202530092307   6 0.2580682672729136
+1234 202530092308   6 0.4449601032748997
+1237 202530092309   8 0.1480443225203852
+1248 202530092310   6 0.3302695105623666
+1261 202530092311   9 0.0986706163373385
+1272 202530092312   4 0.1016802594473584
+1291 202530092401   8 0.4153683417994114
+1295 202530092402   3 0.4449601032748997
+1306 202530092403   4 0.2220886850211687
+1317 202530092404  10 0.2716755607010977
+1330 202530092405   8 0.2332921964956469
+1337 202530092406   1 0.1337705091089914
+1352 202530092407   8 0.2745895233139189
+1359 202530092408   6 0.4153683417994114
+1368 202530092409  10 0.2839199556828461
+1380 202530092410   6 0.2332921964956469
+1393 202530092411   4 0.2307969717338074
+1398 202530092412   4 0.4153683417994114
+1410 202530092501   8 0.1829957068106417
+1417 202530092502  12 0.4449601032748997
+1439 202530092503   6 0.1151761545662834
+1441 202530092504   4 0.1637062714580782
+1456 202530092505   2 0.4153683417994114
+1465 202530092506   6 0.4153683417994114
+1478 202530092507  11 0.2332921964956469
+1493 202530092508   1 0.2427068798413064
+1502 202530092509   5 0.1599315516048029
+1504 202530092510   6 0.4153683417994114
+1522 202530092511   2 0.1405257449909102
+1527 202530092512   6 0.4927590929346038
+1538 202530093001   8 0.4153683417994114
+1545 202530093002  11 0.2280632542735663
+1552 202530093003   4 0.1859769937577347
+1567 202530093004   6 0.2332921964956469
+1575 202530093005   4 0.4153683417994114
+1579 202530093006   8 0.4927590929346038
+1591 202530093007   6 0.2280632542735663
+1608 202530093008   4 0.4927590929346038
+1611 202530093009   8 0.2332921964956469
+1621 202530093010   1 0.4153683417994114
+1633 202530093011   2 0.4153683417994114
+1642 202530093012   8 0.1531802956287182
+1651 202530100101   6 0.3462468487833959
+1653 202530100102  10 0.4153683417994114
+1665 202530100103   8 0.3602002935629879
+1678 202530100104   8 0.4153683417994114
+1686 202530100105   3 0.3183076191717487
+1696 202530100106   1 0.1947409317333307
+1712 202530100107   1 0.4153683417994114
+1723 202530100108   5  0.091083946221539
+1734 202530100109  10 0.4927590929346038
+1743 202530100110   9 0.3602002935629879
+1753 202530100111   6 0.4927590929346038
+1769 202530100112  12 0.4153683417994114
+1778 202530100201   9 0.2427068798413064
+1786 202530100202   7 0.4449601032748997
+1801 202530100203   3 0.1637062714580782
+1811 202530100204   6 0.3602002935629879
+1814 202530100205   5 0.1412868603775756
+1825 202530100206   9 0.3430686135762301
+1838 202530100207  11 0.4153683417994114
+1847 202530100208   8 0.1519248673261059
+1858 202530100209   6 0.1731901085023347
+1866 202530100210   1 0.2332921964956469
+1878 202530100211   6 0.4811886337357453
+1894 202530100212   3 0.4547143244679556
+1913 202530100701   8 0.4153683417994114
+1916 202530100702   1 0.4927590929346038
+1929 202530100703  10 0.2427068798413064
+1938 202530100704   2 0.1119237581303355
+1946 202530100705  12 0.4153683417994114
+1959 202530100706   5 0.3770861534662542
+1977 202530100707   8 0.4153683417994114
+1980 202530100708   5 0.2332921964956469
+1988 202530100709   4 0.4927590929346038
+1994 202530100710   5 0.2894975409580479
+2007 202530100711   1 0.1480443225203852
+2020 202530100712   8 0.0586441810350014         
 
-[2025-11-02 09:42:18.417233] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 10:12:02.412163] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 11:12:07.278853] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 12:32:04.004771] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 13:02:20.009622] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 13:32:04.589769] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 14:07:18.188962] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 14:42:02.556981] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 15:22:16.303825] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
-[2025-11-02 16:02:07.073448] Traceback (most recent call last):
-  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
-    job(n1, n2, n3)  # 本来の購入処理
-  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
-    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
-  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
-    raise ValueError(f"Unknown venue: {field}")
-ValueError: Unknown venue: kyoto
-
+レースID  馬番         pred_score
+0 202530082804   7 0.1596193843315546         レースID  馬番         pred_score
+0 202530082805  10 0.4153683417994115         レースID  馬番         pred_score
+0 202530082806   2 0.4153683417994115         レースID  馬番         pred_score
+0 202530082807   1 0.4648198633229567         レースID  馬番         pred_score
+0 202530082808  12 0.4153683417994115
