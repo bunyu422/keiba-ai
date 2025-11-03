@@ -549,10 +549,10 @@ def encording(df_all):
 # 終盤のデータ加工
 def df_end_processing(df_all, type='推論'):
     df_all = df_all.copy()
-    if type != '推論':
+    # if type != '推論':
         # 着順から文字列を排除
-        indexNames = df_all[(df_all['着順'] != '中止') & (df_all['着順'] != '除外') & (df_all['着順'] != '取消') & (df_all['着順'] != '失格') & (df_all['着順'] != '未定')]
-        df_all = indexNames
+        # indexNames = df_all[(df_all['着順'] != '中止') & (df_all['着順'] != '除外') & (df_all['着順'] != '取消') & (df_all['着順'] != '失格') & (df_all['着順'] != '未定')]
+        # df_all = indexNames
 
     # 着差とスピード指数のbest, avカラム作成
     df_all['best着差'] = df_all.loc[:, ['1着差', '2着差', '3着差', '4着差', '5着差']].astype(float).min(axis=1)

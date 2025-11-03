@@ -240,8 +240,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     df1.columns = df1.columns.droplevel()
 
     df_shutuba = pd.concat([df_shutuba, df_result_past])
-    # df_shutuba['オッズ'] = odds
-    df_shutuba['オッズ'] = 0
+    df_shutuba['オッズ'] = odds
+    # df_shutuba['オッズ'] = 0
     df_shutuba['人気'] = df1['人気']
 
     driver.quit()
@@ -250,8 +250,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     # 取り消し馬削除
     # ----------------------------
     df = df_shutuba.copy()
-    # df = df[df['オッズ'] != '--']
-    df = df[df['人気'] != '--']
+    df = df[df['オッズ'] != '--']
+    # df = df[df['人気'] != '--']
 
     # ----------------------------
     # Learning / Listwise 前処理
@@ -260,7 +260,8 @@ def get_race_info(race_id, field, field_num, odds, central):
     # 場所列追加
     # ----------------------------
     df['場所'] = field_num
-    df["騎手"] = df["騎手斤量"].str.extract(r'([^\s]+)\s*\d+\.?\d*$')
+    if central:
+        df["騎手"] = df["騎手斤量"].str.extract(r'([^\s]+)\s*\d+\.?\d*$')
     df = Learning.df_first_processing(df, field)
     df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', '厩舎', '騎手斤量', '印_x', '印_y', '登録', '馬メモ切替', 'Unnamed: 9_level_1', 'グループ'], axis=1, errors="ignore")  # 必要な削除カラム
     df = Learning.df_big_past_processing(df, field, field_num)
@@ -355,10 +356,37 @@ def predict_listnet(
     return predict_new_data(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device)
 
 def predict_lgb(dfs, field):
+    
     if field == 'nakayama':
         field = 'nakayama3'
+    
+    # answer = pd.read_csv(f'./csv/{field}_result_lgb_rank-to-rank_2025_0.csv')
+    # answer = answer[answer['レースID'] == 202530082804]
+    # answer = answer.sort_values(by=['馬番'])
 
     feature_cols = joblib.load(f"./pickle-dict/{field}_lgb_cols.pkl")
+    
+    # # 差異チェック
+    # df1 = dfs[0].sort_values(by=['馬番'])[feature_cols].reset_index(drop=True)
+    # df2 = answer[feature_cols].reset_index(drop=True)
+
+    # # 行数・列数チェック
+    # if df1.shape != df2.shape:
+    #     print(f"⚠️ 形が違います: dfs[0]={df1.shape}, answer={df2.shape}")
+    # else:
+    #     # 値の一致確認
+    #     diff = (df1 != df2) & ~(df1.isna() & df2.isna())
+    #     if diff.any().any():
+    #         print("⚠️ 一致しないセルがあります。")
+    #         # 差分のある箇所を抽出（最大5箇所）
+    #         rows, cols = np.where(diff)
+    #         for r, c in zip(rows, cols):
+    #             col = df1.columns[c]
+    #             print(f"行{r}, 列'{col}': dfs[0]={df1.iloc[r][col]}, answer={df2.iloc[r][col]}")
+    #     else:
+    #         print("✅ 完全一致しています！")
+
+    
     type_list = ['reg-to-rank', 'reg-to-reg', 'rank-to-rank']
     # 各タイプごとに完全独立したDataFrameリストを作成
     dfs_list = [[df.copy(deep=True) for df in dfs] for _ in type_list]
@@ -376,7 +404,26 @@ def predict_lgb(dfs, field):
             dfs_list[i][k] = add_score_diff_features(d).round(10) # 同率スコアがある場合順位が不定 修正必要
 
     feature_cols = joblib.load(f"./pickle-dict/{field}_lgb_cols_second.pkl")
+    
+    # 差異チェック
+    # df1 = dfs_list[2][0].sort_values(by=['馬番'])[feature_cols].reset_index(drop=True)
+    # df2 = answer[feature_cols].reset_index(drop=True)
 
+    # # 行数・列数チェック
+    # if df1.shape != df2.shape:
+    #     print(f"⚠️ 形が違います: dfs[0]={df1.shape}, answer={df2.shape}")
+    # else:
+    #     # 値の一致確認
+    #     diff = (df1 != df2) & ~(df1.isna() & df2.isna())
+    #     if diff.any().any():
+    #         print("⚠️ 一致しないセルがあります。")
+    #         # 差分のある箇所を抽出（最大5箇所）
+    #         rows, cols = np.where(diff)
+    #         for r, c in zip(rows, cols):
+    #             col = df1.columns[c]
+    #             print(f"行{r}, 列'{col}': dfs[0]={df1.iloc[r][col]}, answer={df2.iloc[r][col]}")
+    #     else:
+    #         print("✅ 完全一致しています！")
 
     for model_type, dfs_l in zip(type_list, dfs_list): # for type in type_list:
         for fold, d in enumerate(dfs_l):
@@ -430,9 +477,9 @@ def predict_lgb(dfs, field):
     result_df['pred_score'] = model.predict(result_df[feature_cols])
     result_df = result_df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
 
-    top = result_df.loc[result_df.groupby('レースID')['pred_score'].idxmax()]
-    with open("log.txt", "a", encoding="utf-8") as f:
-        f.write(top[['レースID', '馬番', 'pred_score']].to_string())
+    # top = result_df.loc[result_df.groupby('レースID')['pred_score'].idxmax()]
+    # with open("log.txt", "a", encoding="utf-8") as f:
+    #     f.write(top[['レースID', '馬番', 'pred_score']].to_string())
 
     return result_df
 
@@ -489,7 +536,7 @@ if __name__ == "__main__":
     df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     # print(df['レースID'].unique().tolist())
     # df['馬番'] = df['馬番'].astype(int) + 1
-    df = df[df['レースID'] == 202530082804]
+    # df = df[df['レースID'] == 202530082804]
     # print(df[['レースID', '馬番', '1出走馬数', '2出走馬数', '3出走馬数', '4出走馬数', '5出走馬数']])
     
     # feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
@@ -511,7 +558,7 @@ if __name__ == "__main__":
     # # # # # print(df[['レースID', '馬番','pred_score']])
     # race_l = df['レースID'].unique().tolist()
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = 202530082804, 'monbetu', 12, 0, False
+    race_id, field, field_num, odds, central = 202530090211, 'monbetu', 12, 0, False
     odds = [i for i in range(len(df))]
     # race_l = [202506040304, 202506040304]
     # get_race_predict(race_id, field, field_num, odds, central, fold)
