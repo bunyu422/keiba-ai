@@ -184,7 +184,7 @@ pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
 
-field = "monbetu"
+field = "tokyo"
 
 csv_files = [
     f'./csv/{field}_result_stacking2_2025_{i}.csv' for i in range(5)
