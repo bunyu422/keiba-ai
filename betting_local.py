@@ -16,6 +16,7 @@ from datetime import datetime as dt
 from datetime import timedelta
 import logging
 import datetime
+import Lgihtgbm_func as lf
 
 
 # ---- 共通関数 ----
@@ -103,7 +104,7 @@ def job(n1, n2, n3):
         field = None
 
     # 馬を選択
-    buyList, buyList_wide = Listwise_func.select_horse(n3, field, odds)
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
 
     if buyList is None:
         print(f"{n1}{n2}R は購入しない")
@@ -206,6 +207,115 @@ def set_id(id_list, skip_list):
         count+=1
     return race_id
             
+# def set_info():
+#     time_list = []
+#     dict_race = []
+
+#     # ブラウザを起動する
+#     with webdriver.Chrome(options=options) as driver:
+#         locations = []
+#         place_list = []
+#         race_id = []
+
+#         # 当日の日付を YYYYMMDD 形式に
+#         today_str = datetime.datetime.today().strftime('%Y%m%d')
+
+#         # レース一覧ページ
+#         url_race = f'https://nar.netkeiba.com/top/race_list.html?kaisai_date={today_str}'
+#         print(url_race)
+#         # ブラウザでアクセスする
+#         driver.get(url_race)
+
+#         # 要素を取得
+#         el = driver.find_elements(By.CLASS_NAME, "RaceList_DataTitle")
+#         for i in el:
+
+#             # smallタグを取り除いたテキストだけ抜き出す
+#             text = i.get_attribute("innerText")
+
+#             # innerText は「3回\n 新潟 \n1日目」となるので strip/split で調整
+#             parts = text.split()
+#             # => ['3回', '新潟', '1日目']
+
+#             location = parts[1]  # "新潟"
+
+#             locations.append(location)
+
+#             print(location)
+
+
+#         # ページ全体が読み込まれるのを待つ（例: RaceList_DataList が出るまで最大10秒）
+#         blocks = WebDriverWait(driver, 10).until(
+#             EC.presence_of_all_elements_located((By.CLASS_NAME, "RaceList_DataList"))
+#         )
+
+#         for num, block in enumerate(blocks):
+#             # 各ブロック内の RaceList_DataItem を取得
+#             li_items = block.find_elements(By.CSS_SELECTOR, "li.RaceList_DataItem")
+#             if not li_items:
+#                 continue
+
+#             # 最初の RaceList_DataItem を取得
+#             first_li = li_items[0]
+#             a_tag = first_li.find_element(By.TAG_NAME, "a")
+#             href = a_tag.get_attribute("href")
+
+#             # race_id を取得
+#             match = re.search(r"race_id=(\d+)", href)
+#             if match:
+#                 base_id = match.group(1)[:-2]  # 末尾2桁を除く
+
+#             # 各ブロック内の RaceList_DataTitle を取得
+#             titles = block.find_elements(By.CLASS_NAME, "ItemTitle")
+            
+#             for race_num, title in enumerate(titles, start=1):
+#                 text = title.text.strip()  # 要素のテキストを取得
+#                 if "新馬" not in text:
+#                     print("対象:", text)
+#                     race_id.append(f'{base_id}{str(race_num).zfill(2)}')
+
+#         number = 0
+#         count = 0
+#         race_sheet = []
+#         for num, i in enumerate(blocks):
+#             # tableを取得(js反映)
+#             el=i.find_elements(By.CLASS_NAME, "ItemTitle") #classでテーブルを指定
+
+#             for k in el:
+#                 count += 1
+#                 number += 1
+#                 text = k.get_attribute("textContent")
+#                 text = text.strip()  # 要素のテキストを取得
+#                 if "新馬" not in text:
+#                     # 「新馬」が含まれていない要素だけ処理
+#                     # print("対象:", text)
+#                     dict_race.append(count)
+#                     race_sheet.append(number)
+
+#             if max(dict_race) < 12*(num+1):
+#                 for j in range(12*(num+1)-max(dict_race)):
+#                     number += 1
+
+#         # print(race_sheet)
+#         el=driver.find_elements(By.CLASS_NAME, "RaceData") #classでテーブルを指定
+
+#         for i in range(len(el)):
+#             if i+1 in dict_race:
+#                 text = el[i].get_attribute("innerText")
+#                 parts = text.split()
+#                 time_list.append((dt.strptime(parts[0], '%H:%M') - timedelta(minutes=3)).strftime("%H:%M"))
+
+#         for num, i in enumerate(locations, start=1):
+#             for k in range(sum(1 for x in dict_race if x <= 12*num and x > 12*(num-1))):
+#                 place_list.append(i)
+
+#         race_l = []
+#         for i in dict_race:
+#             race_l.append((i-1) % 12 + 1)
+        
+#     return time_list, place_list, race_l, race_id
+
+
 def set_info():
     time_list = []
     dict_race = []
@@ -226,7 +336,7 @@ def set_info():
         driver.get(url_race)
 
         # 要素を取得
-        el = driver.find_elements(By.CLASS_NAME, "RaceList_ProvinceSelect")
+        el = driver.find_elements(By.CLASS_NAME, "RaceList_DataTitle")
         for i in el:
 
             # smallタグを取り除いたテキストだけ抜き出す
@@ -236,9 +346,11 @@ def set_info():
             parts = text.split()
             # => ['3回', '新潟', '1日目']
 
-            locations = parts
-            break
+            location = parts[1]  # "新潟"
 
+            locations.append(location)
+
+            print(location)
 
         # ページ全体が読み込まれるのを待つ（例: RaceList_DataList が出るまで最大10秒）
         blocks = WebDriverWait(driver, 10).until(
@@ -262,36 +374,37 @@ def set_info():
                 base_id = match.group(1)[:-2]  # 末尾2桁を除く
 
             # 各ブロック内の RaceList_DataTitle を取得
+            try:
+                # aタグのテキストがlocと完全一致するものを探す
+                elem = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, f'//a[normalize-space()="{locations[num]}"]'))
+                )
+                elem.click()
+                print(f"{locations[num]} をクリックしました")
+            except Exception as e:
+                print(f"{locations[num]} のリンクが見つかりませんでした: {e}")
+
             titles = block.find_elements(By.CLASS_NAME, "ItemTitle")
             
             for race_num, title in enumerate(titles, start=1):
                 text = title.text.strip()  # 要素のテキストを取得
                 if "新馬" not in text:
-                    race_id.append(f'{base_id}{str(race_num).zfill(2)}')
-
-        number = 0
-        count = 0
-        race_sheet = []
-        for num, i in enumerate(blocks):
-            # tableを取得(js反映)
-            el=i.find_elements(By.CLASS_NAME, "ItemTitle") #classでテーブルを指定
-
-            for k in el:
-                count += 1
-                number += 1
-                text = k.get_attribute("textContent")
-                text = text.strip()  # 要素のテキストを取得
-                if "新馬" not in text:
-                    # 「新馬」が含まれていない要素だけ処理
                     # print("対象:", text)
-                    dict_race.append(count)
-                    race_sheet.append(number)
+                    race_id.append(f'{base_id}{str(race_num).zfill(2)}')
+                    dict_race.append(race_num+12*num)
 
-            if max(dict_race) < 12*(num+1):
-                for j in range(12*(num+1)-max(dict_race)):
-                    number += 1
+            # tableを取得(js反映)
+            # el=driver.find_elements(By.CLASS_NAME, "ItemTitle") #classでテーブルを指定
 
-        print(race_sheet)
+            # for num, i in enumerate(el, start=1):
+            #     text = i.text.strip()  # 要素のテキストを取得
+            #     if "新馬" not in text:
+            #         # 「新馬」が含まれていない要素だけ処理
+            #         # print("対象:", text)
+            #         # ここに処理を書く
+            #         dict_race.append(num)
+            #         # tableを取得(js反映)
+
         el=driver.find_elements(By.CLASS_NAME, "RaceData") #classでテーブルを指定
 
         for i in range(len(el)):
@@ -301,14 +414,15 @@ def set_info():
                 time_list.append((dt.strptime(parts[0], '%H:%M') - timedelta(minutes=3)).strftime("%H:%M"))
 
         for num, i in enumerate(locations, start=1):
-            for k in range(sum(1 for x in race_sheet if x <= 12*num and x > 12*(num-1))):
+            for k in range(sum(1 for x in dict_race if x <= 12*num and x > 12*(num-1))):
                 place_list.append(i)
 
         race_l = []
-        for i in race_sheet:
+        for i in dict_race:
             race_l.append((i-1) % 12 + 1)
         
     return time_list, place_list, race_l, race_id
+
 
 # def job_with_retry(n1, n2, n3, retry=True):
 #     try:
@@ -334,9 +448,9 @@ def job_with_retry(n1, n2, n3, retry=True):
     try:
         job(n1, n2, n3)  # 本来の購入処理
 
-    except ValueError as e:
-        print(f"{n1}は予想対象外です")
-        job1()
+    # except ValueError as e:
+    #     print(f"{n1}は予想対象外です")
+    #     job1()
     
     except Exception as e:
         print(f"{n1}{n2}R でエラー発生: {e}")
@@ -376,6 +490,7 @@ if __name__ == "__main__":
 
     timeList, keibajouList, RList, race_id = set_info()
     print(timeList, keibajouList, RList, race_id)
+    print(len(timeList), len(keibajouList), len(RList), len(race_id))
 
     for n in range(len(timeList)):
         schedule.every().day.at(timeList[n]).do(job_with_retry, n1=keibajouList[n], n2=RList[n], n3=race_id[n])

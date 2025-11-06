@@ -184,7 +184,7 @@ pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
 
-field = "tokyo"
+field = "sonoda"
 
 csv_files = [
     f'./csv/{field}_result_stacking2_2025_{i}.csv' for i in range(5)
@@ -236,7 +236,7 @@ feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 
 print(feature_cols)
 joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
 rate = 0.1
-seed = 1 # 4
+seed = 2 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
@@ -283,7 +283,7 @@ model = tuner.get_best_booster()
 print(best_params)
 
 # pklファイルとしてモデルを保存
-joblib.dump(model, f"./model/stacking_fold_model_lgb.pickle")
+joblib.dump(model, f"./model/{field}_stacking_fold_model_lgb.pickle")
 
 # 学習後のモデル
 importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度

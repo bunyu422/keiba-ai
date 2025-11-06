@@ -191,13 +191,32 @@ pd.set_option("display.max_colwidth", None)
 # seed = 3 # fold 3 \3
 # seed = 7 # fold 4 \7
 
-field = 'monbetu'
-fold = 4
+# field = 'monbetu'
+# fold = 4
 # seed = 2 # fold 0 \2
 # seed = 2 # fold 1 \2
 # seed = 9 # fold 2 \9
 # seed = 5 # fold 3 \5
+# seed = 5 # fold 4 \5
+
+# field = 'kasamatu'
+# fold = 4
+# seed = 8 # fold 0 \8
+# seed = 3 # fold 1 \3
+# seed = 2 # fold 2 \2
+# seed = 7 # fold 3 \7
+# seed = 3 # fold 4 \3
+
+field = 'sonoda'
+fold = 4
+# seed = 8 # fold 0 \8
+# seed = 6 # fold 1 \6
+# seed = 4 # fold 2 \4
+# seed = 6 # fold 3 \6
 seed = 5 # fold 4 \5
+
+print("seed", seed)
+rate = 0.01
 
 # fold0 
 # [top評価結果2025]
@@ -412,7 +431,7 @@ target_col = 'is_win'
 feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 print(feature_cols)
 joblib.dump(feature_cols, "./pickle-dict/stacking_feature_cols.pkl")
-rate = 0.01
+
 
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
@@ -458,7 +477,7 @@ best_params = tuner.best_params
 model = tuner.get_best_booster()
 print(best_params)
 # pklファイルとしてモデルを保存
-joblib.dump(model, f"./model/stacking_model_lgb_fold{fold}.pickle")
+joblib.dump(model, f"./model/{field}_stacking_model_lgb_fold{fold}.pickle")
 
 # 学習後のモデル
 importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度

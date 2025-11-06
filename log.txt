@@ -1215,3 +1215,488 @@ append_colのランク系の不定を排除
 2 202530100710   5 0.2894975409580479         レースID  馬番         pred_score
 0 202530100711   1 0.1480443225203852         レースID  馬番         pred_score
 1 202530100712   8 0.0586441810350014
+
+
+[2025-11-05 11:57:27.739509] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 328, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 80, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, f"{n2}R") # レース
+  File "c:\keibaAI_2025_0702\betting_local.py", line 26, in wait_and_click
+    el = WebDriverWait(driver, timeout).until( EC.element_to_be_clickable((by, value)) )
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff66ec1e8e5+80021]
+	GetHandleVerifier [0x0x7ff66ec1e940+80112]
+	(No symbol) [0x0x7ff66e9a060f]
+	(No symbol) [0x0x7ff66e9f8854]
+	(No symbol) [0x0x7ff66e9f8b1c]
+	(No symbol) [0x0x7ff66ea4c927]
+	(No symbol) [0x0x7ff66ea2126f]
+	(No symbol) [0x0x7ff66ea4968a]
+	(No symbol) [0x0x7ff66ea21003]
+	(No symbol) [0x0x7ff66e9e95d1]
+	(No symbol) [0x0x7ff66e9ea3f3]
+	GetHandleVerifier [0x0x7ff66eeddc7d+2960429]
+	GetHandleVerifier [0x0x7ff66eed7f3a+2936554]
+	GetHandleVerifier [0x0x7ff66eef8977+3070247]
+	GetHandleVerifier [0x0x7ff66ec383ce+185214]
+	GetHandleVerifier [0x0x7ff66ec3fe1f+216527]
+	GetHandleVerifier [0x0x7ff66ec27b24+117460]
+	GetHandleVerifier [0x0x7ff66ec27cdf+117903]
+	GetHandleVerifier [0x0x7ff66ec0dbb8+11112]
+	BaseThreadInitThunk [0x0x7ffdc96ae8d7+23]
+	RtlUserThreadStart [0x0x7ffdca2ec53c+44]
+
+
+[2025-11-05 12:17:30.232513] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 12:42:15.452108] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 12:52:09.654397] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 13:12:23.130972] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 13:32:06.569627] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 13:42:30.753293] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 14:07:14.529993] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 14:17:28.928214] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 14:37:11.709835] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 14:42:05.766949] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 14:52:19.137651] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 15:07:02.880963] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 15:22:16.332057] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 15:27:10.510896] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 15:37:04.706228] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 15:57:11.306073] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 16:02:05.309061] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-05 16:12:29.465702] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 16:32:02.996757] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 16:37:46.076778] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 80, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, f"{n2}R") # レース
+  File "c:\keibaAI_2025_0702\betting_local.py", line 26, in wait_and_click
+    el = WebDriverWait(driver, timeout).until( EC.element_to_be_clickable((by, value)) )
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	GetHandleVerifier [0x0x7ff66ec1e8e5+80021]
+	GetHandleVerifier [0x0x7ff66ec1e940+80112]
+	(No symbol) [0x0x7ff66e9a060f]
+	(No symbol) [0x0x7ff66e9f8854]
+	(No symbol) [0x0x7ff66e9f8b1c]
+	(No symbol) [0x0x7ff66ea4c927]
+	(No symbol) [0x0x7ff66ea2126f]
+	(No symbol) [0x0x7ff66ea4968a]
+	(No symbol) [0x0x7ff66ea21003]
+	(No symbol) [0x0x7ff66e9e95d1]
+	(No symbol) [0x0x7ff66e9ea3f3]
+	GetHandleVerifier [0x0x7ff66eeddc7d+2960429]
+	GetHandleVerifier [0x0x7ff66eed7f3a+2936554]
+	GetHandleVerifier [0x0x7ff66eef8977+3070247]
+	GetHandleVerifier [0x0x7ff66ec383ce+185214]
+	GetHandleVerifier [0x0x7ff66ec3fe1f+216527]
+	GetHandleVerifier [0x0x7ff66ec27b24+117460]
+	GetHandleVerifier [0x0x7ff66ec27cdf+117903]
+	GetHandleVerifier [0x0x7ff66ec0dbb8+11112]
+	BaseThreadInitThunk [0x0x7ffdc96ae8d7+23]
+	RtlUserThreadStart [0x0x7ffdca2ec53c+44]
+
+
+[2025-11-05 16:42:10.229645] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 17:07:24.387307] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 17:12:18.639358] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 17:42:03.224694] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 17:47:27.233993] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 18:12:11.367234] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 18:22:05.588299] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 18:47:20.757353] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 19:22:04.465210] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 20:02:18.762397] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-05 20:47:02.712177] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 10:57:30.111864] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 336, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 52, in get_race_predict
+    dfs = get_race_info(race_id, field, params["field_num"], odds, params["central"])
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 243, in get_race_info
+    df_shutuba['オッズ'] = odds
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\frame.py", line 3655, in __setitem__
+    self._set_item(key, value)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\frame.py", line 3832, in _set_item
+    value = self._sanitize_column(value)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\frame.py", line 4535, in _sanitize_column
+    com.require_length_match(value, self.index)
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\core\common.py", line 557, in require_length_match
+    raise ValueError(
+ValueError: Length of values (5) does not match length of index (6)
+
+[2025-11-06 13:42:24.713422] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-06 14:17:29.760157] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-06 14:42:13.389878] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 14:52:27.924242] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-06 15:12:12.101967] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 15:27:25.623617] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-06 15:42:09.137334] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 16:02:23.681362] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-06 16:17:07.286077] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 16:37:22.046179] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 50, in get_race_predict
+    raise ValueError(f"Unknown venue: {field}")
+ValueError: Unknown venue: sonoda
+
+[2025-11-06 16:47:16.229790] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 17:17:31.677561] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 17:52:16.185287] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-06 18:27:31.732072] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting_local.py", line 449, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting_local.py", line 107, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+

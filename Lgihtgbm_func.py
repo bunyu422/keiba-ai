@@ -35,9 +35,9 @@ race_params = {
     # "kyoto": {"field_num": 3, "central": True},
     "monbetu": {"field_num": 12, "central": False},
     "kasamatu": {"field_num": 20, "central": False},
-    "sonoda": {"field_num": 22, "central": False},
-    "nagoya": {"field_num": 21, "central": False},
-    "saga": {"field_num": 25, "central": False},
+    # "sonoda": {"field_num": 22, "central": False},
+    # "nagoya": {"field_num": 21, "central": False},
+    # "saga": {"field_num": 25, "central": False},
     # "hunabasi": {"field_num": 16, "central": False},
 }
 
@@ -463,7 +463,7 @@ def predict_lgb(dfs, field):
 
         temp_df = add_pred_features(temp_df).round(10)
 
-        model = joblib.load(f"./model/stacking_model_lgb_fold{fold}.pickle")
+        model = joblib.load(f"./model/{field}_stacking_model_lgb_fold{fold}.pickle")
 
         result_df[f'pred_score_{fold}'] = model.predict(temp_df[feature_cols])
 
@@ -472,7 +472,7 @@ def predict_lgb(dfs, field):
 
     result_df = add_pred_features(result_df).round(10)
     feature_cols = joblib.load("./pickle-dict/stacking_fold_feature_cols.pkl")
-    model = joblib.load("./model/stacking_fold_model_lgb.pickle")
+    model = joblib.load(f"./model/{field}_stacking_fold_model_lgb.pickle")
 
     result_df['pred_score'] = model.predict(result_df[feature_cols])
     result_df = result_df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
@@ -526,7 +526,7 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
 
 if __name__ == "__main__":
     # df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
-    df = pd.read_csv(f'./csv/monbetu_result_stacking_fold_2025.csv', index_col=0)
+    df = pd.read_csv(f'./csv/kasamatu_result_stacking_fold_2025.csv', index_col=0)
     # df = pd.read_csv('./csv/nakayama_kensyou_2025.csv', index_col=0)
     # df = pd.read_csv('./csv/df_all_nakayama_2025.csv', index_col=0)
     
@@ -536,8 +536,8 @@ if __name__ == "__main__":
     df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     # print(df['レースID'].unique().tolist())
     # df['馬番'] = df['馬番'].astype(int) + 1
-    # df = df[df['レースID'] == 202530082804]
-    # print(df[['レースID', '馬番', '1出走馬数', '2出走馬数', '3出走馬数', '4出走馬数', '5出走馬数']])
+    df = df[df['レースID'] == int(df['レースID'].unique().tolist()[0])]
+    print(df[['レースID', '馬番', 'pred_score']])
     
     # feature_cols = joblib.load("./pickle-dict/lgb_cols.pkl")
     # print(feature_cols)
@@ -558,7 +558,7 @@ if __name__ == "__main__":
     # # # # # print(df[['レースID', '馬番','pred_score']])
     # race_l = df['レースID'].unique().tolist()
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = 202530090211, 'monbetu', 12, 0, False
+    race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'kasamatu', 12, 0, False
     odds = [i for i in range(len(df))]
     # race_l = [202506040304, 202506040304]
     # get_race_predict(race_id, field, field_num, odds, central, fold)

@@ -139,8 +139,9 @@ def add_score_diff_features(df):
     
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'monbetu'
-csv_path = f'./csv/df_all_monbetu_2025.csv'
+ninki = True
+field = 'sonoda'
+csv_path = f'./csv/df_all_sonoda_2025.csv'
 model_type = "rank-to-rank"
 # csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
@@ -152,6 +153,8 @@ feature_cols = []
 df['is_win'] = (df['着順'] == 1).astype(int)
 
 if __name__ == '__main__':
+    # print(len(df))
+    # print(df['レースID'].unique().tolist())
     seed = 1
     lw.set_seed(seed)  # 先に乱数固定
     fold_results = []
@@ -220,8 +223,10 @@ if __name__ == '__main__':
         test_df['騎手_te'] = test_df['騎手'].map(j_mapping).fillna(-1)
         df_2025['騎手_te'] = df_2025['騎手'].map(j_mapping).fillna(-1)
 
-
-        feature_cols = [col for col in train_df.columns if col not in ['人気', 'label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        if ninki:
+            feature_cols = [col for col in train_df.columns if col not in ['label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        else:
+            feature_cols = [col for col in train_df.columns if col not in ['人気', 'label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 
         # zero_var = train_df[scale_cols].std()[train_df[scale_cols].std() == 0]
         # print("分散ゼロの列:", zero_var.index.tolist())
@@ -381,7 +386,10 @@ if __name__ == '__main__':
         df_2025 = add_score_diff_features(df_2025).round(10)
         # print("test len",len(test_df))
 
-        feature_cols = [col for col in val_df.columns if col not in ['人気', 'label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        if ninki:
+            feature_cols = [col for col in val_df.columns if col not in ['label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+        else:
+            feature_cols = [col for col in train_df.columns if col not in ['人気', 'label', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
         joblib.dump(feature_cols,f"./pickle-dict/{field}_lgb_cols_second.pkl")
         # feature_cols = ['score_diff_prev','score_diff_next','score_minus_mean','score_minus_mean_std','rank_in_race']
         # feature_cols = [
@@ -418,6 +426,8 @@ if __name__ == '__main__':
         lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
 
         for seed in range(1, 6): 
+            print(f"seed: {seed}")
+            print(f"fold: {fold}")
             params = {
                 'task': 'train',
                 'boosting_type': 'gbdt',

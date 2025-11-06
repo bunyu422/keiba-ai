@@ -1,4 +1,5 @@
 import os
+import traceback
 import joblib
 import pandas as pd
 import requests
@@ -85,21 +86,15 @@ def time_to_seconds(s):
 def scraping(csv_path, no, start, end):
     df = pd.DataFrame()
     # ヘッダー
-    headers = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/127.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Referer": "https://www.google.com/",
-    "Connection": "keep-alive",
-    }
+    # 複数の User-Agent を用意
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    ]
 
-    session = requests.Session()
-    session.headers.update(headers)
+    # session = requests.Session()
+    # session.headers.update(headers)
 
     for year in range(start, end):
         for number in range(1, 6):
@@ -108,9 +103,18 @@ def scraping(csv_path, no, start, end):
                     race_id = '{}{}{}{}{}'.format(str(year), no, str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
                     url_race = 'https://race.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
                     url_past = 'https://race.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+                    # ランダムにUser-Agentを選ぶ
+                    headers = {
+                        "User-Agent": random.choice(USER_AGENTS),
+                        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                        "Referer": "https://www.google.com/",
+                        "Connection": "close",
+                    }
                     try:
-                        response_race = session.get(url_race, headers=headers)
-                        response_past = session.get(url_past, headers=headers)
+                        response_race = requests.get(url_race, headers=headers)
+                        response_past = requests.get(url_past, headers=headers)
                         df_result = pd.read_html(response_race.content)[0]
                         df_past = pd.read_html(response_past.content)[0]
                         soup = BeautifulSoup(response_race.content, 'html.parser')
@@ -129,7 +133,7 @@ def scraping(csv_path, no, start, end):
                         df_result_past['馬単'] = data3
                         df_result_past['レース名'] = data4.replace('\n', '')
                         print(url_race)
-                        sleep_time = random.uniform(0.5, 2.0)
+                        sleep_time = random.uniform(3, 7)
                         time.sleep(sleep_time)
                         # time.sleep(1)
                     except:
@@ -153,22 +157,15 @@ def scraping(csv_path, no, start, end):
 
 def scraping_local(csv_path, no, start, end):
     df = pd.DataFrame()
-    # ヘッダー
-    headers = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/127.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Referer": "https://www.google.com/",
-    "Connection": "keep-alive",
-    }
+    # PC版 User-Agent のみ
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    ]
 
-    session = requests.Session()
-    session.headers.update(headers)
+    # session = requests.Session()
+    # session.headers.update(headers)
     for year in range(start, end):
         for month in range(1, 13):
             for day in range(1, 32):
@@ -177,9 +174,18 @@ def scraping_local(csv_path, no, start, end):
                     # race_id = "201530042201"
                     url_race = 'https://nar.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
                     url_past = 'https://nar.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+                    # ランダムにUser-Agentを選ぶ
+                    headers = {
+                        "User-Agent": random.choice(USER_AGENTS),
+                        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                        "Referer": "https://www.google.com/",
+                        "Connection": "close",
+                    }
                     try:
-                        response_race = session.get(url_race, headers=headers)
-                        response_past = session.get(url_past, headers=headers)
+                        response_race = requests.get(url_race, headers=headers, timeout=(10, 30))
+                        response_past = requests.get(url_past, headers=headers, timeout=(10, 30))
                         df_result = pd.read_html(response_race.content)[0]
                         df_past = pd.read_html(response_past.content)[0]
                         soup = BeautifulSoup(response_race.content, 'html.parser')
@@ -198,11 +204,14 @@ def scraping_local(csv_path, no, start, end):
                         df_result_past['馬単'] = data3
                         df_result_past['レース名'] = data4.replace('\n', '')
                         print(url_race)
+                        # sleep_time = random.uniform(3, 7)
                         time.sleep(1)
-                    except:
+                        
+                    except Exception as e:
                         if race_no == 1:
                             print("no:"+url_race)
                             break
+                        traceback.print_exc()  # ← 行番号付きで出力
                         continue
                     df_result_past['レースID'] = race_id
                     df = pd.concat([df, df_result_past])
@@ -222,7 +231,12 @@ def scraping_local(csv_path, no, start, end):
 def scrape_payouts_combination(csv_path, no, start, end):
     df = pd.DataFrame(columns=['レースID', '券種', '馬番', '払い戻し金額'])
 
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    # 複数の User-Agent を用意
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    ]
 
     for year in range(start, end):
         for number in range(1, 6):
@@ -230,6 +244,15 @@ def scrape_payouts_combination(csv_path, no, start, end):
                 for race_no in range(1, 13):
                     race_id = '{}{}{}{}{}'.format(str(year), no, str(number).zfill(2), str(day).zfill(2), str(race_no).zfill(2))
                     url_race = f'https://race.netkeiba.com/race/result.html?race_id={race_id}&rf=race_list'
+                    # ランダムにUser-Agentを選ぶ
+                    headers = {
+                        "User-Agent": random.choice(USER_AGENTS),
+                        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                        "Referer": "https://www.google.com/",
+                        "Connection": "close",
+                    }
                     try:
                         response = requests.get(url_race, headers=headers)
                         soup = BeautifulSoup(response.content, 'html.parser')
@@ -344,7 +367,7 @@ def df_first_processing(df, name, type='推論'):
         df['馬単'] = df['馬単'].str.extract(r'(\d+)', expand=True)
 
     # いらないカラムを消す
-    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎', 'タイム', '騎手斤量', '着差', '後3F', '印', '馬名 オッズ', '馬名'], axis=1, errors="ignore")
+    df = df.drop(['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎', 'タイム', '騎手斤量', '着差', '後3F', '印', '馬名 オッズ', '馬名  オッズ', '馬名'], axis=1, errors="ignore")
 
     # 特殊記号を消す
     df['騎手'] = df['騎手'].str.replace('▲', '')
@@ -585,7 +608,7 @@ def df_end_processing(df_all, type='推論'):
     if type != '推論':
         # 1着のみ単勝オッズを保有
         df_all['オッズ'] = df_all['単勝オッズ']
-        df_all['単勝オッズ'] = df_all['単勝オッズ'].where(df_all['着順'].astype(int) == 1, 0)
+        df_all['単勝オッズ'] = df_all['単勝オッズ'].where(df_all['着順'].astype(float) == 1, 0)
         df_all['単勝オッズ'] = df_all['単勝オッズ'] * 100
 
         df_all['rank'] = df_all['単勝オッズ']
@@ -1070,9 +1093,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 12
-    field_name = 'monbetu'
-    csv_path = './csv/monbetu_2015-2024.csv' # 学習に使うcsvデータのパス
+    field = 22
+    field_name = 'sonoda'
+    csv_path = './csv/sonoda_2015-2025.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -1118,9 +1141,9 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
-    df1 = pd.read_csv('./csv/monbetu_2025.csv', index_col=0)
+    # df1 = pd.read_csv('./csv/monbetu_2025.csv', index_col=0)
 
-    df = pd.concat([df, df1], axis=0).reset_index(drop=True)
+    # df = pd.concat([df, df1], axis=0).reset_index(drop=True)
     # print(pd.Series(sorted(df['レースID'].unique(), reverse=True)[:5]))
 
     df['場所'] = field

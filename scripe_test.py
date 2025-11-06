@@ -1,7 +1,10 @@
 import pickle
+import random
+import re
 import joblib
 import numpy as np
 import pandas as pd
+import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.alert import Alert
@@ -221,22 +224,28 @@ def set_time(skip_list, url_race):
 # set_time([], url)
 # print(betting.set_info())
 
-# df = pd.read_csv('./csv/kasamatu_2015-2025.csv', index_col=0)
-# print(df['レースID'].head(5))
-# print(df['レースID'].tail(5))
+# df = pd.read_csv('./csv/df_all_sonoda_2025.csv', index_col=0)
+# print(df['父馬'].head(20))
+# print(df.columns.values)
+df = pd.read_csv('./csv/sonoda_2015-2025.csv', index_col=0)
+print(df['レースID'].head(5))
+print(df['レースID'].tail(5))
+# df = df[df['レースID'].astype(str).str[:4].astype(int) < 2017].reset_index(drop=True)
+# df.to_csv('./csv/sonoda_2015-2025.csv', na_rep='NaN')
 
-Learning.scrape_payouts_combination('./csv/tokyo_payouts_2025.csv', '05', 2025, 2026)
+# Learning.scrape_payouts_combination('./csv/tokyo_payouts_2025.csv', '05', 2025, 2026)
 
 # Learning.scraping_local('./csv/monbetu_2025.csv', '30', 2025, 2026)
 # Learning.scraping_local('./csv/morioka_2015-2025.csv', '35', 2015, 2026)
 # Learning.scraping_local('./csv/kasamatu_2015-2025.csv', '47', 2025, 2026)
-# Learning.scraping_local('./csv/sonoda_2015-2024.csv', '50')
+# Learning.scraping_local('./csv/sonoda_2015-2025.csv', '50', 2025, 2026)
 # Learning.scraping_local('./csv/nagoya_2025.csv', '48', 2025, 2026)
 # Learning.scraping_local('./csv/mizusawa_2015-2024.csv', '36')
 # Learning.scraping_local('./csv/hunabasi_2015-2025.csv', '43', 2025, 2026)
 # Learning.scraping_local('./csv/saga_2015-2024.csv', '55')
 # Learning.scraping_local('./csv/ooi_2015-2024.csv', '44')
 # Learning.scraping_local('./csv/urawa_2015-2024.csv', '42')
+# Learning.scraping_local('./csv/kanazawa_2015-2025.csv', '46', 2017, 2018)
 
 # s = "マンハッタンカフェ ... 中3週 454kg"
 # import pandas as pd
@@ -402,3 +411,76 @@ Learning.scrape_payouts_combination('./csv/tokyo_payouts_2025.csv', '05', 2025, 
 # df = predict_multiple_races(model, df, feature_cols, embedding_cols, context_num_cols, context_cat_cols, device=device)
 
 # df.to_csv(f"./csv/nakayama3_result_fold{fold}.csv",na_rep='NaN')
+
+
+
+
+
+
+
+
+
+
+# def scraping_local(csv_path, no, start, end):
+#     df = pd.DataFrame()
+#     # 複数の User-Agent を用意
+#     USER_AGENTS = [
+#         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+#         "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+#         "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+#         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+#         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
+#     ]
+
+#     # session = requests.Session()
+#     # session.headers.update(headers)
+#     for year in range(start, end):
+#         for month in range(1, 13):
+#             for day in range(1, 32):
+#                 for race_no in range(1, 13):
+#                     race_id = '201746031908'
+#                     # race_id = "201530042201"
+#                     url_race = 'https://nar.netkeiba.com/race/result.html?race_id={}&rf=race_list'.format(race_id)
+#                     url_past = 'https://nar.netkeiba.com/race/shutuba_past.html?race_id={}&rf=shutuba_submenu'.format(race_id)
+#                     # ランダムにUser-Agentを選ぶ
+#                     headers = {
+#                         "User-Agent": random.choice(USER_AGENTS),
+#                         "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+#                         "Accept-Encoding": "gzip, deflate, br",
+#                         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+#                         "Referer": "https://www.google.com/",
+#                         "Connection": "close",
+#                     }
+#                     try:
+#                         response_race = requests.get(url_race, headers=headers)
+#                         response_past = requests.get(url_past, headers=headers)
+#                         df_result = pd.read_html(response_race.content)[0]
+#                         df_past = pd.read_html(response_past.content)[0]
+#                         soup = BeautifulSoup(response_race.content, 'html.parser')
+#                         data1 = soup.find('div', class_='RaceData01').text
+#                         data2 = soup.find('div', class_='RaceData02').text
+#                         data3 = soup.find('tr', class_='Umatan').text
+#                         data4 = soup.find('div', class_='RaceName').text
+#                         a = data2[data2.find('新馬')+0: data2.find('新馬')+2]
+#                         if a == '新馬':
+#                             continue
+#                         df_result_past = pd.merge(df_result, df_past, on='馬番')
+#                         df_result_past['距離'] = re.findall(r'\d+', data1)[2]
+#                         df_result_past['フィールド'] = data1[data1.find('/')+2: data1.find('/')+3]
+#                         df_result_past['馬場'] = data1[data1.find('馬場')+3: data1.find('馬場')+4]
+#                         df_result_past['出走頭数'] = data2[data2.find('頭')-2: data2.find('頭')+0]
+#                         df_result_past['馬単'] = data3
+#                         df_result_past['レース名'] = data4.replace('\n', '')
+#                         print(url_race)
+#                         time.sleep(1)
+#                     except Exception as e:
+#                         if race_no == 1:
+#                             print("no:"+url_race)
+#                             break
+#                         print(e)
+#                         continue
+#                     df_result_past['レースID'] = race_id
+#                     df = pd.concat([df, df_result_past])
+
+
+# scraping_local('./csv/kasamatu_2015-2025.csv', '47', 2017, 2018)
