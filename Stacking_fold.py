@@ -196,6 +196,12 @@ df = dfs[0][['レースID', '馬番', '単勝オッズ', 'is_win', 'オッズ']]
 # 各foldのスコアから順位を算出
 for i, d in enumerate(dfs):
     df[f'pred_score_{i}'] = d['pred_score']
+    df[f'result{i}_1'] = d['result1']
+    df[f'result{i}_2'] = d['result2']
+    df[f'result{i}_3'] = d['result3']
+    df[f'result{i}_4'] = d['result4']
+    df[f'result{i}_5'] = d['result5']
+    df[f'result{i}_6'] = d['result6']
 
 # val_df = df[df['レースID'].astype(str).str[:4] == "2024"].reset_index(drop=True)
 # test_df = df[df['レースID'].astype(str).str[:4] != "2024"].reset_index(drop=True)
@@ -234,9 +240,9 @@ test_list = test_df.groupby("レースID").size().to_list()
 target_col = 'is_win'
 feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 print(feature_cols)
-joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
+# joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
 rate = 0.1
-seed = 2 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5
+seed = 5 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5, kyoto:2
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)

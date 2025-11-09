@@ -1,5 +1,6 @@
 import os
 import traceback
+import jaconv
 import joblib
 import pandas as pd
 import requests
@@ -33,6 +34,13 @@ import random
 import seaborn as sns
 
 import Listwise
+
+def normalize_racename(name):
+    # 全角→半角（英数字のみ変換、かなはそのまま）
+    name = jaconv.z2h(str(name), kana=False, digit=True, ascii=True)
+    # 英数字＋漢数字のみを抽出
+    name = re.sub(r'[^A-Za-z0-9一二三四五六七八九十]', '', name)
+    return name
 
 def save_csv(path, df_all):
     df_all.to_csv(path, na_rep='NaN')
@@ -462,12 +470,6 @@ def df_big_past_processing(df, name, field_num):
         df_split[sou+'コーナー通過順'] = df_split[sou+'コーナー通過順'].str[-4:-1].apply(lambda x : x if x != ' ' else None)
         df_split[sou+'コーナー通過順'] = df_split[sou+'コーナー通過順'].astype(float).abs()
 
-        # クラス別に分類
-        df_split[sou+'クラス'] = 0
-        for k, v in class_dict.items():
-            df_split[sou+'クラス'] = df_split[sou+'クラス'].mask(df_split[sou+'レース名'].str.contains(k, na=False), v)
-
-
         # 文字列データを数値データにする
         df_split[sou+'場所'] = df_split[sou+'場所'].map(nagoya_mapping)
 
@@ -497,14 +499,11 @@ def df_big_past_processing(df, name, field_num):
                 except KeyError:
                     pass
 
-        # クラス別に分類
-        df_split[sou+'クラス'] = 0
-        for k, v in class_dict.items():
-            df_split[sou+'クラス'] = df_split[sou+'クラス'].mask(df_split[sou+'レース名'].str.contains(k, na=False), v)
+        df_split[sou+'クラス'] = df_split[sou+'レース名'].apply(normalize_racename)
 
         # df_split[sou+'クラス差'] = pd.to_numeric(df_all['平均クラス'].astype(str) + df_split[sou+'クラス'].astype(str) + df_split[sou+'過去着順'].astype(str), errors='coerce')
 
-        df_split[sou+'着差'] = df_split[sou+'着差'].astype(float) + (df_split[sou+'クラス'].astype(int) * 0.5)
+        # df_split[sou+'着差'] = df_split[sou+'着差'].astype(float) + (df_split[sou+'クラス'].astype(int) * 0.5)
 
         # 上がり3Fを指数化
         df_split[sou+'後3F'] = df_split[sou+'後3F'].mask((df_split[sou+'フィールド'] == 1) & df_split[sou+'後3F'].notna() & df_split[sou+'距離'].notna(), df_split[sou+'後3F'].astype(float) / (0.94 + (df_split[sou+'距離'].astype(float) / 20000)))
@@ -529,6 +528,28 @@ def df_big_past_processing(df, name, field_num):
         
     # print(df_all.head(10))
 
+    sou = ''
+    cols = [sou + f'{i}クラス' for i in range(1, 6)]
+
+    class_mappings = {}
+
+    for col in cols:
+        # カテゴリ型に変換
+        df_all[col] = df_all[col].astype('category')
+
+        # カテゴリ→コードのマッピング作成
+        mapping = {v: i for i, v in enumerate(df_all[col].cat.categories)}
+
+        # DataFrame上で置き換え（値をコードに変換）
+        df_all[col] = df_all[col].map(mapping).astype('Int64')
+
+        # 保存用に登録
+        class_mappings[col] = mapping
+
+    # 保存
+    joblib.dump(class_mappings, f'./pickle-dict/{field}_class_mappings.pkl')
+    print(df_all['1クラス'].unique().tolist())
+
     return df_all
 
 # 過去走の平均クラスと平均ペースを算出
@@ -536,17 +557,17 @@ def past_level(df_all, type='推論'):
     df_all = df_all.copy()
     if type != '推論':
         # レースIDごとに平均を算出し、各行に割り当て
-        df_all['平均クラス'] = df_all.groupby('レースID')['1クラス'].transform('mean')
+        # df_all['平均クラス'] = df_all.groupby('レースID')['1クラス'].transform('mean')
         df_all['平均ペース'] = df_all.groupby('レースID')['1コーナー通過順'].transform('mean')
 
         # 差分計算
-        df_all['1クラス差'] = df_all['平均クラス'] - df_all['1クラス']
+        # df_all['1クラス差'] = df_all['平均クラス'] - df_all['1クラス']
         df_all['1ペース差'] = (df_all['平均ペース'] - df_all['1コーナー通過順']).abs()
     else:
-        df_all['平均クラス'] = df_all['1クラス'].mean()
+        # df_all['平均クラス'] = df_all['1クラス'].mean()
         df_all['平均ペース'] = df_all['1コーナー通過順'].mean()
 
-        df_all['1クラス差'] = df_all['平均クラス'] - df_all['1クラス']
+        # df_all['1クラス差'] = df_all['平均クラス'] - df_all['1クラス']
         df_all['1ペース差'] = (df_all['平均ペース'] - df_all['1コーナー通過順']).abs()
 
     return df_all
@@ -1093,9 +1114,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 3
-    field_name = 'kyoto'
-    csv_path = './csv/kyoto_2012-2025.csv' # 学習に使うcsvデータのパス
+    field = 22
+    field_name = 'sonoda'
+    csv_path = './csv/sonoda_2015-2025.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,

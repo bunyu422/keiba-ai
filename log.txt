@@ -1700,3 +1700,225 @@ AttributeError: 'NoneType' object has no attribute 'lower'
     params = race_params.get(field.lower())
 AttributeError: 'NoneType' object has no attribute 'lower'
 
+[2025-11-08 09:42:38.502649] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 78, in job
+    wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
+  File "c:\keibaAI_2025_0702\betting.py", line 25, in wait_and_click
+    el = WebDriverWait(driver, timeout).until( EC.element_to_be_clickable((by, value)) )
+  File "c:\Users\zazak\AppData\Local\Programs\Python\Python310\lib\site-packages\selenium\webdriver\support\wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x7ff6e3ee7a05
+	0x7ff6e3ee7a60
+	0x7ff6e3c616ad
+	0x7ff6e3cba13e
+	0x7ff6e3cba44c
+	0x7ff6e3d0ebe7
+	0x7ff6e3d0b8fb
+	0x7ff6e3cab068
+	0x7ff6e3cabe93
+	0x7ff6e41a29a0
+	0x7ff6e419ce20
+	0x7ff6e41bcc15
+	0x7ff6e3f0309e
+	0x7ff6e3f0ad8f
+	0x7ff6e3ef0be4
+	0x7ff6e3ef0d9f
+	0x7ff6e3ed67f8
+	0x7ffe03c3e8d7
+	0x7ffe0500c53c
+
+
+[2025-11-08 10:12:14.672498] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 10:42:18.006289] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 11:12:20.914183] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 12:32:05.344121] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 13:02:29.964762] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 13:37:05.562259] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 14:12:15.023685] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 14:47:18.974627] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 15:22:22.552126] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-08 15:58:27.676718] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 09:42:29.332257] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 10:12:31.709459] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 10:42:04.337105] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 11:12:08.885008] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 12:02:22.570130] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 13:07:11.094133] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 13:37:15.603869] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 14:07:19.809192] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 14:42:23.151633] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 15:17:12.925321] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+
+[2025-11-09 15:58:17.910533] Traceback (most recent call last):
+  File "c:\keibaAI_2025_0702\betting.py", line 323, in job_with_retry
+    job(n1, n2, n3)  # 本来の購入処理
+  File "c:\keibaAI_2025_0702\betting.py", line 104, in job
+    buyList, buyList_wide = lf.get_race_predict(n3, field, odds)
+  File "c:\keibaAI_2025_0702\Lgihtgbm_func.py", line 48, in get_race_predict
+    params = race_params.get(field.lower())
+AttributeError: 'NoneType' object has no attribute 'lower'
+

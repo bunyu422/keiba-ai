@@ -142,7 +142,7 @@ def add_score_diff_features(df):
 ninki = True
 field = 'sonoda'
 csv_path = f'./csv/df_all_sonoda_2025.csv'
-model_type = "rank-to-rank"
+model_type = "rank-to-reg"
 # csv_path = f'./csv/df_all_{field}.csv'
 ###########################################################################
 
@@ -185,6 +185,7 @@ if __name__ == '__main__':
     df.loc[df['人気'].astype(int)==-3, 'label'] = 1
     
     print(df['label'].value_counts())
+    df[['1クラス', '2クラス', '3クラス', '4クラス', '5クラス']] = df[['1クラス', '2クラス', '3クラス', '4クラス', '5クラス']].astype(int)
 
     splits, df_test_2025, df = lw.time_series_group_cv_3split_2025(df, group_col="レースID", n_splits=5)
 
@@ -431,16 +432,16 @@ if __name__ == '__main__':
             params = {
                 'task': 'train',
                 'boosting_type': 'gbdt',
-                # 'objective': 'regression',  # ←ここでランキング学習と指定！
-                # 'metric': 'rmse',   # for lambdarank
+                'objective': 'regression',  # ←ここでランキング学習と指定！
+                'metric': 'rmse',   # for lambdarank
                 'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
                 'learning_rate': rate,
                 'random_state': seed,
                 'verbose_eval': 1000,
-                'objective': 'lambdarank',
-                'metric': 'ndcg',
-                'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-                'label_gain': [0,3,5,10],
+                # 'objective': 'lambdarank',
+                # 'metric': 'ndcg',
+                # 'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+                # 'label_gain': [0,3,5,10],
                 'bagging_seed': seed,
                 'feature_fraction_seed': seed,
                 'data_random_seed': seed,

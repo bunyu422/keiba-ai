@@ -32,7 +32,7 @@ race_params = {
     # "hanshin": {"field_num": 4, "central": True},
     "tokyo": {"field_num": 2, "central": True},
     "nakayama": {"field_num": 1, "central": True},
-    # "kyoto": {"field_num": 3, "central": True},
+    "kyoto": {"field_num": 3, "central": True},
     "monbetu": {"field_num": 12, "central": False},
     "kasamatu": {"field_num": 20, "central": False},
     # "sonoda": {"field_num": 22, "central": False},
@@ -526,7 +526,7 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
 
 if __name__ == "__main__":
     # df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
-    df = pd.read_csv(f'./csv/kasamatu_result_stacking_fold_2025.csv', index_col=0)
+    df = pd.read_csv(f'./csv/kyoto_result_stacking_fold_2025.csv', index_col=0)
     # df = pd.read_csv('./csv/nakayama_kensyou_2025.csv', index_col=0)
     # df = pd.read_csv('./csv/df_all_nakayama_2025.csv', index_col=0)
     
@@ -558,7 +558,7 @@ if __name__ == "__main__":
     # # # # # print(df[['レースID', '馬番','pred_score']])
     # race_l = df['レースID'].unique().tolist()
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'kasamatu', 12, 0, False
+    race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'kyoto', 12, 0, False
     odds = [i for i in range(len(df))]
     # race_l = [202506040304, 202506040304]
     # get_race_predict(race_id, field, field_num, odds, central, fold)

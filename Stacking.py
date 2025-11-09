@@ -209,13 +209,21 @@ pd.set_option("display.max_colwidth", None)
 
 field = 'sonoda'
 fold = 4
-# seed = 8 # fold 0 \8
+seed = 8 # fold 0 \8
 # seed = 6 # fold 1 \6
 # seed = 4 # fold 2 \4
 # seed = 6 # fold 3 \6
-seed = 5 # fold 4 \5
+# seed = 5 # fold 4 \5
 
-print("seed", seed)
+# field = 'kyoto'
+# fold = 4
+# # seed = 2 # fold 0 \2
+# # seed = 3 # fold 1 \3
+# # seed = 2 # fold 2 \2
+# # seed = 4 # fold 3 \4
+# seed = 4 # fold 4 \4
+
+# print("seed", seed)
 rate = 0.01
 
 # fold0 
@@ -325,7 +333,7 @@ df3 = load_csv(f'./csv/{field}_result_lgb_rank-to-rank_test_{fold}.csv')
 
 # pred_score列をリネームして区別
 df  = df.rename(columns={'pred_score_second': 'pred_score_1'})
-# df1 = df1.rename(columns={'pred_score': 'pred_score_2'})
+# df1 = df1.rename(columns={'pred_score_second': 'pred_score_2'})
 df2 = df2.rename(columns={'pred_score_second': 'pred_score_3'})
 df3 = df3.rename(columns={'pred_score_second': 'pred_score_4'})
 # df4 = df4.rename(columns={'pred_score': 'pred_score_5'})
@@ -335,12 +343,13 @@ df3 = df3.rename(columns={'pred_score_second': 'pred_score_4'})
 # df8 = df8.rename(columns={'pred_score': 'pred_score_9'})
 
 df  = df.rename(columns={'result1': 'result1_1', 'result2': 'result2_1', 'result3': 'result3_1', 'result4': 'result4_1', 'result5': 'result5_1'})
+# df1 = df1.rename(columns={'result1': 'result1_2', 'result2': 'result2_2', 'result3': 'result3_2', 'result4': 'result4_2', 'result5': 'result5_2'})
 df2 = df2.rename(columns={'result1': 'result1_3', 'result2': 'result2_3', 'result3': 'result3_3', 'result4': 'result4_3', 'result5': 'result5_3'})
 df3 = df3.rename(columns={'result1': 'result1_5', 'result2': 'result2_5', 'result3': 'result3_5', 'result4': 'result4_5', 'result5': 'result5_5'})
 
 dfs = [
     df[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1', 'is_win', 'オッズ', '単勝オッズ']],
-    # df1[['レースID', '馬番', 'pred_score_2']],
+    # df1[['レースID', '馬番', 'pred_score_2', 'result1_2', 'result2_2', 'result3_2', 'result4_2', 'result5_2']],
     df2[['レースID', '馬番', 'pred_score_3', 'result1_3', 'result2_3', 'result3_3', 'result4_3', 'result5_3']],
     df3[['レースID', '馬番', 'pred_score_4', 'result1_5', 'result2_5', 'result3_5', 'result4_5', 'result5_5']],
     # df4[['レースID', '馬番', 'pred_score_5']],
@@ -375,7 +384,7 @@ df3 = load_csv(f'./csv/{field}_result_lgb_rank-to-rank_2025_{fold}.csv')
 
 # pred_score列をリネームして区別
 df  = df.rename(columns={'pred_score_second': 'pred_score_1'})
-# df1 = df1.rename(columns={'pred_score': 'pred_score_2'})
+# df1 = df1.rename(columns={'pred_score_second': 'pred_score_2'})
 df2 = df2.rename(columns={'pred_score_second': 'pred_score_3'})
 df3 = df3.rename(columns={'pred_score_second': 'pred_score_4'})
 # df4 = df4.rename(columns={'pred_score': 'pred_score_5'})
@@ -385,12 +394,13 @@ df3 = df3.rename(columns={'pred_score_second': 'pred_score_4'})
 # df8 = df8.rename(columns={'pred_score': 'pred_score_9'})
 
 df  = df.rename(columns={'result1': 'result1_1', 'result2': 'result2_1', 'result3': 'result3_1', 'result4': 'result4_1', 'result5': 'result5_1'})
+# df1 = df1.rename(columns={'result1': 'result1_2', 'result2': 'result2_2', 'result3': 'result3_2', 'result4': 'result4_2', 'result5': 'result5_2'})
 df2 = df2.rename(columns={'result1': 'result1_3', 'result2': 'result2_3', 'result3': 'result3_3', 'result4': 'result4_3', 'result5': 'result5_3'})
 df3 = df3.rename(columns={'result1': 'result1_5', 'result2': 'result2_5', 'result3': 'result3_5', 'result4': 'result4_5', 'result5': 'result5_5'})
 
 dfs = [
     df[['レースID', '馬番', 'pred_score_1', 'result1_1', 'result2_1', 'result3_1', 'result4_1', 'result5_1', 'is_win', 'オッズ', '単勝オッズ']],
-    # df1[['レースID', '馬番', 'pred_score_2']],
+    # df1[['レースID', '馬番', 'pred_score_2', 'result1_2', 'result2_2', 'result3_2', 'result4_2', 'result5_2']],
     df2[['レースID', '馬番', 'pred_score_3', 'result1_3', 'result2_3', 'result3_3', 'result4_3', 'result5_3']],
     df3[['レースID', '馬番', 'pred_score_4', 'result1_5', 'result2_5', 'result3_5', 'result4_5', 'result5_5']],
     # df4[['レースID', '馬番', 'pred_score_5']],
@@ -430,161 +440,195 @@ test_list = test_df.groupby("レースID").size().to_list()
 target_col = 'is_win'
 feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 print(feature_cols)
-joblib.dump(feature_cols, "./pickle-dict/stacking_feature_cols.pkl")
+# joblib.dump(feature_cols, "./pickle-dict/stacking_feature_cols.pkl")
 
 
-set_seed(seed)
+
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
 
-params = {
-    'task': 'train',
-    'boosting_type': 'gbdt',
-    # 'objective': 'regression',  # ←ここでランキング学習と指定！
-    # 'metric': 'rmse',   # for lambdarank
-    'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-    'learning_rate': rate,
-    'random_state': seed,
-    'verbose_eval': 1000,
-    'objective': 'lambdarank',
-    'metric': 'ndcg',
-    'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-    'label_gain': [0,3,5,10],
-    'bagging_seed': seed,
-    'feature_fraction_seed': seed,
-    'data_random_seed': seed,
-    'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
-    'force_col_wise': True,       # 再現性を高める（内部順序を固定）
-    'num_threads': 1,             # 厳密再現のためスレッド固定
-}
-####################################################################################
+for seed in range(1, 7):
+    set_seed(seed)
+    params = {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        'objective': 'regression',  # ←ここでランキング学習と指定！
+        'metric': 'rmse',   # for lambdarank
+        'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
+        'learning_rate': rate,
+        'random_state': seed,
+        'verbose_eval': 1000,
+        # 'objective': 'lambdarank',
+        # 'metric': 'ndcg',
+        # 'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+        # 'label_gain': [0,3,5,10],
+        'bagging_seed': seed,
+        'feature_fraction_seed': seed,
+        'data_random_seed': seed,
+        'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
+        'force_col_wise': True,       # 再現性を高める（内部順序を固定）
+        'num_threads': 1,             # 厳密再現のためスレッド固定
+    }
+    ####################################################################################
+
+    if seed > 3:
+        params = {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        # 'objective': 'regression',  # ←ここでランキング学習と指定！
+        # 'metric': 'rmse',   # for lambdarank
+        'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
+        'learning_rate': rate,
+        'random_state': seed,
+        'verbose_eval': 1000,
+        'objective': 'lambdarank',
+        'metric': 'ndcg',
+        'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+        'label_gain': [0,3,5,10],
+        'bagging_seed': seed,
+        'feature_fraction_seed': seed,
+        'data_random_seed': seed,
+        'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
+        'force_col_wise': True,       # 再現性を高める（内部順序を固定）
+        'num_threads': 1,             # 厳密再現のためスレッド固定
+    }
 
 
-tuner = lgb.LightGBMTuner(
-    params,
-    optuna_seed=seed,
-    train_set=lgb_train,
-    valid_sets=[lgb_eval],
-    # categorical_feature=cat_list,
-    early_stopping_rounds=20,  # ← ここで指定
-    num_boost_round=10000,      # ← イテレーション上限
-    callbacks=[lgb.log_evaluation(period=0)]
-)
+    tuner = lgb.LightGBMTuner(
+        params,
+        optuna_seed=seed,
+        train_set=lgb_train,
+        valid_sets=[lgb_eval],
+        # categorical_feature=cat_list,
+        early_stopping_rounds=20,  # ← ここで指定
+        num_boost_round=10000,      # ← イテレーション上限
+        callbacks=[lgb.log_evaluation(period=0)]
+    )
 
-tuner.run()
+    tuner.run()
 
-best_params = tuner.best_params
-model = tuner.get_best_booster()
-print(best_params)
-# pklファイルとしてモデルを保存
-joblib.dump(model, f"./model/{field}_stacking_model_lgb_fold{fold}.pickle")
+    best_params = tuner.best_params
+    model = tuner.get_best_booster()
+    print(best_params)
+    # pklファイルとしてモデルを保存
+    joblib.dump(model, f"./model/{field}_stacking_model_lgb_fold{fold}.pickle")
 
-# 学習後のモデル
-importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
-importance_split = model.feature_importance(importance_type="split")  # 分割に使われた回数
+    # 学習後のモデル
+    importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
+    importance_split = model.feature_importance(importance_type="split")  # 分割に使われた回数
 
-feature_names = val_df[feature_cols].columns
+    feature_names = val_df[feature_cols].columns
 
-feat_imp_df = pd.DataFrame({
-    "feature": feature_names,
-    "importance_gain": importance_gain,
-    "importance_split": importance_split
-}).sort_values(by="importance_gain", ascending=False)
+    feat_imp_df = pd.DataFrame({
+        "feature": feature_names,
+        "importance_gain": importance_gain,
+        "importance_split": importance_split
+    }).sort_values(by="importance_gain", ascending=False)
 
-print(feat_imp_df)  # 上位20特徴量
+    print(feat_imp_df)  # 上位20特徴量
 
-# plt.figure(figsize=(10,6))
-# sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
-# plt.title("Top 20 Feature Importance (LambdaRank)")
-# plt.show()
+    # plt.figure(figsize=(10,6))
+    # sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
+    # plt.title("Top 20 Feature Importance (LambdaRank)")
+    # plt.show()
 
-####### 第二学習 ########
-# y_pred = model.predict(val_df[feature_cols])
-# val_df['pred_score'] = y_pred
+    ####### 第二学習 ########
+    # y_pred = model.predict(val_df[feature_cols])
+    # val_df['pred_score'] = y_pred
 
-# # テストデータの予測 (予測クラスを返す)
-# y_pred = model.predict(test_df[feature_cols])
-# test_df['pred_score'] = y_pred
+    # # テストデータの予測 (予測クラスを返す)
+    # y_pred = model.predict(test_df[feature_cols])
+    # test_df['pred_score'] = y_pred
 
-# val_df = add_score_diff_features(val_df)
-# test_df = add_score_diff_features(test_df)
+    # val_df = add_score_diff_features(val_df)
+    # test_df = add_score_diff_features(test_df)
 
-# feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+    # feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 'label_gain', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', 'オッズ', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 
-# lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
-# lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
+    # lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
+    # lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
 
-# params = {
-#     'task': 'train',
-#     'boosting_type': 'gbdt',
-#     # 'objective': 'regression',  # ←ここでランキング学習と指定！
-#     # 'metric': 'rmse',   # for lambdarank
-#     'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-#     'learning_rate': rate,
-#     'random_state': seed,
-#     'verbose_eval': 1000,
-#     'objective': 'lambdarank',
-#     'metric': 'ndcg',
-#     'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-#     'label_gain': [0,3,5,10],
-#     'bagging_seed': seed,
-#     'feature_fraction_seed': seed,
-#     'data_random_seed': seed,
-#     'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
-#     'force_col_wise': True,       # 再現性を高める（内部順序を固定）
-#     'num_threads': 1,             # 厳密再現のためスレッド固定
-# }
-# ####################################################################################
+    # params = {
+    #     'task': 'train',
+    #     'boosting_type': 'gbdt',
+    #     # 'objective': 'regression',  # ←ここでランキング学習と指定！
+    #     # 'metric': 'rmse',   # for lambdarank
+    #     'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
+    #     'learning_rate': rate,
+    #     'random_state': seed,
+    #     'verbose_eval': 1000,
+    #     'objective': 'lambdarank',
+    #     'metric': 'ndcg',
+    #     'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+    #     'label_gain': [0,3,5,10],
+    #     'bagging_seed': seed,
+    #     'feature_fraction_seed': seed,
+    #     'data_random_seed': seed,
+    #     'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
+    #     'force_col_wise': True,       # 再現性を高める（内部順序を固定）
+    #     'num_threads': 1,             # 厳密再現のためスレッド固定
+    # }
+    # ####################################################################################
 
 
-# tuner = lgb.LightGBMTuner(
-#     params,
-#     optuna_seed=seed,
-#     train_set=lgb_train,
-#     valid_sets=[lgb_eval],
-#     # categorical_feature=cat_list,
-#     early_stopping_rounds=20,  # ← ここで指定
-#     num_boost_round=10000,      # ← イテレーション上限
-#     callbacks=[lgb.log_evaluation(period=0)]
-# )
+    # tuner = lgb.LightGBMTuner(
+    #     params,
+    #     optuna_seed=seed,
+    #     train_set=lgb_train,
+    #     valid_sets=[lgb_eval],
+    #     # categorical_feature=cat_list,
+    #     early_stopping_rounds=20,  # ← ここで指定
+    #     num_boost_round=10000,      # ← イテレーション上限
+    #     callbacks=[lgb.log_evaluation(period=0)]
+    # )
 
-# tuner.run()
+    # tuner.run()
 
-# best_params = tuner.best_params
-# model = tuner.get_best_booster()
+    # best_params = tuner.best_params
+    # model = tuner.get_best_booster()
 
-# # pklファイルとしてモデルを保存
-# # with open(f"{tuner_path}{seed}.pickle", "wb") as mk:
-# #     pickle.dump(model, mk)
+    # # pklファイルとしてモデルを保存
+    # # with open(f"{tuner_path}{seed}.pickle", "wb") as mk:
+    # #     pickle.dump(model, mk)
 
-# # 学習後のモデル
-# importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
-# importance_split = model.feature_importance(importance_type="split")  # 分割に使われた回数
+    # # 学習後のモデル
+    # importance_gain = model.feature_importance(importance_type="gain")  # 各特徴量の寄与度
+    # importance_split = model.feature_importance(importance_type="split")  # 分割に使われた回数
 
-# feature_names = val_df[feature_cols].columns
+    # feature_names = val_df[feature_cols].columns
 
-# feat_imp_df = pd.DataFrame({
-#     "feature": feature_names,
-#     "importance_gain": importance_gain,
-#     "importance_split": importance_split
-# }).sort_values(by="importance_gain", ascending=False)
+    # feat_imp_df = pd.DataFrame({
+    #     "feature": feature_names,
+    #     "importance_gain": importance_gain,
+    #     "importance_split": importance_split
+    # }).sort_values(by="importance_gain", ascending=False)
 
-# print(feat_imp_df)  # 上位20特徴量
+    # print(feat_imp_df)  # 上位20特徴量
 
-# plt.figure(figsize=(10,6))
-# sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
-# plt.title("Top 20 Feature Importance (LambdaRank)")
-# plt.show()
+    # plt.figure(figsize=(10,6))
+    # sns.barplot(x="importance_gain", y="feature", data=feat_imp_df)
+    # plt.title("Top 20 Feature Importance (LambdaRank)")
+    # plt.show()
+
+    y_pred = model.predict(test_df[feature_cols])
+    test_df[f'result{seed}'] = y_pred
+    # # print("test len",len(test_df))
+
+    # # テストデータの予測 (予測クラスを返す)
+    y_pred = model.predict(val_df[feature_cols])
+    val_df[f'result{seed}'] = y_pred
 
 
 ################# 評価 ##############
 
 y_pred = model.predict(val_df[feature_cols])
-val_df['pred_score'] = y_pred
+val_df['pred_score'] = val_df[['result1', 'result2', 'result3', 'result4', 'result5', 'result6']].mean(axis=1).round(10)
+# val_df['pred_score'] = y_pred
 
 # テストデータの予測 (予測クラスを返す)
 y_pred = model.predict(test_df[feature_cols])
-test_df['pred_score'] = y_pred
+test_df['pred_score'] = test_df[['result1', 'result2', 'result3', 'result4', 'result5', 'result6']].mean(axis=1).round(10)
+# test_df['pred_score'] = y_pred
 
 val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
 selected = val_df.loc[val_df.groupby('レースID')['expected_value'].idxmax()]
