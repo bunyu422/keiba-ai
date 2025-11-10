@@ -1382,8 +1382,11 @@ def time_series_group_cv_3split_2025(df, group_col="レースID", n_splits=5):
     2025年のデータは別 df として返す
     """
     # 2025年データを切り離す
-    df_2025 = df[df[group_col].astype(str).str[:4] == "2025"].reset_index(drop=True)
-    df_rest = df[df[group_col].astype(str).str[:4] != "2025"].reset_index(drop=True)
+    # 2025年と2024年データを切り離す
+    df_2025 = df[df[group_col].astype(str).str[:4].isin(["2025", "2024"])].reset_index(drop=True)
+    # df_2025 = df[df[group_col].astype(str).str[:4] == "2025"].reset_index(drop=True)
+    # df_rest = df[df[group_col].astype(str).str[:4] != "2025"].reset_index(drop=True)
+    df_rest = df[~df[group_col].astype(str).str[:4].isin(["2024", "2025"])].reset_index(drop=True)
 
     unique_races = np.sort(df_rest[group_col].unique())
     n_races = len(unique_races)

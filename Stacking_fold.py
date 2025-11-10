@@ -184,7 +184,7 @@ pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
 
-field = "sonoda"
+field = "tokyo"
 
 csv_files = [
     f'./csv/{field}_result_stacking2_2025_{i}.csv' for i in range(5)
@@ -201,7 +201,7 @@ for i, d in enumerate(dfs):
     df[f'result{i}_3'] = d['result3']
     df[f'result{i}_4'] = d['result4']
     df[f'result{i}_5'] = d['result5']
-    df[f'result{i}_6'] = d['result6']
+    # df[f'result{i}_6'] = d['result6']
 
 # val_df = df[df['レースID'].astype(str).str[:4] == "2024"].reset_index(drop=True)
 # test_df = df[df['レースID'].astype(str).str[:4] != "2024"].reset_index(drop=True)
@@ -242,7 +242,7 @@ feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 
 print(feature_cols)
 # joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
 rate = 0.1
-seed = 5 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5, kyoto:2
+seed = 1 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5, kyoto:2
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
@@ -457,6 +457,7 @@ print(f"レース数: {len(top)}")
 print(f"的中数: {int(hit_count)}")
 print(f"的中率: {hit_count / len(top):.2%}")
 print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
+print(top['単勝オッズ'])
 
 top = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
 

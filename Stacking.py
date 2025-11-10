@@ -183,9 +183,9 @@ pd.set_option("display.max_colwidth", None)
 # seed = 4 # fold 3 \4
 # seed = 2 # fold 4 \2
 
-# field = 'tokyo'
-# fold = 4
-# seed = 6 # fold 0 \6
+field = 'tokyo'
+fold = 0
+seed = 6 # fold 0 \6
 # seed = 1 # fold 1 \1
 # seed = 4 # fold 2 \4
 # seed = 3 # fold 3 \3
@@ -207,9 +207,9 @@ pd.set_option("display.max_colwidth", None)
 # seed = 7 # fold 3 \7
 # seed = 3 # fold 4 \3
 
-field = 'sonoda'
-fold = 4
-seed = 8 # fold 0 \8
+# field = 'sonoda'
+# fold = 4
+# seed = 8 # fold 0 \8
 # seed = 6 # fold 1 \6
 # seed = 4 # fold 2 \4
 # seed = 6 # fold 3 \6
@@ -447,7 +447,7 @@ print(feature_cols)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
 
-for seed in range(1, 7):
+for seed in range(1, 6):
     set_seed(seed)
     params = {
         'task': 'train',
@@ -471,27 +471,27 @@ for seed in range(1, 7):
     }
     ####################################################################################
 
-    if seed > 3:
-        params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        # 'objective': 'regression',  # ←ここでランキング学習と指定！
-        # 'metric': 'rmse',   # for lambdarank
-        'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-        'learning_rate': rate,
-        'random_state': seed,
-        'verbose_eval': 1000,
-        'objective': 'lambdarank',
-        'metric': 'ndcg',
-        'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-        'label_gain': [0,3,5,10],
-        'bagging_seed': seed,
-        'feature_fraction_seed': seed,
-        'data_random_seed': seed,
-        'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
-        'force_col_wise': True,       # 再現性を高める（内部順序を固定）
-        'num_threads': 1,             # 厳密再現のためスレッド固定
-    }
+    # if seed > 3:
+    #     params = {
+    #     'task': 'train',
+    #     'boosting_type': 'gbdt',
+    #     # 'objective': 'regression',  # ←ここでランキング学習と指定！
+    #     # 'metric': 'rmse',   # for lambdarank
+    #     'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
+    #     'learning_rate': rate,
+    #     'random_state': seed,
+    #     'verbose_eval': 1000,
+    #     'objective': 'lambdarank',
+    #     'metric': 'ndcg',
+    #     'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+    #     'label_gain': [0,3,5,10],
+    #     'bagging_seed': seed,
+    #     'feature_fraction_seed': seed,
+    #     'data_random_seed': seed,
+    #     'deterministic': True,        # LightGBM 3.3.0 以降で利用可能
+    #     'force_col_wise': True,       # 再現性を高める（内部順序を固定）
+    #     'num_threads': 1,             # 厳密再現のためスレッド固定
+    # }
 
 
     tuner = lgb.LightGBMTuner(
@@ -622,12 +622,12 @@ for seed in range(1, 7):
 ################# 評価 ##############
 
 y_pred = model.predict(val_df[feature_cols])
-val_df['pred_score'] = val_df[['result1', 'result2', 'result3', 'result4', 'result5', 'result6']].mean(axis=1).round(10)
+val_df['pred_score'] = val_df[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
 # val_df['pred_score'] = y_pred
 
 # テストデータの予測 (予測クラスを返す)
 y_pred = model.predict(test_df[feature_cols])
-test_df['pred_score'] = test_df[['result1', 'result2', 'result3', 'result4', 'result5', 'result6']].mean(axis=1).round(10)
+test_df['pred_score'] = test_df[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
 # test_df['pred_score'] = y_pred
 
 val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
