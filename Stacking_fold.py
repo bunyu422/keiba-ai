@@ -428,36 +428,59 @@ print(f"的中数: {int(hit_count)}")
 print(f"的中率: {hit_count / len(selected):.2%}")
 print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
-top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
+# top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
+
+# total_bet = len(top) * 100
+# total_return = top['単勝オッズ'].sum()
+
+# hit_count = (top['is_win'] == 1).sum()
+# roi = total_return / total_bet
+
+# print(f"\n[top評価結果2025]")
+# print(f"レース数: {len(top)}")
+# print(f"的中数: {int(hit_count)}")
+# print(f"的中率: {hit_count / len(top):.2%}")
+# print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
+# print(top['単勝オッズ'])
 
 
-# # 1. 各レースで予想順位を付ける（スコアが高いほど1位）
-# df_2025['pred_rank'] = df_2025.groupby('レースID')['pred_score'] \
-#                             .rank(ascending=False, method='first')
+# 各レースでAIが1着予想した馬
+top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()].reset_index(drop=True)
 
-# # 2. 各レースで上位3頭を抽出
-# top3 = df_2025[df_2025['pred_rank'] <= 3].copy()
+n_boot = 10000  # ブートストラップ試行回数
+roi_list = []
+acc_list = []
 
-# # 3. 人気との乖離を計算
-# # 人気は1が最も人気、数値が大きいほど低人気
-# # → 値が大きいほど「予想より人気が低い」＝過小評価されている
-# top3['pop_diff'] = top3['人気'] - top3['pred_rank']
+for _ in range(n_boot):
+    # レース単位でリサンプリング（復元抽出）
+    sampled = top.sample(frac=1.0, replace=True)
+    
+    total_bet = len(sampled) * 100
+    total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
+    
+    hit_count = sampled['is_win'].sum()
+    roi = total_return / total_bet
+    acc = hit_count / len(sampled)
+    
+    roi_list.append(roi)
+    acc_list.append(acc)
 
-# # 4. 各レースでpop_diffが最大の馬（市場が最も過小評価している馬）を抽出
-# top = top3.loc[top3.groupby('レースID')['pop_diff'].idxmax()].reset_index(drop=True)
+roi_arr = np.array(roi_list)
+acc_arr = np.array(acc_list)
 
-total_bet = len(top) * 100
-total_return = top['単勝オッズ'].sum()
+# 点推定
+mean_roi = roi_arr.mean()
+mean_acc = acc_arr.mean()
 
-hit_count = (top['is_win'] == 1).sum()
-roi = total_return / total_bet
+# 95%信頼区間
+roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+acc_ci = np.percentile(acc_arr, [2.5, 97.5])
 
-print(f"\n[top評価結果2025]")
+print(f"\n[top評価結果2025 ブートストラップ評価]")
 print(f"レース数: {len(top)}")
-print(f"的中数: {int(hit_count)}")
-print(f"的中率: {hit_count / len(top):.2%}")
-print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
-print(top['単勝オッズ'])
+print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
 
 top = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
 
