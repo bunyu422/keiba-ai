@@ -1375,47 +1375,88 @@ def time_series_group_cv_3split(df, group_col="レースID", n_splits=5):
 
     return splits
 
-def time_series_group_cv_3split_2025(df, group_col="レースID", n_splits=5):
+# def time_series_group_cv_3split_2025(df, group_col="レースID", n_splits=5):
+#     """
+#     時系列順（レースID昇順）に基づくリーク防止付きクロスバリデーション
+#     各foldで train / val / test の3分割を生成
+#     2025年のデータは別 df として返す
+#     """
+#     # 2025年データを切り離す
+#     # 2025年と2024年データを切り離す
+#     df_2025 = df[df[group_col].astype(str).str[:4].isin(["2025", "2024"])].reset_index(drop=True)
+#     # df_2025 = df[df[group_col].astype(str).str[:4] == "2025"].reset_index(drop=True)
+#     # df_rest = df[df[group_col].astype(str).str[:4] != "2025"].reset_index(drop=True)
+#     df_rest = df[~df[group_col].astype(str).str[:4].isin(["2024", "2025"])].reset_index(drop=True)
+
+#     unique_races = np.sort(df_rest[group_col].unique())
+#     n_races = len(unique_races)
+#     fold_size = n_races // (n_splits + 2)  # train/val/test 含む
+
+#     splits = []
+#     train_start = 0
+
+#     for i in range(n_splits):
+#         train_end = (i + 1) * fold_size
+#         val_end = train_end + fold_size
+#         test_end = val_end + fold_size
+
+#         if test_end > n_races:
+#             break  # データが足りなければ終了
+
+#         train_races = unique_races[train_start:train_end]
+#         val_races = unique_races[train_end:val_end]
+#         test_races = unique_races[val_end:test_end]
+
+#         train_idx = df_rest[df_rest[group_col].isin(train_races)].index
+#         val_idx = df_rest[df_rest[group_col].isin(val_races)].index
+#         test_idx = df_rest[df_rest[group_col].isin(test_races)].index
+
+#         splits.append((train_idx, val_idx, test_idx))
+
+#         train_start = train_end
+
+#     return splits, df_2025, df_rest
+
+def time_series_group_cv_3split_2025(df, group_col="レースID", n_folds=5):
     """
-    時系列順（レースID昇順）に基づくリーク防止付きクロスバリデーション
-    各foldで train / val / test の3分割を生成
-    2025年のデータは別 df として返す
+    時系列順を保ちつつ、ランダムなtest比率（0.5〜0.6）でfoldを繰り返すCV。
+    各foldで train < val < test の順序を維持。
+    2024年以降は df_post2024 に切り離して返す。
+    スライドは行わず、各foldの分割点を乱数で決定。
     """
-    # 2025年データを切り離す
-    # 2025年と2024年データを切り離す
-    df_2025 = df[df[group_col].astype(str).str[:4].isin(["2025", "2024"])].reset_index(drop=True)
-    # df_2025 = df[df[group_col].astype(str).str[:4] == "2025"].reset_index(drop=True)
-    # df_rest = df[df[group_col].astype(str).str[:4] != "2025"].reset_index(drop=True)
+    
+    # --- ① 2024年以降を分離 ---
+    df_post2024 = df[df[group_col].astype(str).str[:4].isin(["2024", "2025"])].reset_index(drop=True)
     df_rest = df[~df[group_col].astype(str).str[:4].isin(["2024", "2025"])].reset_index(drop=True)
 
+    # --- ② レースIDでソート ---
     unique_races = np.sort(df_rest[group_col].unique())
     n_races = len(unique_races)
-    fold_size = n_races // (n_splits + 2)  # train/val/test 含む
+    stage_splits = []
 
-    splits = []
-    train_start = 0
+    for i in range(n_folds):
+        # ランダムな比率で分割
+        test_ratio = random.uniform(0.5, 0.7)
+        print(f"test_ratio: {test_ratio}")
+        val_ratio = 0.1
+        train_ratio = 1 - (test_ratio + val_ratio)
 
-    for i in range(n_splits):
-        train_end = (i + 1) * fold_size
-        val_end = train_end + fold_size
-        test_end = val_end + fold_size
+        # ランダムな分割点（時系列順は維持）
+        split_point = random.randint(int(n_races * 0.2), int(n_races * 0.8))  # 中央付近で変動
+        train_end = int(split_point * train_ratio)
+        val_end = int(split_point * (train_ratio + val_ratio))
 
-        if test_end > n_races:
-            break  # データが足りなければ終了
-
-        train_races = unique_races[train_start:train_end]
+        train_races = unique_races[:train_end]
         val_races = unique_races[train_end:val_end]
-        test_races = unique_races[val_end:test_end]
+        test_races = unique_races[val_end:]
 
         train_idx = df_rest[df_rest[group_col].isin(train_races)].index
         val_idx = df_rest[df_rest[group_col].isin(val_races)].index
         test_idx = df_rest[df_rest[group_col].isin(test_races)].index
 
-        splits.append((train_idx, val_idx, test_idx))
+        stage_splits.append((train_idx, val_idx, test_idx))
 
-        train_start = train_end
-
-    return splits, df_2025, df_rest
+    return stage_splits, df_post2024, df_rest
 
 def time_series_train_val_split(df, group_col="レースID", train_ratio=0.8):
     """

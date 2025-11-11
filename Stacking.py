@@ -7,6 +7,28 @@ import optuna.integration.lightgbm as lgb
 import torch
 import seaborn as sns
 
+def split_test_for_next_stage(test_df, group_col="レースID", ratios=(0.3, 0.1, 0.6)):
+    """
+    test_dfを次段モデル用にtrain/val/testに分割（時系列順）
+    ratios=(train_ratio, val_ratio, test_ratio)
+    """
+    # レース単位で時系列順にソート
+    unique_races = np.sort(test_df[group_col].unique())
+    n = len(unique_races)
+    
+    train_end = int(n * ratios[0])
+    val_end = train_end + int(n * ratios[1])
+    
+    train_races = unique_races[:train_end]
+    val_races = unique_races[train_end:val_end]
+    test_races = unique_races[val_end:]
+    
+    train_idx = test_df[test_df[group_col].isin(train_races)].index
+    val_idx = test_df[test_df[group_col].isin(val_races)].index
+    test_idx = test_df[test_df[group_col].isin(test_races)].index
+    
+    return train_idx, val_idx, test_idx
+
 def add_score_diff_features(df):
     """
     pred_score（モデルのスコア）を用いてレース内の相対的特徴量を追加する。
@@ -411,7 +433,7 @@ dfs = [
 ]
 
 # 結合（左から順に）
-test_df = reduce(
+df_2025 = reduce(
     lambda left, right: pd.merge(left, right, on=['レースID', '馬番'], how='inner'),
     dfs
 )
@@ -424,9 +446,27 @@ test_df = reduce(
 #     except:
 #         pass
 
+# まず test_df の index を連番にする
+val_df = val_df.reset_index(drop=True)
+df_2025 = df_2025.reset_index(drop=True)
+
 # train_df = add_pred_features(train_df)
+train_idx, val_idx, test_idx = split_test_for_next_stage(val_df)
+
+# 例えば次段モデル用に分割
+next_test = val_df.loc[test_idx].copy()
+test_df = val_df.loc[val_idx].copy()
+val_df = val_df.loc[train_idx].copy()
+
+print(len(val_df))
+print(len(test_df))
+print(len(next_test))
+print(len(df_2025))
+
 val_df = add_pred_features(val_df).round(10)
 test_df = add_pred_features(test_df).round(10)
+next_test = add_pred_features(next_test).round(10)
+df_2025 = add_pred_features(df_2025).round(10)
 
 # グルーピング
 # train_df = train_df.sort_values(["レースID"]).reset_index(drop=True)
@@ -452,16 +492,16 @@ for seed in range(1, 6):
     params = {
         'task': 'train',
         'boosting_type': 'gbdt',
-        'objective': 'regression',  # ←ここでランキング学習と指定！
-        'metric': 'rmse',   # for lambdarank
+        # 'objective': 'regression',  # ←ここでランキング学習と指定！
+        # 'metric': 'rmse',   # for lambdarank
         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
         'learning_rate': rate,
         'random_state': seed,
         'verbose_eval': 1000,
-        # 'objective': 'lambdarank',
-        # 'metric': 'ndcg',
-        # 'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
-        # 'label_gain': [0,3,5,10],
+        'objective': 'lambdarank',
+        'metric': 'ndcg',
+        'ndcg_eval_at': [1,3],  # NDCG@1, @3, @5, @10 を同時に計算
+        'label_gain': [0,3,5,10],
         'bagging_seed': seed,
         'feature_fraction_seed': seed,
         'data_random_seed': seed,
@@ -610,116 +650,102 @@ for seed in range(1, 6):
     # plt.title("Top 20 Feature Importance (LambdaRank)")
     # plt.show()
 
-    y_pred = model.predict(test_df[feature_cols])
-    test_df[f'result{seed}'] = y_pred
+    y_pred = model.predict(next_test[feature_cols])
+    next_test[f'result{seed}'] = y_pred
     # # print("test len",len(test_df))
 
     # # テストデータの予測 (予測クラスを返す)
-    y_pred = model.predict(val_df[feature_cols])
-    val_df[f'result{seed}'] = y_pred
+    y_pred = model.predict(df_2025[feature_cols])
+    df_2025[f'result{seed}'] = y_pred
+
+    top = df_2025.loc[df_2025.groupby('レースID')[f'result{seed}'].idxmax()]
+
+    # ブートストラップ
+    n_boot = 10000  # ブートストラップ試行回数
+    roi_list = []
+    acc_list = []
+
+    for _ in range(n_boot):
+        # レース単位でリサンプリング（復元抽出）
+        sampled = top.sample(frac=1.0, replace=True)
+        
+        total_bet = len(sampled) * 100
+        total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
+        
+        hit_count = sampled['is_win'].sum()
+        roi = total_return / total_bet
+        acc = hit_count / len(sampled)
+        
+        roi_list.append(roi)
+        acc_list.append(acc)
+
+    roi_arr = np.array(roi_list)
+    acc_arr = np.array(acc_list)
+
+    # 点推定
+    mean_roi = roi_arr.mean()
+    mean_acc = acc_arr.mean()
+
+    # 95%信頼区間
+    roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+    acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+    print(f"\n[top評価結果2025 ブートストラップ評価]")
+    print(f"レース数: {len(top)}")
+    print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+    print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
 
 ################# 評価 ##############
 
-y_pred = model.predict(val_df[feature_cols])
-val_df['pred_score'] = val_df[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
-# val_df['pred_score'] = y_pred
+# y_pred = model.predict(next_test[feature_cols])
+next_test['pred_score'] = next_test[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
+# next_test['pred_score'] = y_pred
 
 # テストデータの予測 (予測クラスを返す)
-y_pred = model.predict(test_df[feature_cols])
-test_df['pred_score'] = test_df[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
-# test_df['pred_score'] = y_pred
+# y_pred = model.predict(df_2025[feature_cols])
+df_2025['pred_score'] = df_2025[['result1', 'result2', 'result3', 'result4', 'result5']].mean(axis=1).round(10)
+# df_2025['pred_score'] = y_pred
 
-val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
-selected = val_df.loc[val_df.groupby('レースID')['expected_value'].idxmax()]
-print("select len",len(selected))
-total_bet = len(selected) * 100
-total_return = selected['単勝オッズ'].sum()
+top = df_2025.loc[df_2025.groupby('レースID')['pred_score'].idxmax()]
 
-hit_count = (selected['is_win'] == 1).sum()
-roi = total_return / total_bet
- 
-print(f"\n[評価結果]")
-print(f"レース数: {len(selected)}")
-print(f"的中数: {int(hit_count)}")
-print(f"的中率: {hit_count / len(selected):.2%}")
-print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
+# ブートストラップ
+n_boot = 10000  # ブートストラップ試行回数
+roi_list = []
+acc_list = []
 
-test_df['expected_value'] = test_df['pred_score'] * test_df['オッズ']
-selected = test_df.loc[test_df.groupby('レースID')['expected_value'].idxmax()]
+for _ in range(n_boot):
+    # レース単位でリサンプリング（復元抽出）
+    sampled = top.sample(frac=1.0, replace=True)
+    
+    total_bet = len(sampled) * 100
+    total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
+    
+    hit_count = sampled['is_win'].sum()
+    roi = total_return / total_bet
+    acc = hit_count / len(sampled)
+    
+    roi_list.append(roi)
+    acc_list.append(acc)
 
-total_bet = len(selected) * 100
-total_return = selected['単勝オッズ'].sum()
+roi_arr = np.array(roi_list)
+acc_arr = np.array(acc_list)
 
-hit_count = (selected['is_win'] == 1).sum()
-roi = total_return / total_bet
+# 点推定
+mean_roi = roi_arr.mean()
+mean_acc = acc_arr.mean()
 
-print(f"\n[評価結果2025]")
-print(f"レース数: {len(selected)}")
-print(f"的中数: {int(hit_count)}")
-print(f"的中率: {hit_count / len(selected):.2%}")
-print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
+# 95%信頼区間
+roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+acc_ci = np.percentile(acc_arr, [2.5, 97.5])
 
-top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
-
-# # 1. 各レースで予想順位を付ける（スコアが高いほど1位）
-# df_2025['pred_rank'] = df_2025.groupby('レースID')['pred_score'] \
-#                             .rank(ascending=False, method='first')
-
-# # 2. 各レースで上位3頭を抽出
-# top3 = df_2025[df_2025['pred_rank'] <= 3].copy()
-
-# # 3. 人気との乖離を計算
-# # 人気は1が最も人気、数値が大きいほど低人気
-# # → 値が大きいほど「予想より人気が低い」＝過小評価されている
-# top3['pop_diff'] = top3['人気'] - top3['pred_rank']
-
-# # 4. 各レースでpop_diffが最大の馬（市場が最も過小評価している馬）を抽出
-# top = top3.loc[top3.groupby('レースID')['pop_diff'].idxmax()].reset_index(drop=True)
-
-total_bet = len(top) * 100
-total_return = top['単勝オッズ'].sum()
-
-hit_count = (top['is_win'] == 1).sum()
-roi = total_return / total_bet
-
-print(f"\n[top評価結果2025]")
+print(f"\n[top評価結果2025 ブートストラップ評価]")
 print(f"レース数: {len(top)}")
-print(f"的中数: {int(hit_count)}")
-print(f"的中率: {hit_count / len(top):.2%}")
-print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
+print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
-top = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
-
-# 1. 各レースで予想順位を付ける（スコアが高いほど1位）
-# test_df['pred_rank'] = test_df.groupby('レースID')['pred_score'] \
-#                             .rank(ascending=False, method='first')
-
-# # 2. 各レースで上位3頭を抽出
-# top3 = test_df[test_df['pred_rank'] <= 3].copy()
-
-# # 3. 人気との乖離を計算
-# # 人気は1が最も人気、数値が大きいほど低人気
-# # → 値が大きいほど「予想より人気が低い」＝過小評価されている
-# top3['pop_diff'] = top3['人気'] - top3['pred_rank']
-
-# # 4. 各レースでpop_diffが最大の馬（市場が最も過小評価している馬）を抽出
-# top = top3.loc[top3.groupby('レースID')['pop_diff'].idxmax()].reset_index(drop=True)
-
-total_bet = len(top) * 100
-total_return = top['単勝オッズ'].sum()
-
-hit_count = (top['is_win'] == 1).sum()
-roi = total_return / total_bet
-
-print(f"\n[top評価結果]")
-print(f"レース数: {len(top)}")
-print(f"的中数: {int(hit_count)}")
-print(f"的中率: {hit_count / len(top):.2%}")
-print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
-
-val_df.to_csv(f'./csv/{field}_result_stacking2_test_{fold}.csv', index=False)
-test_df.to_csv(f'./csv/{field}_result_stacking2_2025_{fold}.csv', index=False)
+next_test.to_csv(f'./csv/{field}_result_stacking2_test_{fold}.csv', index=False)
+df_2025.to_csv(f'./csv/{field}_result_stacking2_2025_{fold}.csv', index=False)
 
 ###########################################################
 # 1. ワイドのみ抽出

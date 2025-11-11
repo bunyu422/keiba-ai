@@ -187,7 +187,7 @@ pd.set_option("display.max_colwidth", None)
 field = "tokyo"
 
 csv_files = [
-    f'./csv/{field}_result_stacking2_2025_{i}.csv' for i in range(5)
+    f'./csv/{field}_result_stacking2_test_{i}.csv' for i in range(5)
 ]
 
 dfs = [pd.read_csv(f) for f in csv_files]
@@ -196,12 +196,29 @@ df = dfs[0][['レースID', '馬番', '単勝オッズ', 'is_win', 'オッズ']]
 # 各foldのスコアから順位を算出
 for i, d in enumerate(dfs):
     df[f'pred_score_{i}'] = d['pred_score']
-    # df[f'result{i}_1'] = d['result1']
-    # df[f'result{i}_2'] = d['result2']
-    # df[f'result{i}_3'] = d['result3']
-    # df[f'result{i}_4'] = d['result4']
-    # df[f'result{i}_5'] = d['result5']
+    df[f'result{i}_1'] = d['result1']
+    df[f'result{i}_2'] = d['result2']
+    df[f'result{i}_3'] = d['result3']
+    df[f'result{i}_4'] = d['result4']
+    df[f'result{i}_5'] = d['result5']
     # df[f'result{i}_6'] = d['result6']
+
+csv_files = [
+    f'./csv/{field}_result_stacking2_2025_{i}.csv' for i in range(5)
+]
+
+dfs = [pd.read_csv(f) for f in csv_files]
+df_2025 = dfs[0][['レースID', '馬番', '単勝オッズ', 'is_win', 'オッズ']].copy()
+
+# 各foldのスコアから順位を算出
+for i, d in enumerate(dfs):
+    df_2025[f'pred_score_{i}'] = d['pred_score']
+    df_2025[f'result{i}_1'] = d['result1']
+    df_2025[f'result{i}_2'] = d['result2']
+    df_2025[f'result{i}_3'] = d['result3']
+    df_2025[f'result{i}_4'] = d['result4']
+    df_2025[f'result{i}_5'] = d['result5']
+    # df[f'result{i}_6'] = d['result6']   
 
 # val_df = df[df['レースID'].astype(str).str[:4] == "2024"].reset_index(drop=True)
 # test_df = df[df['レースID'].astype(str).str[:4] != "2024"].reset_index(drop=True)
@@ -213,18 +230,17 @@ group_col = "レースID"
 race_ids = sorted(df[group_col].unique())
 
 # 分割位置を決定（例：3:1）
-split_idx = int(len(race_ids) * 0.6)
-split_idx2 = int(len(race_ids) * 0.8)
+split_idx = int(len(race_ids) * 0.7)
+# split_idx2 = int(len(race_ids) * 0.8)
 
 # val/test用のレースIDを取得
 val_races = race_ids[:split_idx]
-test_races = race_ids[split_idx:split_idx2]
-extra_races = race_ids[split_idx2:]
+test_races = race_ids[split_idx:]
 
 # データを分割（レース単位）
 val_df = df[df[group_col].isin(val_races)].reset_index(drop=True)
 test_df = df[df[group_col].isin(test_races)].reset_index(drop=True)
-extra_df = df[df[group_col].isin(extra_races)].reset_index(drop=True)
+extra_df = df_2025
 
 # train_df = add_pred_features(train_df)
 val_df = add_pred_features(val_df).round(10)
@@ -247,7 +263,7 @@ feature_cols = [col for col in val_df.columns if col not in ['label', '馬番', 
 print(feature_cols)
 # joblib.dump(feature_cols, "./pickle-dict/stacking_fold_feature_cols.pkl")
 rate = 0.1
-seed = 1 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5, kyoto:2
+seed = 2 # nakayama:4, tokyo:1, monbetu:1, kasanmatu:5, kyoto:2
 set_seed(seed)
 lgb_train = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], group=eval_list)
 lgb_eval = lgb.Dataset(test_df[feature_cols], label=test_df[target_col], reference=lgb_train, group=test_list)
