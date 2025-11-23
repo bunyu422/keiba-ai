@@ -114,12 +114,12 @@ def job(n1, n2, n3):
 
         driver.find_element(By.CLASS_NAME, "selectHorse").find_elements(By.CLASS_NAME, "ui-link")[umaban-1].click()
 
-        wait_and_type(By.CLASS_NAME, "ui-input-text", "5")
+        wait_and_type(By.CLASS_NAME, "ui-input-text", "1")
         wait_and_click(By.LINK_TEXT, "セット")
         # wait_and_click(By.PARTIAL_LINK_TEXT, "番から")
         # wait_and_click(By.LINK_TEXT, "取消")
         wait_and_click(By.LINK_TEXT, "入力終了")
-        wait_and_type(By.ID, "sum", "500")
+        wait_and_type(By.ID, "sum", "100")
         wait_and_click(By.LINK_TEXT, "投票")
 
         wait_alert_and_accept()  # 投票確認アラート

@@ -312,8 +312,14 @@ def scrape_payouts_combination(csv_path, no, start, end):
                         print(f"Error {race_id}: {e}")
                         continue
 
-    df.to_csv(csv_path, index=False, encoding='utf-8-sig')
-    print(f"Saved to {csv_path}")
+    # 結果をcsvに保存
+    # ファイルが存在するか確認
+    if not os.path.exists(csv_path):
+        # 新規作成（ヘッダーあり）
+        df.to_csv(csv_path, na_rep='NaN')
+    else:
+        # 追記（ヘッダーなし）
+        df.to_csv(csv_path, mode='a', header=False, na_rep='NaN')
 
 # 辞書作成
 def create_unique_pickle(series, file_path):
