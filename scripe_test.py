@@ -1,5 +1,4 @@
 from itertools import combinations
-import itertools
 import pickle
 import random
 import re
@@ -333,33 +332,6 @@ def calculate_roi_from_odds(df, bet_amount=100, winsor_limits=(0.05, 0.05)):
     summary['ROI'] = summary['total_payout'] / summary['total_bet']
     return summary.reset_index()
 
-def calculate_roi_from_odds_fuku(df, bet_amount=100, winsor_limits=(0.05, 0.05)):
-    df2 = df.copy()
-    
-    # 払戻列を作る（的中時はオッズ×bet_amount、外れは0）
-    df2['payout'] = df2['複勝払戻']
-    df2['bet'] = bet_amount
-
-    # 全体で winsorize
-    df2['payout_w'] = winsorize(df2['payout'], limits=winsor_limits)
-    df2['bet_w'] = winsorize(df2['bet'], limits=winsor_limits)
-
-    # odds_bin作成
-    bins = [0,3,7,20,999]
-    labels = ["〜3倍", "3〜7倍", "7〜20倍", "20倍〜"]
-    df2['odds_bin'] = pd.cut(df2['オッズ'], bins=bins, labels=labels, right=False)
-
-    # binごとに集計
-    summary = df2.groupby('odds_bin').agg(
-        count=('オッズ', 'size'),
-        hit_rate=('複勝_hit', 'mean'),
-        hit_count=('複勝_hit', 'sum'),
-        total_payout=('payout_w', 'sum'),
-        total_bet=('bet_w', 'sum')
-    )
-    summary['ROI'] = summary['total_payout'] / summary['total_bet']
-    return summary.reset_index()
-
 def select_top_with_odds(df, score_col="pred_score", odds_col="オッズ"):
     selected_idx = []
 
@@ -399,34 +371,6 @@ def set_seed(seed: int = 42):
         random.seed(worker_seed)
     return seed_worker
 
-def select_top3_over7(df_pred, race_col="レースID", score_col="pred_score"):
-    results = []
-
-    for race_id, g in df_pred.groupby(race_col):
-
-        # スコアで降順ソート
-        g_sorted = g.sort_values(score_col, ascending=False)
-
-        # オッズ7倍以上を抽出
-        g_filtered = g_sorted[g_sorted["オッズ"] >= 7]
-
-        # 3頭未満なら補填する（←ここが重要）
-        if len(g_filtered) < 3:
-            need = 3 - len(g_filtered)
-
-            # まだ選んでいない馬で下の順位から補充
-            g_remain = g_sorted[~g_sorted.index.isin(g_filtered.index)]
-            g_add = g_remain.head(need)
-
-            g_final = pd.concat([g_filtered, g_add])
-        else:
-            g_final = g_filtered.head(3)
-
-        g_final[race_col] = race_id
-        results.append(g_final)
-
-    return pd.concat(results)
-
 def bootstrap_wide_roi(
     df_pred,              # スコア付きデータ
     df_payout,            # 払戻データ（券種, 馬番(1-2形式), 払い戻し金額）
@@ -440,26 +384,26 @@ def bootstrap_wide_roi(
     sel = (
         df_pred.sort_values([race_col, score_col], ascending=[True, False])
         .groupby(race_col)
-        .head(3)
+        .head(1)
     )
 
     # --- 2. race_id → [馬番リスト] を作成 ---
     sel["馬番"] = sel["馬番"].astype(int)
-    horse_lists = sel.groupby(race_col)["馬番"].apply(list)
+    # horse_lists = sel.groupby(race_col)["馬番"].apply(list)
 
     # --- 2. 購入対象データ（race_id, 馬番） ---
-    # df_bets = sel[[race_col, "馬番"]].copy()
-    # df_bets["馬番"] = df_bets["馬番"].astype(str)  # 払戻の馬番と型を合わせる
+    df_bets = sel[[race_col, "馬番"]].copy()
+    df_bets["馬番"] = df_bets["馬番"].astype(str)  # 払戻の馬番と型を合わせる
 
     # --- 3. レースごとに "1位 → 2,3位" のワイド2点だけ作る ---
-    bets = []
-    for race_id, horses in horse_lists.items():
-        if len(horses) >= 2:
-            main = horses[0]
-            others = horses[1:2]
-            for o in others:
-                pair = "-".join(map(str, sorted([main, o])))
-                bets.append((race_id, pair))
+    # bets = []
+    # for race_id, horses in horse_lists.items():
+    #     if len(horses) >= 2:
+    #         main = horses[0]
+    #         others = horses[1:2]
+    #         for o in others:
+    #             pair = "-".join(map(str, sorted([main, o])))
+    #             bets.append((race_id, pair))
 
     # --- 各レースで「上位3頭BOX（3点）」を生成 ---
     # bets = []
@@ -471,7 +415,7 @@ def bootstrap_wide_roi(
     #             pair = "-".join(map(str, sorted([h1, h2])))
     #             bets.append((race_id, pair))
 
-    df_bets = pd.DataFrame(bets, columns=[race_col, "馬番"])
+    # df_bets = pd.DataFrame(bets, columns=[race_col, "馬番"])
 
     if df_bets.empty:
         return {
@@ -483,11 +427,10 @@ def bootstrap_wide_roi(
         }
 
     # --- 4. ワイド払戻だけ抽出（馬番は "1-2" のような文字列） ---
-    payout_wide = df_payout.query("券種 == 'ワイド'")[
+    payout_wide = df_payout.query("券種 == '複勝'")[
         [race_col, "馬番", "払い戻し金額"]
     ]
-    
-    payout_wide["馬番"] = payout_wide["馬番"].astype(str)
+    # print(payout_wide)
 
     # --- 5. ベット情報と払戻を結合 ---
     df_merged = df_bets.merge(payout_wide, on=[race_col, "馬番"], how="left")
@@ -530,196 +473,14 @@ def bootstrap_wide_roi(
         "bets_df": df_merged
     }
 
-def add_fuku_payout(df_pred, df_payout, race_col="レースID"):
-    # --- 複勝払戻だけ取り出す ---
-    fuku = df_payout.query("券種 == '複勝'")[
-        [race_col, "馬番", "払い戻し金額"]
-    ].copy()
-
-    # df_pred と型を合わせる
-    fuku["馬番"] = fuku["馬番"].astype(float).astype(str)
-    df_pred["馬番"] = df_pred["馬番"].astype(str)
-
-    # print(fuku['馬番'].head())
-    # print(df_pred['馬番'].head())
-
-    # --- マージ ---
-    merged = df_pred.merge(
-        fuku,
-        on=[race_col, "馬番"],
-        how="left"
-    )
-
-    # --- 当たり判定と払戻 ---
-    merged["複勝_hit"] = merged["払い戻し金額"].notna().astype(int)
-    merged["複勝払戻"] = merged["払い戻し金額"].fillna(0)
-
-    return merged
-
-def eval_strategy(df, min_pred, min_odds, max_odds, top_k):
-    """ある1組み合わせの購入成績を計算"""
-    df_f = df.copy()
-
-    # フィルタリング
-    cond = (
-        (df_f['pred_score'] >= min_pred) &
-        (df_f['オッズ'] >= min_odds) &
-        (df_f['オッズ'] <= max_odds)
-    )
-    df_f = df_f[cond]
-
-    if df_f.empty:
-        return 0, 0, 0, 0, 0
-
-    # レース単位で top-k 購入
-    df_f['rank'] = df_f.groupby('レースID')['expected_value'].rank(ascending=False, method='first')
-    df_buy = df_f[df_f['rank'] <= top_k]
-
-    if df_buy.empty:
-        return 0, 0, 0, 0, 0
-
-    # 指標計算
-    n_buy = len(df_buy)
-    hit_rate = df_buy['複勝_hit'].mean()
-    total_return = df_buy['複勝払戻'].sum()
-    total_bet = n_buy * 100  # 複勝1点100円
-    roi = total_return / total_bet
-
-    return n_buy, hit_rate, roi, total_return, total_bet
-
-
-def search_best_filters(df, 
-                        pred_range=[-np.inf],
-                        min_odds_list=[1, 2, 3, 5, 7, 10],
-                        max_odds_list=[20, 30, 50, 999],
-                        top_k_list=[1, 2, 3]):
-    """フィルタリング全探索"""
-    results = []
-
-    for min_pred, min_odds, max_odds, top_k in itertools.product(
-        pred_range, min_odds_list, max_odds_list, top_k_list
-    ):
-        if min_odds >= max_odds:
-            continue
-
-        n_buy, hit_rate, roi, total_return, total_bet = eval_strategy(
-            df, min_pred, min_odds, max_odds, top_k
-        )
-
-        results.append({
-            'min_pred': min_pred,
-            'min_odds': min_odds,
-            'max_odds': max_odds,
-            'top_k': top_k,
-            'n_buy': n_buy,
-            'hit_rate': hit_rate,
-            'ROI': roi,
-            'total_return': total_return,
-            'total_bet': total_bet,
-        })
-
-    res_df = pd.DataFrame(results)
-
-    # 購入件数が一定以上のものだけ（極端な少数を除外）
-    res_df = res_df[res_df['n_buy'] >= 30]
-
-    # ROI順に並べる
-    res_df = res_df.sort_values('ROI', ascending=False)
-
-    return res_df
-
-def umatan(df):
-    num_hours = len(df) - len(df['レースID'].unique())
-    n_boot = 10000  # ブートストラップ試行回数
-    roi_list = []
-    acc_list = []
-    df = select_top_with_odds(df)
-
-    # df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
-
-    total_return = (df['is_win'] * df['馬単']).sum()
-    total_bet = num_hours * 100
-    roi = total_return / total_bet
-
-    print(f'ROI: {roi:.2%}')
-
-
-set_seed(1)
+# set_seed(1)
 # # 使用例
 # # df は race データで 'オッズ', '払戻', '賭金' のカラムがあること
 df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
-# df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_1.csv')
 df_payout = pd.read_csv('./csv/tokyo_payouts_2025.csv')
 
-umatan(df)
-
-df = add_fuku_payout(df, df_payout)
+# print(df_payout.head(10))
 # df = select_top_with_odds(df)
-
-df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
-# print(df['pred_score'].head(10))
-# df = df.loc[df.groupby('レースID')['expected_value'].idxmax()]
-# # df = (
-# #     df
-# #     .sort_values(['レースID', 'pred_score'], ascending=[True, False])
-# #     .groupby('レースID')
-# #     .head(3)
-# # )
-
-df["ev_bin"] = pd.qcut(df["expected_value"], q=10)  # decile bins
-
-summary = df.groupby("ev_bin").apply(
-    lambda x: pd.Series({
-        "count": len(x),
-        "win_rate": x["複勝_hit"].mean(),
-        "roi": x["複勝払戻"].sum() / (len(x)*100)
-    })
-)
-
-print(summary)
-
-# summary = calculate_roi_from_odds_fuku(df)
-# print(summary)
-
-# df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_4.csv')
-
-# print(df_payout['馬番'].head(10))
-# print(df['馬番'].head(10))
-# df = select_top_with_odds(df)
-
-# n_boot = 10000  # ブートストラップ試行回数
-# roi_list = []
-# acc_list = []
-
-# for _ in range(n_boot):
-#     # レース単位でリサンプリング（復元抽出）
-#     sampled = df.sample(frac=1.0, replace=True)
-    
-#     total_bet = len(sampled) * 100
-#     total_return = sampled['複勝払戻'].sum()  # 的中時のみ払戻あり
-    
-#     hit_count = sampled['複勝_hit'].sum()
-#     roi = total_return / total_bet
-#     acc = hit_count / len(sampled)
-    
-#     roi_list.append(roi)
-#     acc_list.append(acc)
-
-# roi_arr = np.array(roi_list)
-# acc_arr = np.array(acc_list)
-
-# # 点推定
-# mean_roi = roi_arr.mean()
-# mean_acc = acc_arr.mean()
-
-# # 95%信頼区間
-# roi_ci = np.percentile(roi_arr, [2.5, 97.5])
-# acc_ci = np.percentile(acc_arr, [2.5, 97.5])
-
-# print(f"\n[top評価結果test ブートストラップ評価]")
-# print(f"レース数: {len(df)}")
-# print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
-# print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
 result = bootstrap_wide_roi(df, df_payout)
 
