@@ -47,6 +47,7 @@ def add_race_relative_features(
 
     df = df.copy()
     col_list = []
+    rank_cols = {}
 
     # グループごとの平均・標準偏差を事前に計算
     grouped = df.groupby(group_col)
@@ -59,18 +60,20 @@ def add_race_relative_features(
     for col in cols:
         # rank：数値が大きいほど上位（ascending=False）
         if add_rank:
-            df[f"{col}_rank"] = grouped[col].rank(ascending=False, method="dense")
+            rank_cols[f"{col}_rank"] = grouped[col].rank(ascending=False, method="dense")
             col_list.append(f"{col}_rank")
 
         # relative：平均との差
         if add_relative:
-            df[f"{col}_rel"] = df[col] - means[col]
+            rank_cols[f"{col}_rel"] = df[col] - means[col]
             col_list.append(f"{col}_rel")
 
         # zscore：相対値 / 標準偏差
         if add_zscore:
-            df[f"{col}_z"] = (df[col] - means[col]) / stds[col]
+            rank_cols[f"{col}_z"] = (df[col] - means[col]) / stds[col]
             col_list.append(f"{col}_z")
+
+    df = pd.concat([df, pd.DataFrame(rank_cols, index=df.index)], axis=1)
 
     return df, col_list
 
@@ -303,8 +306,11 @@ def add_fuku_payout(df_pred, df_payout, race_col="レースID"):
     ].copy()
 
     # df_pred と型を合わせる
-    fuku["馬番"] = fuku["馬番"].astype(str)
+    fuku["馬番"] = fuku["馬番"].astype(float).astype(str)
     df_pred["馬番"] = df_pred["馬番"].astype(str)
+
+    # print(fuku['馬番'].head())
+    # print(df_pred['馬番'].head())
 
     # --- マージ ---
     merged = df_pred.merge(
@@ -319,6 +325,63 @@ def add_fuku_payout(df_pred, df_payout, race_col="レースID"):
 
     return merged
 
+def add_fuku_payout_maxonly(df_pred, df_payout, race_col="レースID"):
+    # --- 複勝払戻だけ取り出す ---
+    fuku = df_payout.query("券種 == '複勝'")[
+        [race_col, "馬番", "払い戻し金額"]
+    ].copy()
+
+    # df_pred と型を合わせる
+    fuku["馬番"] = fuku["馬番"].astype(float).astype(str)
+    df_pred["馬番"] = df_pred["馬番"].astype(str)
+
+    # --- マージ ---
+    merged = df_pred.merge(
+        fuku,
+        on=[race_col, "馬番"],
+        how="left"
+    )
+
+    # -------------------------------
+    # ① 通常の複勝（3着以内）
+    # -------------------------------
+    merged["複勝_hit"] = merged["払い戻し金額"].notna().astype(int)
+    merged["複勝払戻"] = merged["払い戻し金額"].fillna(0)
+
+    # -------------------------------
+    # ② 最大払戻の馬だけに複勝_hit_max / 複勝払戻_max
+    # -------------------------------
+    merged["複勝_hit_max"] = 0
+    merged["複勝払戻_max"] = 0
+
+    results = []
+
+    for race_id, g in merged.groupby(race_col):
+        max_pay = g["払い戻し金額"].max()
+
+        # 払戻データがないレース
+        if pd.isna(max_pay) or max_pay == 0:
+            results.append(g)
+            continue
+
+        # 最大払戻の馬の候補
+        candidates = g[g["払い戻し金額"] == max_pay]
+
+        # df_pred の "人気" で判定（値が小さいほど人気が高い）
+        best = candidates.sort_values("人気", na_position="last").iloc[0]
+
+        g2 = g.copy()
+        idx = best.name
+
+        g2.loc[idx, "複勝_hit_max"] = 1
+        g2.loc[idx, "複勝払戻_max"] = max_pay
+
+        results.append(g2)
+
+    merged = pd.concat(results).sort_index()
+
+    return merged
+
 ###########################################################################
 
 ###################
@@ -327,10 +390,23 @@ cols_diff+score_colsのrank / relative / z-scoreが有力
 '''
 ###################
 
-field = 'tokyo'
-csv_path = f'./csv/df_all_tokyo_2025.csv'
+field = 'nakayama'
+csv_path = f'./csv/df_all_nakayama_2025.csv'
 
 df = load_csv(csv_path)
+# print(df.columns.values.tolist())
+# df_pay = pd.read_csv(f'./csv/tokyo_payouts_2025.csv')
+
+# df_pay = df_pay.sort_values(['レースID'], ascending=[True])
+
+# df = add_fuku_payout(df, df_pay)
+# df = add_fuku_payout_maxonly(df, df_pay)
+
+# print(df_pay['レースID'].head())
+# print(df_pay['レースID'].tail())
+
+# print(df["複勝払戻_max"].head(30))
+# print(df["複勝_hit_max"].value_counts())
 
 # df = df[df['レースID'] == 202305021004]
 # df = df.sort_values('馬番', ascending=False)
@@ -348,6 +424,7 @@ cols = []
 
 feature_cols = ['フィールド適性スコア', "馬場適性スコア", "距離適性スコア", '着順', '単勝オッズ', '距離', 'フィールド', '馬場', '馬単', 'レースID', '馬番', '人気',
                 '父馬', '騎手', '間隔', '性', '齢', '1クラス差', '1ペース差', 'オッズ']
+# past_cols = ['1場所', '1過去着順', '1フィールド', '1距離', '1タイム', '1馬場', '1出走馬数', '1馬番', '1人気', '1斤量', '1コーナー通過順', '1後3F', '1馬体重', '1体重増減', '1着差', '1クラス', '1スピード指数', '1距離差', '1場所変化', '1フィールド変化', '2場所', '2過去着順', '2フィールド', '2距離', '2タイム', '2馬場', '2出走馬数', '2馬番', '2人気', '2斤量', '2コーナー通過順', '2後3F', '2馬体重', '2体重増減', '2着差', '2クラス', '2スピード指数', '2距離差', '2場所変化', '2フィールド変化', '3場所', '3過去着順', '3フィールド', '3距離', '3タイム', '3馬場', '3出走馬数', '3馬番', '3人気', '3斤量', '3コーナー通過順', '3後3F', '3馬体重', '3体重増減', '3着差', '3クラス', '3スピード指数', '3距離差', '3場所変化', '3フィールド変化', '4場所', '4過去着順', '4フィールド', '4距離', '4タイム', '4馬場', '4出走馬数', '4馬番', '4人気', '4斤量', '4コーナー通過順', '4後3F', '4馬体重', '4体重増減', '4着差', '4クラス', '4スピード指数', '4距離差', '4場所変化', '4フィールド変化', '5場所', '5過去着順', '5フィールド', '5距離', '5タイム', '5馬場', '5出走馬数', '5馬番', '5人気', '5斤量', '5コーナー通過順', '5後3F', '5馬体重', '5体重増減', '5着差', '5クラス', '5スピード指数', '5距離差', '5場所変化', '5フィールド変化']
 
 df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
 df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
@@ -378,7 +455,8 @@ df, cols_rank = add_race_relative_features(df, cols)
 feature_cols.extend(cols_rank)
 # print(feature_cols)
 # print(df.columns.values)
+# feature_cols = feature_cols + past_cols
 df = df[feature_cols]
 print(df[feature_cols].columns.values.tolist())
 
-df.to_csv(f'./csv/df_all_tokyo_2025_add.csv', index=True)
+df.to_csv(f'./csv/df_all_nakayama_2025_add.csv', index=True)

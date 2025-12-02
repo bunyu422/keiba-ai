@@ -822,18 +822,18 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
 
 if __name__ == "__main__":
     # df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
-    df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
-    df_add = pd.read_csv('./csv/df_all_tokyo_2025_add.csv')
+    # df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
+    # df_add = pd.read_csv('./csv/df_all_tokyo_2025_add.csv')
     
-    df = df.reset_index()
-    df_add = df_add.reset_index()
-    # df = df[df['レースID'] == 202506040110]
-    # print(df[['平均クラス', '平均ペース']])
-    # df = df.sort_values(by=['レースID', '馬番'], ascending=[True, False])
-    # # print(df['レースID'].unique().tolist())
-    # # df['馬番'] = df['馬番'].astype(int) + 1
-    # df = df[df['レースID'] == int(df['レースID'].unique().tolist()[0])]
-    df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
+    # df = df.reset_index()
+    # df_add = df_add.reset_index()
+    # # df = df[df['レースID'] == 202506040110]
+    # # print(df[['平均クラス', '平均ペース']])
+    # # df = df.sort_values(by=['レースID', '馬番'], ascending=[True, False])
+    # # # print(df['レースID'].unique().tolist())
+    # # # df['馬番'] = df['馬番'].astype(int) + 1
+    # # df = df[df['レースID'] == int(df['レースID'].unique().tolist()[0])]
+    # df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
     # print(df[['レースID', '馬番', 'pred_score']])
 
 
@@ -863,24 +863,24 @@ if __name__ == "__main__":
     # # 1位と2位を抽出
     # top2 = df[df['rank'] <= 2]
 
-    top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
-    with open("log.txt", "a", encoding="utf-8") as f:
-        f.write(top[['レースID', '馬番', 'pred_score']].to_string())
-    # # # # # print(df[['レースID', '馬番','pred_score']])
-    race_l = df['レースID'].unique().tolist()
+    # top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+    # with open("log.txt", "a", encoding="utf-8") as f:
+    #     f.write(top[['レースID', '馬番', 'pred_score']].to_string())
+    # # # # # # print(df[['レースID', '馬番','pred_score']])
+    # race_l = df['レースID'].unique().tolist()
     # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'tokyo', 2, 0, False
-    odds = [i for i in range(len(df))]
+    # race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'tokyo', 2, 0, False
+    # odds = [i for i in range(len(df))]
     # odds = df.sort_values(by=['馬番'], ascending=[True])['オッズ'].tolist()
     # race_l = [202506040304, 202506040304]
     # get_race_predict(race_id, field, field_num, odds, central, fold)
-    for race_id in race_l:
-        race_id = int(race_id)
-        # print(i)
-        get_race_predict(race_id, field, odds)
+    # for race_id in race_l:
+    #     race_id = int(race_id)
+    #     # print(i)
+    #     get_race_predict(race_id, field, odds)
     # start = time.time()
     
-    # print(get_race_predict(race_id, field, odds))
+    print(get_race_predict(202505050604, 'tokyo', 0))
     
     # end = time.time()
     # print("実行時間：", end - start)
