@@ -518,6 +518,10 @@ def df_big_past_processing(df, name, field_num):
         df_split[sou+'後3F'] = df_split[sou+'後3F'].mask((df_split[sou+'フィールド'] == 3) & df_split[sou+'後3F'].notna() & df_split[sou+'距離'].notna(), df_split[sou+'後3F'].astype(float) / (0.36 + (df_split[sou+'距離'].astype(float) * 1.5 / 100000)))
 
         # print(df_split[sou+'場所'].dtype, df_split[sou+'距離'].dtype, df_split[sou+'フィールド'].dtype, df['フィールド'].dtype, df['距離'].dtype)
+        # print(df['距離'].unique())
+        # print(df_split[sou+'距離'].unique())
+        # print(len(df[df['距離'] == 'ダ']))
+        # print(df[df['距離'] == 'ダ'].head())
         df_split[sou+'距離差'] = df['距離'].astype(float) - df_split[sou+'距離'].astype(float)
         df_split[sou+'場所変化'] = df_split[sou+'場所'] - field_num
         df_split[sou+'フィールド変化'] = df_split[sou+'フィールド'] - df['フィールド']
@@ -1099,9 +1103,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 3
-    field_name = 'kyoto'
-    csv_path = './csv/kyoto_2012-2025.csv' # 学習に使うcsvデータのパス
+    field = 4
+    field_name = 'hanshin'
+    csv_path = './csv/hanshin_2012-2025.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,
@@ -1147,6 +1151,10 @@ if __name__ == "__main__":
 
 
     df = pd.read_csv(csv_path, index_col=0)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    # print(len(df[df['距離'] == 'ダ']))
+    # print(df[df['距離'] == 'ダ'].head())
+    # print(len(df))
     # df1 = pd.read_csv('./csv/monbetu_2025.csv', index_col=0)
 
     # df = pd.concat([df, df1], axis=0).reset_index(drop=True)

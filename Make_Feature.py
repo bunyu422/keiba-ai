@@ -390,8 +390,8 @@ cols_diff+score_colsのrank / relative / z-scoreが有力
 '''
 ###################
 
-field = 'nakayama'
-csv_path = f'./csv/df_all_nakayama_2025.csv'
+field = 'hanshin'
+csv_path = f'./csv/df_all_{field}_2025.csv'
 
 df = load_csv(csv_path)
 # print(df.columns.values.tolist())
@@ -429,6 +429,10 @@ feature_cols = ['フィールド適性スコア', "馬場適性スコア", "距�
 df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
 df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
 
+course_cols = ['場所','距離','フィールド','馬場']
+target_cols = ['騎手','馬番','1距離','1場所','1フィールド']
+feature_cols = list(dict.fromkeys(feature_cols + course_cols + target_cols))
+
 # 馬場適性スコアを追加
 df = add_race_condition_scores(df)
 
@@ -459,4 +463,4 @@ feature_cols.extend(cols_rank)
 df = df[feature_cols]
 print(df[feature_cols].columns.values.tolist())
 
-df.to_csv(f'./csv/df_all_nakayama_2025_add.csv', index=True)
+df.to_csv(f'./csv/df_all_{field}_2025_add.csv', index=True)

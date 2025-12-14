@@ -306,7 +306,7 @@ from scipy.stats.mstats import winsorize
 
 from scipy.stats.mstats import winsorize
 
-def calculate_roi_from_odds(df, bet_amount=100, winsor_limits=(0.05, 0.05)):
+def calculate_roi_from_odds(df, bet_amount=100, winsor_limits=(0.0, 0.0)):
     df2 = df.copy()
     
     # 払戻列を作る（的中時はオッズ×bet_amount、外れは0）
@@ -647,16 +647,16 @@ def umatan(df):
 set_seed(1)
 # # 使用例
 # # df は race データで 'オッズ', '払戻', '賭金' のカラムがあること
-df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
-# df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_1.csv')
-df_payout = pd.read_csv('./csv/tokyo_payouts_2025.csv')
+# df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
+df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
+# # df_payout = pd.read_csv('./csv/tokyo_payouts_2025.csv')
 
-umatan(df)
+# # umatan(df)
 
-df = add_fuku_payout(df, df_payout)
+# # df = add_fuku_payout(df, df_payout)
 # df = select_top_with_odds(df)
 
-df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+# df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
 # print(df['pred_score'].head(10))
 # df = df.loc[df.groupby('レースID')['expected_value'].idxmax()]
 # # df = (
@@ -666,26 +666,38 @@ df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
 # #     .head(3)
 # # )
 
-df["ev_bin"] = pd.qcut(df["expected_value"], q=10)  # decile bins
+# df["ev_real"] = df["is_win"] * df["オッズ"] - 1
 
-summary = df.groupby("ev_bin").apply(
-    lambda x: pd.Series({
-        "count": len(x),
-        "win_rate": x["複勝_hit"].mean(),
-        "roi": x["複勝払戻"].sum() / (len(x)*100)
-    })
-)
+# print("EV相関:", df["pred_score"].corr(df["ev_real"]))
+# print("Odds相関:", df["pred_score"].corr(df["オッズ"]))
+# print("Top200 ROI:", df.sort_values("pred_score", ascending=False).head(200)["ev_real"].mean())
 
-print(summary)
+# df["scaled_score"] = df.groupby("レースID")["pred_score"].transform(
+#     lambda s: (s - s.mean()) / (s.std() + 1e-9)
+# )
 
-# summary = calculate_roi_from_odds_fuku(df)
+# # df = select_top_with_odds(df)
+
+# df["score_bin"] = pd.qcut(df["scaled_score"], q=10)  # decile bins
+
+# summary = df.groupby("score_bin").apply(
+#     lambda x: pd.Series({
+#         "count": len(x),
+#         "win_rate": x["is_win"].mean(),
+#         "roi": x["単勝オッズ"].sum() / (len(x)*100)
+#     })
+# )
+
 # print(summary)
 
-# df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_4.csv')
+# summary = calculate_roi_from_odds(df)
+# print(summary)
 
-# print(df_payout['馬番'].head(10))
-# print(df['馬番'].head(10))
-# df = select_top_with_odds(df)
+# # df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_4.csv')
+
+# # print(df_payout['馬番'].head(10))
+# # print(df['馬番'].head(10))
+# # df = select_top_with_odds(df)
 
 # n_boot = 10000  # ブートストラップ試行回数
 # roi_list = []
@@ -696,9 +708,9 @@ print(summary)
 #     sampled = df.sample(frac=1.0, replace=True)
     
 #     total_bet = len(sampled) * 100
-#     total_return = sampled['複勝払戻'].sum()  # 的中時のみ払戻あり
+#     total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
     
-#     hit_count = sampled['複勝_hit'].sum()
+#     hit_count = sampled['is_win'].sum()
 #     roi = total_return / total_bet
 #     acc = hit_count / len(sampled)
     
@@ -721,22 +733,22 @@ print(summary)
 # print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
 # print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
-result = bootstrap_wide_roi(df, df_payout)
+# result = bootstrap_wide_roi(df, df_payout)
 
-mean_acc = result["acc_mean"]
-acc_ci = (
-    np.percentile(result["acc_list"], 2.5),
-    np.percentile(result["acc_list"], 97.5)
-)
+# mean_acc = result["acc_mean"]
+# acc_ci = (
+#     np.percentile(result["acc_list"], 2.5),
+#     np.percentile(result["acc_list"], 97.5)
+# )
 
-mean_roi = result["roi_mean"]
-roi_ci = result["roi_ci"]
+# mean_roi = result["roi_mean"]
+# roi_ci = result["roi_ci"]
 
-top = result["bets_df"][["レースID"]].drop_duplicates()
+# top = result["bets_df"][["レースID"]].drop_duplicates()
 
-print(f"レース数: {len(top)}")
-print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
-print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+# print(f"レース数: {len(top)}")
+# print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+# print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
 # print(len(df))
 # # top = df.loc[df.groupby('レースID')[f'pred_score'].idxmax()]
@@ -932,9 +944,19 @@ print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}�
 # df = pd.read_csv('./csv/kyoto_2012-2025.csv', index_col=0)
 # print(df['レースID'].head(5))
 # print(df['レースID'].tail(5))
-# df = df[df['レースID'].astype(str).str[:4].astype(int) < 2017].reset_index(drop=True)
-# df.to_csv('./csv/sonoda_2015-2025.csv', na_rep='NaN')
+# df = pd.read_csv(f'./csv/df_all_hanshin_2025.csv', index_col=0)
+# print(len(df['レースID'].unique().tolist()))
 
+# # df = df[df['レースID'].astype(str).str[:4].astype(int) < 2024].reset_index(drop=True)
+
+# # # print(df.head(5))
+
+# # df.to_csv('./csv/hanshin_2012-2025.csv', na_rep='NaN')
+# print(df['レースID'].head(5))
+# print(df['レースID'].tail(5))
+
+# Learning.scraping('./csv/hanshin_2012-2025.csv', '09', 2024, 2026)
+# Learning.scraping('./csv/chukyo_2012-2024.csv', '07', 2025, 2026)
 # Learning.scrape_payouts_combination('./csv/tokyo_payouts_2025.csv', '05', 2021, 2023)
 
 # Learning.scraping_local('./csv/monbetu_2025.csv', '30', 2025, 2026)
@@ -1014,7 +1036,7 @@ print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}�
 # Learning.scraping('./csv/tokyo_2025.csv', '05', 2025, 2026)
 # Learning.scraping('./csv/chukyo_2012-2024.csv', '07')
 # Learning.scraping('./csv/kyoto_2012-2025.csv', '08', 2025, 2026)
-# Learning.scraping('./csv/hanshin_2012-2024.csv', '09')
+# Learning.scraping('./csv/hanshin_2012-2025.csv', '09', 2024, 2026)
 # Learning.scraping('./csv/kokura_2012-2024.csv', '10')
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
