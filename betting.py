@@ -97,6 +97,8 @@ def job(n1, n2, n3):
         field = "hanshin"
     elif n1 == "京都":
         field = "kyoto"
+    elif n1 == "中京":
+        field = "chukyo"
     else:
         field = None
 
@@ -125,6 +127,23 @@ def job(n1, n2, n3):
         wait_alert_and_accept()  # 投票確認アラート
 
         wait_and_click(By.LINK_TEXT, "続けて通常投票")
+
+        if field == "chukyo":
+            if float(odds[umaban-1]) >= 20:
+                wait_and_click(By.PARTIAL_LINK_TEXT, n1)        # 競馬場
+                wait_and_click(By.PARTIAL_LINK_TEXT, f"{n2}R") # レース
+                wait_and_click(By.PARTIAL_LINK_TEXT, "複勝")
+                
+                driver.find_element(By.CLASS_NAME, "selectHorse").find_elements(By.CLASS_NAME, "ui-link")[umaban-1].click()
+                wait_and_type(By.CLASS_NAME, "ui-input-text", "1")
+                wait_and_click(By.LINK_TEXT, "セット")
+                wait_and_click(By.LINK_TEXT, "入力終了")
+                wait_and_type(By.ID, "sum", "100")
+                wait_and_click(By.LINK_TEXT, "投票")
+
+                wait_alert_and_accept()  # 投票確認アラート
+
+                wait_and_click(By.LINK_TEXT, "続けて通常投票")
 
     # ワイド投票
     if buyList_wide is None:

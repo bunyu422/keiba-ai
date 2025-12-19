@@ -390,16 +390,16 @@ cols_diff+score_colsのrank / relative / z-scoreが有力
 '''
 ###################
 
-field = 'hanshin'
+field = 'chukyo'
 csv_path = f'./csv/df_all_{field}_2025.csv'
 
 df = load_csv(csv_path)
 # print(df.columns.values.tolist())
-# df_pay = pd.read_csv(f'./csv/tokyo_payouts_2025.csv')
+df_pay = pd.read_csv(f'./csv/chukyo_payouts_2025.csv')
 
-# df_pay = df_pay.sort_values(['レースID'], ascending=[True])
+df_pay = df_pay.sort_values(['レースID'], ascending=[True])
 
-# df = add_fuku_payout(df, df_pay)
+df = add_fuku_payout(df, df_pay)
 # df = add_fuku_payout_maxonly(df, df_pay)
 
 # print(df_pay['レースID'].head())
@@ -422,16 +422,16 @@ df = load_csv(csv_path)
 #         'best着差', 'best後3F', 'av後3F', 'bestスピード指数', 'av着差', 'avスピード指数', '上昇度', "フィールド適性スコア", "馬場適性スコア", "距離適性スコア"]
 cols = []
 
-feature_cols = ['フィールド適性スコア', "馬場適性スコア", "距離適性スコア", '着順', '単勝オッズ', '距離', 'フィールド', '馬場', '馬単', 'レースID', '馬番', '人気',
+feature_cols = ['フィールド適性スコア', "馬場適性スコア", "距離適性スコア", '着順', '単勝オッズ', '距離', 'フィールド', '馬場', '馬単', 'レースID', '馬番', '人気', '複勝払戻', '複勝_hit',
                 '父馬', '騎手', '間隔', '性', '齢', '1クラス差', '1ペース差', 'オッズ']
 # past_cols = ['1場所', '1過去着順', '1フィールド', '1距離', '1タイム', '1馬場', '1出走馬数', '1馬番', '1人気', '1斤量', '1コーナー通過順', '1後3F', '1馬体重', '1体重増減', '1着差', '1クラス', '1スピード指数', '1距離差', '1場所変化', '1フィールド変化', '2場所', '2過去着順', '2フィールド', '2距離', '2タイム', '2馬場', '2出走馬数', '2馬番', '2人気', '2斤量', '2コーナー通過順', '2後3F', '2馬体重', '2体重増減', '2着差', '2クラス', '2スピード指数', '2距離差', '2場所変化', '2フィールド変化', '3場所', '3過去着順', '3フィールド', '3距離', '3タイム', '3馬場', '3出走馬数', '3馬番', '3人気', '3斤量', '3コーナー通過順', '3後3F', '3馬体重', '3体重増減', '3着差', '3クラス', '3スピード指数', '3距離差', '3場所変化', '3フィールド変化', '4場所', '4過去着順', '4フィールド', '4距離', '4タイム', '4馬場', '4出走馬数', '4馬番', '4人気', '4斤量', '4コーナー通過順', '4後3F', '4馬体重', '4体重増減', '4着差', '4クラス', '4スピード指数', '4距離差', '4場所変化', '4フィールド変化', '5場所', '5過去着順', '5フィールド', '5距離', '5タイム', '5馬場', '5出走馬数', '5馬番', '5人気', '5斤量', '5コーナー通過順', '5後3F', '5馬体重', '5体重増減', '5着差', '5クラス', '5スピード指数', '5距離差', '5場所変化', '5フィールド変化']
 
 df['best後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).min(axis=1)
 df['av後3F'] = df.loc[:, ['1後3F', '2後3F', '3後3F', '4後3F', '5後3F']].astype(float).mean(axis=1)
 
-course_cols = ['場所','距離','フィールド','馬場']
-target_cols = ['騎手','馬番','1距離','1場所','1フィールド']
-feature_cols = list(dict.fromkeys(feature_cols + course_cols + target_cols))
+# course_cols = ['場所','距離','フィールド','馬場']
+# target_cols = ['騎手','馬番','1距離','1場所','1フィールド']
+# feature_cols = list(dict.fromkeys(feature_cols + course_cols + target_cols))
 
 # 馬場適性スコアを追加
 df = add_race_condition_scores(df)

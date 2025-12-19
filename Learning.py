@@ -1103,9 +1103,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # 開催場所番号
-    field = 4
-    field_name = 'hanshin'
-    csv_path = './csv/hanshin_2012-2025.csv' # 学習に使うcsvデータのパス
+    field = 9
+    field_name = 'chukyo'
+    csv_path = './csv/chukyo_2012-2024.csv' # 学習に使うcsvデータのパス
     file_num = 1
 
     # {'中山': 1, '東京': 2, '京都': 3, '阪神': 4, '札幌': 5, '函館': 6, '福島': 7, '新潟': 8, '中京': 9, '小倉': 10,

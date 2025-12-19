@@ -33,6 +33,7 @@ race_params = {
     "tokyo": {"field_num": 2, "central": True, "fold": 0},
     "nakayama": {"field_num": 1, "central": True, "fold": 1},
     "hanshin": {"field_num": 4, "central": True, "fold": 0},
+    'chukyo': {"field_num": 9, "central": True, "fold": 2},
     "kyoto": {"field_num": 3, "central": True},
     "monbetu": {"field_num": 12, "central": False},
     "kasamatu": {"field_num": 20, "central": False},
@@ -56,6 +57,10 @@ def get_race_predict(race_id, field, odds):
     
     df = df.sort_values('pred_score', ascending=False)
     print(df[['レースID', '馬番', 'pred_score']])
+
+    top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+    with open("testlog.txt", "a", encoding="utf-8") as f:
+        f.write(top[['レースID', '馬番', 'pred_score']].to_string())
 
     if field == "tokyo":
         df = select_top_with_odds(df)
@@ -346,7 +351,11 @@ def predict_listnet(
     # 標準化
     scaler = joblib.load(f"./model/scaler_{field}_fold{fold}.pkl")
     scale_cols = joblib.load(f"./pickle-dict/scal_cols.pkl")
-    df[scale_cols] = scaler.transform(df[scale_cols])
+    # df[scale_cols] = scaler.transform(df[scale_cols])
+    df[scale_cols] = (
+        df[scale_cols].to_numpy(dtype=np.float64)
+        - scaler["mean"]
+    ) / scaler["scale"]
 
     # 欠損値補完
     feature_cols = joblib.load(f"./pickle-dict/feature_cols_nan.pkl")
@@ -361,6 +370,18 @@ def predict_listnet(
     embedding_cols = joblib.load("./pickle-dict/embedding_cols.pkl")
     context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
     context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
+
+    # ログ出力
+    df2 = pd.read_csv(f'./csv/chukyo_result_ranknet_test_2.csv')
+    df2 = df2[df2['レースID'] == 202207050102]
+
+    df = df.sort_values(by=['馬番'])
+    df2 = df2.sort_values(by=['馬番'])
+
+    with open("testlog.txt", "a", encoding="utf-8") as f:
+        f.write(df[feature_cols].to_string())
+        f.write("\n")
+        f.write(df2[feature_cols].to_string())
 
     model_path = f"./model/{field}_ranknet_{fold}.pth"
     state_dict = torch.load(model_path, map_location=device)
@@ -385,7 +406,7 @@ def predict_listnet(
         j += 1
 
     # 読み込み
-    if field == 'hanshin':
+    if field in {'hanshin', 'chukyo'}:
         remove_cols = ['フィールド', '馬場', '距離']
         feature_cols = [c for c in feature_cols if c not in remove_cols]
 
@@ -834,7 +855,7 @@ def predict_new_data(model, df_new, feature_cols, cat_features, context_num_feat
 
 if __name__ == "__main__":
     # df = pd.read_csv(f'./csv/nakayama3_result_lgb_rank-to-rank_2025_0.csv', index_col=0)
-    df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
+    # df = pd.read_csv(f'./csv/chukyo_result_ranknet_test_2.csv')
     # df_add = pd.read_csv('./csv/df_all_tokyo_2025_add.csv')
     
     # df = df.reset_index()
@@ -844,9 +865,9 @@ if __name__ == "__main__":
     # # df = df.sort_values(by=['レースID', '馬番'], ascending=[True, False])
     # # # print(df['レースID'].unique().tolist())
     # # # df['馬番'] = df['馬番'].astype(int) + 1
-    df = df[df['レースID'] == int(df['レースID'].unique().tolist()[0])]
-    df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
-    print(df[['レースID', '馬番', 'pred_score']])
+    # df = df[df['レースID'] == int(df['レースID'].unique().tolist()[0])]
+    # df = df.sort_values(by=['レースID', 'pred_score'], ascending=[True, False])
+    # print(df[['レースID', '馬番', 'pred_score']])
 
 
     # df が持っているレースID一覧
@@ -876,12 +897,12 @@ if __name__ == "__main__":
     # top2 = df[df['rank'] <= 2]
 
     # top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
-    # with open("log.txt", "a", encoding="utf-8") as f:
+    # with open("testlog.txt", "a", encoding="utf-8") as f:
     #     f.write(top[['レースID', '馬番', 'pred_score']].to_string())
-    # # # # # # print(df[['レースID', '馬番','pred_score']])
+    # # # # # # # print(df[['レースID', '馬番','pred_score']])
     # race_l = df['レースID'].unique().tolist()
-    # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
-    race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'tokyo', 2, 0, False
+    # # print(df.head(16)[["pred_score_1", "pred_score_2", "pred_score_3", "pred_score_4", "pred_score_6"]])
+    # race_id, field, field_num, odds, central = int(df['レースID'].unique().tolist()[0]), 'chukyo', 2, 0, False
     # odds = [i for i in range(len(df))]
     # odds = df.sort_values(by=['馬番'], ascending=[True])['オッズ'].tolist()
     # race_l = [202506040304, 202506040304]
@@ -892,7 +913,7 @@ if __name__ == "__main__":
     #     get_race_predict(race_id, field, odds)
     # start = time.time()
     
-    print(get_race_predict(race_id, 'hanshin', 0))
+    print(get_race_predict(202207050102, 'chukyo', 0))
     
     # end = time.time()
     # print("実行時間：", end - start)

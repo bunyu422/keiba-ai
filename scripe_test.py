@@ -333,7 +333,7 @@ def calculate_roi_from_odds(df, bet_amount=100, winsor_limits=(0.0, 0.0)):
     summary['ROI'] = summary['total_payout'] / summary['total_bet']
     return summary.reset_index()
 
-def calculate_roi_from_odds_fuku(df, bet_amount=100, winsor_limits=(0.05, 0.05)):
+def calculate_roi_from_odds_fuku(df, bet_amount=100, winsor_limits=(0.00, 0.00)):
     df2 = df.copy()
     
     # 払戻列を作る（的中時はオッズ×bet_amount、外れは0）
@@ -644,11 +644,11 @@ def umatan(df):
     print(f'ROI: {roi:.2%}')
 
 
-set_seed(1)
+set_seed(4)
 # # 使用例
 # # df は race データで 'オッズ', '払戻', '賭金' のカラムがあること
 # df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
-df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
+df = pd.read_csv(f'./csv/chukyo_result_ranknet_test_fuku_2.csv')
 # # df_payout = pd.read_csv('./csv/tokyo_payouts_2025.csv')
 
 # # umatan(df)
@@ -656,7 +656,7 @@ df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
 # # df = add_fuku_payout(df, df_payout)
 # df = select_top_with_odds(df)
 
-# df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
 # print(df['pred_score'].head(10))
 # df = df.loc[df.groupby('レースID')['expected_value'].idxmax()]
 # # df = (
@@ -690,8 +690,8 @@ df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
 
 # print(summary)
 
-# summary = calculate_roi_from_odds(df)
-# print(summary)
+summary = calculate_roi_from_odds_fuku(df)
+print(summary)
 
 # # df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_4.csv')
 
@@ -699,39 +699,39 @@ df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
 # # print(df['馬番'].head(10))
 # # df = select_top_with_odds(df)
 
-# n_boot = 10000  # ブートストラップ試行回数
-# roi_list = []
-# acc_list = []
+n_boot = 10000  # ブートストラップ試行回数
+roi_list = []
+acc_list = []
 
-# for _ in range(n_boot):
-#     # レース単位でリサンプリング（復元抽出）
-#     sampled = df.sample(frac=1.0, replace=True)
+for _ in range(n_boot):
+    # レース単位でリサンプリング（復元抽出）
+    sampled = df.sample(frac=1.0, replace=True)
     
-#     total_bet = len(sampled) * 100
-#     total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
+    total_bet = len(sampled) * 100
+    total_return = sampled['複勝払戻'].sum()  # 的中時のみ払戻あり
     
-#     hit_count = sampled['is_win'].sum()
-#     roi = total_return / total_bet
-#     acc = hit_count / len(sampled)
+    hit_count = sampled['複勝_hit'].sum()
+    roi = total_return / total_bet
+    acc = hit_count / len(sampled)
     
-#     roi_list.append(roi)
-#     acc_list.append(acc)
+    roi_list.append(roi)
+    acc_list.append(acc)
 
-# roi_arr = np.array(roi_list)
-# acc_arr = np.array(acc_list)
+roi_arr = np.array(roi_list)
+acc_arr = np.array(acc_list)
 
-# # 点推定
-# mean_roi = roi_arr.mean()
-# mean_acc = acc_arr.mean()
+# 点推定
+mean_roi = roi_arr.mean()
+mean_acc = acc_arr.mean()
 
-# # 95%信頼区間
-# roi_ci = np.percentile(roi_arr, [2.5, 97.5])
-# acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+# 95%信頼区間
+roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+acc_ci = np.percentile(acc_arr, [2.5, 97.5])
 
-# print(f"\n[top評価結果test ブートストラップ評価]")
-# print(f"レース数: {len(df)}")
-# print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
-# print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+print(f"\n[top評価結果test ブートストラップ評価]")
+print(f"レース数: {len(df)}")
+print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
 # result = bootstrap_wide_roi(df, df_payout)
 
@@ -941,23 +941,23 @@ df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_fuku_0.csv')
 
 # print(df['父馬'].head(20))
 # print(df.columns.values)
-# df = pd.read_csv('./csv/kyoto_2012-2025.csv', index_col=0)
-# print(df['レースID'].head(5))
-# print(df['レースID'].tail(5))
+# df = pd.read_csv('./csv/chukyo_payouts_2025.csv', index_col=0)
+# print(df['レースID'].unique().tolist()[-50:])
+# print(df['レースID'].unique().tolist()[:5])
 # df = pd.read_csv(f'./csv/df_all_hanshin_2025.csv', index_col=0)
 # print(len(df['レースID'].unique().tolist()))
 
-# # df = df[df['レースID'].astype(str).str[:4].astype(int) < 2024].reset_index(drop=True)
+# df = df[df['レースID'].astype(str).str[:4].astype(int) < 2018].reset_index(drop=True)
 
 # # # print(df.head(5))
 
-# # df.to_csv('./csv/hanshin_2012-2025.csv', na_rep='NaN')
+# df.to_csv('./csv/chukyo_payouts_2025.csv', na_rep='NaN')
 # print(df['レースID'].head(5))
 # print(df['レースID'].tail(5))
 
 # Learning.scraping('./csv/hanshin_2012-2025.csv', '09', 2024, 2026)
 # Learning.scraping('./csv/chukyo_2012-2024.csv', '07', 2025, 2026)
-# Learning.scrape_payouts_combination('./csv/tokyo_payouts_2025.csv', '05', 2021, 2023)
+# Learning.scrape_payouts_combination('./csv/chukyo_payouts_2025.csv', '07', 2023, 2026)
 
 # Learning.scraping_local('./csv/monbetu_2025.csv', '30', 2025, 2026)
 # Learning.scraping_local('./csv/morioka_2015-2025.csv', '35', 2015, 2026)
