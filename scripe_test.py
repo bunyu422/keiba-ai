@@ -644,19 +644,100 @@ def umatan(df):
     print(f'ROI: {roi:.2%}')
 
 
-set_seed(4)
+set_seed(22)
 # # 使用例
 # # df は race データで 'オッズ', '払戻', '賭金' のカラムがあること
 # df = pd.read_csv(f'./csv/tokyo_result_ranknet2_test_0.csv')
-df = pd.read_csv(f'./csv/chukyo_result_ranknet_test_fuku_2.csv')
+# df = pd.read_csv(f'./csv/chukyo_result_ranknet_test_3.csv')
+df = pd.read_csv(f'./csv/hanshin_result_ranknet_test_0.csv')
+# df = pd.read_csv(f'./csv/df_all_chukyo_2025.csv')
 # # df_payout = pd.read_csv('./csv/tokyo_payouts_2025.csv')
 
+# df = df[df['レースID'] == 202207040112]
+
+# print(df[['距離', '1距離']])
+
+# with open("log.txt", "a", encoding="utf-8") as f:
+#     f.write(df.head(20).to_string())
+
 # # umatan(df)
+
+# レース内で pred_score が最大の行だけ抽出
+top_df = df[df['pred_score'] == df.groupby('レースID')['pred_score'].transform('max')]
+
+# (pred_score, col) が完全一致している数を数える
+tie_counts = (
+    top_df
+    .groupby(['レースID', 'pred_score'])
+    .size()
+)
+
+# 同率（size > 1）があるレースID
+tie_race_ids = tie_counts[tie_counts > 1].index.get_level_values('レースID').unique()
+
+len(tie_race_ids)
+
+df = df.sort_values(
+    ['レースID', 'pred_score'],
+    ascending=[True, False]
+)
+
+top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+
+n_boot = 10000  # ブートストラップ試行回数
+roi_list = []
+acc_list = []
+
+for _ in range(n_boot):
+    # レース単位でリサンプリング（復元抽出）
+    sampled = top.sample(frac=1.0, replace=True)
+    
+    total_bet = len(sampled) * 100
+    total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
+    
+    hit_count = sampled['is_win'].sum()
+    roi = total_return / total_bet
+    acc = hit_count / len(sampled)
+    
+    roi_list.append(roi)
+    acc_list.append(acc)
+
+roi_arr = np.array(roi_list)
+acc_arr = np.array(acc_list)
+
+# 点推定
+mean_roi = roi_arr.mean()
+mean_acc = acc_arr.mean()
+
+# 95%信頼区間
+roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+print(f"\n[top評価結果test ブートストラップ評価]")
+# print(f"対象：{col}")
+print(f"レース数: {len(top)}")
+print(f'同率レース数: {len(tie_race_ids)}')
+print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
 # # df = add_fuku_payout(df, df_payout)
 # df = select_top_with_odds(df)
 
-df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
+# tie_df = (
+#     df
+#     .groupby(['レースID', 'pred_score', '距離適性スコア'])
+#     .filter(lambda g: len(g) > 1)
+# )
+
+# print(tie_df[['レースID', 'pred_score', '距離適性スコア']].head(10))
+# print(len(tie_df['レースID'].unique()))
+
+# df = df.sort_values(
+#     ['レースID', 'pred_score', 'past_score_max_rank'],
+#     ascending=[True, False, False]
+# )
+
+# df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
 # print(df['pred_score'].head(10))
 # df = df.loc[df.groupby('レースID')['expected_value'].idxmax()]
 # # df = (
@@ -690,48 +771,81 @@ df = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
 
 # print(summary)
 
-summary = calculate_roi_from_odds_fuku(df)
-print(summary)
+# summary = calculate_roi_from_odds_fuku(df)
+# summary = calculate_roi_from_odds(df)
+# print(summary)
 
 # # df = pd.read_csv(f'./csv/tokyo_result_ranknet_test_fuku_4.csv')
 
 # # print(df_payout['馬番'].head(10))
 # # print(df['馬番'].head(10))
 # # df = select_top_with_odds(df)
+# feature_cols = joblib.load("./pickle-dict/feature_cols.pkl")
+# for col in feature_cols:
+#     # レース内で pred_score が最大の行だけ抽出
+#     top_df = df[df['pred_score'] == df.groupby('レースID')['pred_score'].transform('max')]
 
-n_boot = 10000  # ブートストラップ試行回数
-roi_list = []
-acc_list = []
+#     # (pred_score, col) が完全一致している数を数える
+#     tie_counts = (
+#         top_df
+#         .groupby(['レースID', 'pred_score', col])
+#         .size()
+#     )
 
-for _ in range(n_boot):
-    # レース単位でリサンプリング（復元抽出）
-    sampled = df.sample(frac=1.0, replace=True)
-    
-    total_bet = len(sampled) * 100
-    total_return = sampled['複勝払戻'].sum()  # 的中時のみ払戻あり
-    
-    hit_count = sampled['複勝_hit'].sum()
-    roi = total_return / total_bet
-    acc = hit_count / len(sampled)
-    
-    roi_list.append(roi)
-    acc_list.append(acc)
+#     # 同率（size > 1）があるレースID
+#     tie_race_ids = tie_counts[tie_counts > 1].index.get_level_values('レースID').unique()
 
-roi_arr = np.array(roi_list)
-acc_arr = np.array(acc_list)
+#     len(tie_race_ids)
 
-# 点推定
-mean_roi = roi_arr.mean()
-mean_acc = acc_arr.mean()
+#     df = df.sort_values(
+#         ['レースID', 'pred_score', col],
+#         ascending=[True, False, False]
+#     )
 
-# 95%信頼区間
-roi_ci = np.percentile(roi_arr, [2.5, 97.5])
-acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+#     top = df.loc[df.groupby('レースID')['pred_score'].idxmax()]
 
-print(f"\n[top評価結果test ブートストラップ評価]")
-print(f"レース数: {len(df)}")
-print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
-print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+#     n_boot = 10000  # ブートストラップ試行回数
+#     roi_list = []
+#     acc_list = []
+
+#     for _ in range(n_boot):
+#         # レース単位でリサンプリング（復元抽出）
+#         sampled = top.sample(frac=1.0, replace=True)
+        
+#         total_bet = len(sampled) * 100
+#         total_return = sampled['単勝オッズ'].sum()  # 的中時のみ払戻あり
+        
+#         hit_count = sampled['is_win'].sum()
+#         roi = total_return / total_bet
+#         acc = hit_count / len(sampled)
+        
+#         roi_list.append(roi)
+#         acc_list.append(acc)
+
+#     roi_arr = np.array(roi_list)
+#     acc_arr = np.array(acc_list)
+
+#     # 点推定
+#     mean_roi = roi_arr.mean()
+#     mean_acc = acc_arr.mean()
+
+#     # 95%信頼区間
+#     roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+#     acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+#     print(f"\n[top評価結果test ブートストラップ評価]")
+#     print(f"対象：{col}")
+#     print(f"レース数: {len(top)}")
+#     print(f'同率レース数: {len(tie_race_ids)}')
+#     print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+#     print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
+#     with open("testlog.txt", "a", encoding="utf-8") as f:
+#         f.write(f'{col}\n')
+#         f.write(f"レース数: {len(top)}\n")
+#         f.write(f'同率レース数: {len(tie_race_ids)}\n')
+#         f.write(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）\n")
+#         f.write(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）\n")
 
 # result = bootstrap_wide_roi(df, df_payout)
 

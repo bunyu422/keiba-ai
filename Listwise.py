@@ -26,12 +26,20 @@ from sklearn.model_selection import StratifiedGroupKFold
 from scipy.stats import entropy, wasserstein_distance
 import sys
 
+'''
+データ直し・構造直さない：精度悪いし，同率スコア多発
+データ直さない・構造直さない：見かけの精度はいい，同率スコア多発・区別する手段必要
+データ直し・構造直し：精度ぼちぼち・同率無し
+データ直さない・構造直し：見かけの精度はいい，同率スコア多発・区別する手段必要
+'''
+
 # 行を全表示（行の数）
 pd.set_option("display.max_rows", None)
 # 列を全表示（列の数）
 pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
+pd.set_option("display.float_format", "{:.0f}".format)
 import os
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
@@ -105,7 +113,7 @@ def load_csv(path):
 
 # file_path
 ###########################モデルごとに変更が必要############################
-field = 'chukyo'
+field = 'hanshin'
 # csv_path = f'./csv/df_all_chukyo_2025_add.csv'
 csv_path = f'./csv/df_all_{field}_2025_add.csv'
 ###########################################################################
@@ -115,6 +123,19 @@ group_col = 'レースID'
 target_col = '着順'
 feature_cols = []
 df['is_win'] = (df['着順'] == 1).astype(int)
+
+def pick_top_random(df, score_col="pred_score", race_col="レースID"):
+    def _pick(group):
+        max_score = group[score_col].max()
+        tied = group[group[score_col] == max_score]
+        return tied.sample(n=1)  # ← ここでランダム
+
+    return (
+        df
+        .groupby(race_col, group_keys=False)
+        .apply(_pick)
+        .reset_index(drop=True)
+    )
 
 def compute_roi_stats(df, course_cols, target_cols, win_col='is_win', odds_col='単勝オッズ'):
     """
@@ -1034,7 +1055,8 @@ class ListNet(nn.Module):
             horse_features = horse_features + gate * context_expand
         else:
             # 従来のcontext加算
-            horse_features = horse_features + context_expand
+            horse_features = horse_features + context_expand # 修正
+            pass
 
         # horse_features = horse_features + context_expand  # 要素ごと加算
 
@@ -1049,6 +1071,10 @@ class ListNet(nn.Module):
         add_interaction = horse_features + context_expand
         diff_interaction = torch.abs(horse_features - context_expand)
 
+        # 修正
+        # mul_interaction  = horse_features * context_expand
+        # diff_interaction = torch.abs(horse_features - context_expand)
+
         # ===== まとめて結合 =====
         combined = torch.cat([
             horse_features,
@@ -1057,6 +1083,14 @@ class ListNet(nn.Module):
             add_interaction,
             diff_interaction
         ], dim=1)
+
+        # 修正
+        # combined = torch.cat([
+        #     horse_features,      # 馬差
+        #     context_expand,      # レース文脈
+        #     mul_interaction,
+        #     diff_interaction
+        # ], dim=1)
 
         # ====== 最終出力 ======
         out = self.fc(combined)  # [頭数, 1]
@@ -1229,15 +1263,15 @@ def combined_loss(preds, labels, odds, is_win, pairwise, weight_mode, k=3, alpha
     # loss_ev = pairwise_roi_loss(preds, odds, is_win)
     # loss_ev = expected_value_loss(preds, odds, is_win)
     # loss_ev = ev_huber_loss(preds, odds, is_win)
-    # loss_rank = listnet_loss(preds, labels)
+    loss_rank = listnet_loss(preds, labels)
 
     # 1) EV の計算（典型）
-    ev = is_win * odds - 1.0   # これは学習時の“実際の”EV実績。学習時のみ可能。
+    # ev = is_win * odds - 1.0   # これは学習時の“実際の”EV実績。学習時のみ可能。
 
-    # 2) uar_loss を計算
-    uar = utility_aware_ranking_loss_roi(preds, ev, odds * is_win,
-                                    margin=0, pairwise=pairwise,
-                                    weight_mode=weight_mode)
+    # # 2) uar_loss を計算
+    # uar = utility_aware_ranking_loss_roi(preds, ev, odds * is_win,
+    #                                 margin=0, pairwise=pairwise,
+    #                                 weight_mode=weight_mode)
     
     
     
@@ -1247,16 +1281,139 @@ def combined_loss(preds, labels, odds, is_win, pairwise, weight_mode, k=3, alpha
     # loss_ev = loss_ev / max(1.0, torch.abs(loss_ev))
     # return loss_ev
     # return alpha * loss_rank + (1 - alpha) * loss_ev
-    return uar
+    # return uar
+    return loss_rank
 
     # return loss_rank + alpha * loss_ev
+
+def compute_gate(
+    df,
+    distortion_history,
+    race_col="レースID",
+    odds_col="オッズ",
+    score_col="pred_score",
+    no_bet_threshold=0.1,
+):
+    """
+    df : 全レース分 DataFrame
+    各レースごとに distortion / z / gate / bet を計算し、df に直接反映
+    """
+
+    mu = np.mean(distortion_history)
+    sigma = np.std(distortion_history) + 1e-8
+
+    df = df.copy()
+
+    # 追加用カラムを初期化
+    df["distortion"] = np.nan
+    df["z"] = np.nan
+    df["gate"] = np.nan
+    df["bet"] = False
+
+    for race_id, df_race in df.groupby(race_col):
+        # ===== レース内 全馬 =====
+        pred_scores = torch.tensor(
+            df_race[score_col].values,
+            device=device,
+            dtype=torch.float32
+        )
+        odds = torch.tensor(
+            df_race[odds_col].values,
+            device=device,
+            dtype=torch.float32
+        )
+
+        # ===== distortion（レース単位）=====
+        with torch.no_grad():
+            distortion = market_distortion_score(pred_scores, odds)
+            dist_z = (distortion.item() - mu) / sigma
+
+        # ===== gate =====
+        gate = distortion_gate(dist_z)
+        gate = (gate ** 2).item()   # ← ★ここが超重要★
+        bet = gate > no_bet_threshold
+
+        # ===== 同じレースの馬すべてに反映 =====
+        idx = df_race.index
+        df.loc[idx, "distortion"] = distortion.item()
+        df.loc[idx, "z"] = dist_z
+        df.loc[idx, "gate"] = gate
+        df.loc[idx, "bet"] = bet
+
+    return df
+
+def compute_gate_for_race(top, distortion_history, no_bet_threshold=1.0):
+    # レース内で top 馬を取得
+    # top_idx = df_race['pred_score'].idxmax()
+    # top = df_race.loc[[top_idx]].copy()
+
+    # distortion / z-score
+    with torch.no_grad():
+        pred_scores = torch.tensor(top['pred_score'].values, device=device)
+        odds = torch.tensor(top['オッズ'].values, device=device)
+        
+        distortion = market_distortion_score(pred_scores, odds)
+        mu = np.mean(distortion_history)
+        sigma = np.std(distortion_history) + 1e-8
+        dist_z = (distortion.item() - mu) / sigma
+
+    # gate 計算
+    gate = distortion_gate(dist_z)
+    gate = gate ** 2
+
+    # no-bet 判定
+    top['bet'] = gate > no_bet_threshold
+    return top[top['bet'] == True]
+
+
+
+def distortion_gate(z, z0=0.2, sharpness=3.0):
+    if not torch.is_tensor(z):
+        z = torch.tensor(z)
+    return torch.sigmoid((z - z0) * sharpness)
+
+def rank_based_topk_p_model(preds, k=3, tau=1.0):
+    ranks = torch.argsort(torch.argsort(-preds))
+    scores = -ranks.float()
+
+    topk = scores >= -k
+    scores = torch.where(topk, scores, torch.tensor(-1e9, device=preds.device))
+    return torch.softmax(scores / tau, dim=0)
+
+def market_distortion_score(pred_scores, odds, mask=None, eps=1e-8):
+    if pred_scores.dim() == 1:
+        pred_scores = pred_scores.unsqueeze(0)
+        odds = odds.unsqueeze(0)
+        if mask is not None:
+            mask = mask.unsqueeze(0)
+
+    # --- model distribution (race-wise) ---
+    p_model = rank_based_topk_p_model(pred_scores)  # [B, N]
+
+    # --- market distribution ---
+    inv_odds = 1.0 / (odds + eps)
+    if mask is not None:
+        inv_odds = inv_odds * mask
+
+    inv_odds = inv_odds * (p_model > 0).float()
+    p_mkt = inv_odds / (inv_odds.sum(dim=1, keepdim=True) + eps)
+
+    # --- KL ---
+    kl = p_model * torch.log((p_model + eps) / (p_mkt + eps))
+
+    # --- EV weight ---
+    ev = torch.clamp(odds * p_model - 1.0, max=5.0)
+    ev_weight = torch.relu(ev)
+
+    distortion = (kl * ev_weight).sum(dim=1)
+    return distortion.mean()
 
 def utility_aware_ranking_loss_roi(
     preds,
     values,       # 勝つ確率など
     payouts,      # 配当
     mask=None,
-    margin=0.0,
+    margin=0.05,
     pairwise='hinge',
     weight_mode='value_i',
     normalize_values=False,  # EV なら False 推奨
@@ -2752,9 +2909,9 @@ seed22
 '''
 
 pairwise_list = [
+    # 'squared_hinge',
+    'logistic',
     # 'hinge',
-    'squared_hinge',
-    # 'logistic',
     # 'bpr',
     # 'exp',
     # 'soft_margin',
@@ -2762,20 +2919,22 @@ pairwise_list = [
 ]
 
 weight_mode_list = [
-    # 'value_i',
-    # 'roi',
-    # 'abs_value_diff',
-    'ev_i',
+    # 'ev_i',
     # 'softmax_ev',
+    # 'value_i',
+    'roi',
+    # 'abs_value_diff',
     # 'rank_focus',
     # 'focal_roi',
     # 'odds_aware',
 ]
 
 if __name__ == '__main__':
+    # === 1. 設定 ===
+    save = False # モデルやスケーラーを保存するか
     print(device)
 
-    seed = 4
+    seed = 22
     set_seed(seed)  # 先に乱数固定
     fold_results = []
 
@@ -2817,16 +2976,17 @@ if __name__ == '__main__':
 
     combo_list = None
     year = 2025
+    pairwise, weight_mode = 'hinge', 'softmax_ev'
 
-    # for seed in range(4, 400):
+    # for seed in range(1, 400):
     for pairwise, weight_mode in itertools.product(pairwise_list, weight_mode_list):
         # if pairwise == 'hinge' and weight_mode != 'focal_roi': continue
         # elif pairwise == 'hinge' and weight_mode != 'odds_aware': continue
         print("seed:", seed)
-        print("pairwise:", pairwise)
-        print("weight_mode:", weight_mode)
+        # print("pairwise:", pairwise)
+        # print("weight_mode:", weight_mode)
         for fold, (train_idx, val_idx, test_idx) in enumerate(splits):
-            if fold != 2:
+            if fold != 0:
                 continue
             
         # for fold in range(1): 
@@ -2988,13 +3148,14 @@ if __name__ == '__main__':
             # test_df[scale_cols+add_cols] = scaler.transform(test_df[scale_cols+add_cols])
             # df_2025[scale_cols+add_cols] = scaler.transform(df_2025[scale_cols+add_cols])
 
-            # スケーラーを保存（モデルと同じディレクトリに置くのが一般的）
-            joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
-            # joblib.dump(scale_cols, f"./pickle-dict/scal_cols.pkl")
+            if save == True:
+                # スケーラーを保存（モデルと同じディレクトリに置くのが一般的）
+                joblib.dump(scaler, f"./model/scaler_{field}_fold{fold}.pkl")
+                joblib.dump(scale_cols, f"./pickle-dict/scal_cols_{field}.pkl")
 
-            # === 0. データの前処理 ===
-            # Nanの処理
-            # joblib.dump(feature_cols, f"./pickle-dict/feature_cols_nan.pkl")
+                # === 0. データの前処理 ===
+                # Nanの処理
+                joblib.dump(feature_cols, f"./pickle-dict/feature_cols_nan_{field}.pkl")
             train_df, val_df, test_df, df_2025 = fill_nan(train_df, feature_cols), fill_nan(val_df, feature_cols), fill_nan(test_df, feature_cols), fill_nan(df_2025, feature_cols)
             # カテゴリ変換
             
@@ -3003,13 +3164,14 @@ if __name__ == '__main__':
             test_df = race_feature_test(test_df, map_dict)
             df_2025 = race_feature_test(df_2025, map_dict)
 
-            train_df = train_df.round(13)
-            val_df = val_df.round(13)
-            test_df = test_df.round(13)
-            df_2025 = df_2025.round(13)
+            # train_df = train_df.round(13)
+            # val_df = val_df.round(13)
+            # test_df = test_df.round(13)
+            # df_2025 = df_2025.round(13)
 
-            # 保存
-            # joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
+            if save == True:
+                # 保存
+                joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
 
             # print(val_df.head(30))
 
@@ -3036,10 +3198,11 @@ if __name__ == '__main__':
             # context_num_cols = joblib.load("./pickle-dict/context_num_cols.pkl")
             # context_cat_cols = joblib.load("./pickle-dict/context_cat_cols.pkl")
 
-            # joblib.dump(feature_cols, "./pickle-dict/feature_cols.pkl")
-            # joblib.dump(embedding_cols, "./pickle-dict/embedding_cols.pkl")
-            # joblib.dump(context_num_cols, "./pickle-dict/context_num_cols.pkl")
-            # joblib.dump(context_cat_cols, "./pickle-dict/context_cat_cols.pkl")
+            if save == True:
+                joblib.dump(feature_cols, f"./pickle-dict/feature_cols_{field}.pkl")
+                joblib.dump(embedding_cols, f"./pickle-dict/embedding_cols_{field}.pkl")
+                joblib.dump(context_num_cols, f"./pickle-dict/context_num_cols_{field}.pkl")
+                joblib.dump(context_cat_cols, f"./pickle-dict/context_cat_cols_{field}.pkl")
 
             # print(f"feature_cols: {feature_cols}")
             # print(f"embedding_cols: {embedding_cols}")
@@ -3089,8 +3252,11 @@ if __name__ == '__main__':
             # scheduler = torch.optim.lr_scheduler.OneCycleLR(
             #     optimizer, max_lr=1e-3, steps_per_epoch=len(train_loader), epochs=num_epochs
             # )
-            
-            patience = 10  # 何エポック改善がなければ終了するか
+            from collections import deque
+
+            DIST_HIST_SIZE = 500   # まずは 200〜1000 くらい
+            distortion_history = deque(maxlen=DIST_HIST_SIZE)
+            patience = 5  # 何エポック改善がなければ終了するか
             best_val_loss = float('inf')
             best_roi = 0
             best_ndcg = 0
@@ -3102,18 +3268,58 @@ if __name__ == '__main__':
             for epoch in range(num_epochs):
                 model.train()
                 total_loss = 0
-                for X, y, cat_X, context_X, context_cat_X, win_labels, gain, winner in train_loader:
-                    X, y, cat_X, context_X, context_cat_X, win_labels, gain, winner = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), win_labels[0].to(device), gain[0].to(device), winner[0].to(device)
+                for X, y, cat_X, context_X, context_cat_X, win_labels, odds, winner in train_loader:
+                    X, y, cat_X, context_X, context_cat_X, win_labels, odds, winner = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), win_labels[0].to(device), odds[0].to(device), winner[0].to(device)
                     y_sum = y.detach().cpu().numpy().sum()
                     # ランク損失
                     preds = model(X, cat_X, context_X, context_cat_X)
                     # loss = lambdarank_loss(preds, y)
                     # loss = combined_loss(preds, y, gain, win_labels)
-                    loss = combined_loss(preds, y, gain, win_labels, pairwise, weight_mode)
+                    # loss = combined_loss(preds, y, odds, win_labels, pairwise, weight_mode)
                     # loss = race_cross_entropy_loss(preds, win_labels)
+
 
                     # if winner >= 0:  # 正常なレースのみ
                     #     loss = F.cross_entropy(preds.unsqueeze(0), winner.unsqueeze(0))
+
+
+                    # ---- デバッグ歪み（必ず distortion の前）----
+                    # if torch.rand(1).item() < 0.05:
+                    #     preds = preds * 3.0
+
+                    # --- distortion / gate 計算 ---
+                    with torch.no_grad():
+                        distortion = market_distortion_score(preds.detach(), odds, mask=None)
+                        distortion_history.append(distortion.item())
+                        if len(distortion_history) > 50:
+                            mu = np.mean(distortion_history)
+                            sigma = np.std(distortion_history) + 1e-8
+                            dist_z = (distortion.item() - mu) / sigma
+                        else:
+                            dist_z = 0.0
+
+                    # --- gate を計算（0〜1） ---
+                    gate = distortion_gate(dist_z)
+                    gate = gate ** 2  # 任意のスケーリング
+
+                    # --- rank loss は常に計算 ---
+                    loss_rank = listnet_loss(preds, y)
+
+                    # --- no-bet 判定（明示的に ROI loss を無効化） ---
+                    # NO_BET_THRESHOLD = 0.1  # 例: gate が0.1未満なら no-bet
+                    # if gate < NO_BET_THRESHOLD:
+                    #     loss_roi_scaled = torch.tensor(0.0, device=preds.device)
+                    # else:
+                        # ROI loss のスケーリング
+                    loss_roi  = roi_weighted_loss(preds, odds, win_labels)
+                    ROI_SCALE = loss_rank.detach().mean().item()
+                    loss_roi_scaled = loss_roi * (ROI_SCALE / (loss_roi.detach().abs().mean().item() + 1e-8))
+                    loss_roi_scaled = torch.tanh(loss_roi_scaled / 5.0)
+
+                    
+
+                    # --- 混合 loss ---
+                    loss = (1 - gate) * loss_rank + gate * loss_roi_scaled
 
                     # 勾配計算
                     optimizer.zero_grad()
@@ -3122,6 +3328,36 @@ if __name__ == '__main__':
                     optimizer.step()
 
                     total_loss += loss.item()
+
+                    # if gate.item() > 0.3:
+                    #     print(f"[DISTORTED] z={dist_z:.2f}, gate={gate.item():.2f}")
+
+                    # ---- デバッグログ（最初はこれだけでOK）----
+                    # if torch.rand(1).item() < 0.05:  # 1%だけ表示
+                        # p_model = rank_based_topk_p_model(preds.detach())
+                        # inv_odds = 1.0 / odds
+                        # p_mkt = inv_odds / inv_odds.sum()
+
+                        # print(
+                        #     f"loss={loss.item():.3f} | "
+                        #     f"distortion={distortion.item():.4f} | "
+                        #     f"max_p_model={p_model.max().item():.3f} | "
+                        #     f"max_ev={(odds * p_model).max().item():.2f}"
+                        # )
+                        # if (odds * p_model).max().item() > 50:
+                        #     print(f"EV集中: z={dist_z:.2f}")
+                        # print(
+                        #     f"loss={loss.item():.3f} | "
+                        #     f"distortion={distortion.item():.2f} | "
+                        #     f"z={dist_z:.2f} | "
+                        #     f"distorted={market_distorted}"
+                        # )
+
+                        # print(
+                        #     f"z={dist_z:.2f} | gate={gate:.2f} | "
+                        #     f"loss_rank={loss_rank.item():.2f} | "
+                        #     f"loss_roi={loss_roi.item():.2f}"
+                        # )
                 # print(f"Epoch {epoch+1}: Train Loss: {total_loss:.4f}")
 
                 # Validation
@@ -3136,11 +3372,14 @@ if __name__ == '__main__':
                         # loss = listnet_loss(preds, y)
                         # loss = race_cross_entropy_loss(preds, win_labels)
                         # loss = combined_loss(preds, y, gain, win_labels)
-                        loss = combined_loss(preds, y, gain, win_labels, pairwise, weight_mode)
+                        # loss = combined_loss(preds, y, gain, win_labels, pairwise, weight_mode)
                         # if winner >= 0:  # 正常なレースのみ
                         #     loss = F.cross_entropy(preds.unsqueeze(0), winner.unsqueeze(0))
                         # print(preds.mean().item(), preds.std().item())
                         # print(gain)
+
+                        # ★ rank loss のみ
+                        loss = listnet_loss(preds, y)
 
                         val_loss += loss.item()
 
@@ -3154,9 +3393,15 @@ if __name__ == '__main__':
                 avg_val_loss = val_loss / len(val_loader)
 
                 # val_records['expected_value'] = val_records['pred_score'] * val_records['オッズ']
-                # top = val_records.loc[val_records.groupby('レースID')['expected_value'].idxmax()]
+                # top = val_records.loc[val_records.groupby('レースID')['pred_score'].idxmax()]
 
-                # # ブートストラップ
+                # --- レースごとに適用 ---
+                # top = val_records.groupby('レースID', group_keys=False).apply(
+                #     lambda df_race: compute_gate_for_race(df_race, distortion_history, no_bet_threshold=0.1)
+                # )
+                # top = top.loc[top.groupby('レースID')['pred_score'].idxmax()]
+
+                # # # ブートストラップ
                 # n_boot = 10000  # ブートストラップ試行回数
                 # roi_list = []
                 # acc_list = []
@@ -3166,9 +3411,9 @@ if __name__ == '__main__':
                 #     sampled = top.sample(frac=1.0, replace=True)
                     
                 #     total_bet = len(sampled) * 100
-                #     total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
+                #     total_return = sampled["単勝オッズ"].sum()  # 的中時のみ払戻あり
                     
-                #     hit_count = sampled["複勝_hit"].sum()
+                #     hit_count = sampled["is_win"].sum()
                 #     roi = total_return / total_bet
                 #     acc = hit_count / len(sampled)
                     
@@ -3194,9 +3439,10 @@ if __name__ == '__main__':
                 print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
                 # Early Stopping 判定
-                if avg_val_loss < best_val_loss - 0.1:
+                if avg_val_loss < best_val_loss - 0.01:
                     best_val_loss = avg_val_loss
                     best_model_weights = copy.deepcopy(model.state_dict())
+                    best_distortion_history = copy.deepcopy(distortion_history)
                     no_improve_count = 0
                 else:
                     no_improve_count += 1
@@ -3260,8 +3506,47 @@ if __name__ == '__main__':
             val_df['pred_score'] = np.concatenate(val_preds)
             df_2025['pred_score'] = np.concatenate(test_2025_scores)
 
-            test_df['expected_value'] = test_df['pred_score'] * test_df['オッズ']
-            top = test_df.loc[test_df.groupby('レースID')['expected_value'].idxmax()]
+            val_df = compute_gate(
+                val_df,
+                best_distortion_history,
+                no_bet_threshold=0.1
+            )
+
+            top = val_df.loc[
+                val_df.groupby("レースID")["pred_score"].idxmax()
+            ]
+
+            thresholds = np.linspace(0.0, 0.5, 51)
+
+            results = []
+
+            for th in thresholds:
+                bet = top[top["gate"] > th]
+                if len(bet) < 50:   # 最低ベット数制約（超重要）
+                    continue
+
+                roi = (bet["is_win"] * bet["オッズ"]).sum() / len(bet)
+                hit = bet["is_win"].mean()
+
+                results.append({
+                    "th": th,
+                    "roi": roi,
+                    "hit": hit,
+                    "n": len(bet)
+                })
+            
+            best = max(
+                results,
+                key=lambda r: min(r["roi"], 1.0) * np.log(r["n"])
+            )
+            BEST_GATE_THRESHOLD = best["th"]
+            print("BEST_GATE_THRESHOLD",BEST_GATE_THRESHOLD)
+
+            top = val_df.groupby('レースID', group_keys=False).apply(
+                    lambda df_race: compute_gate_for_race(df_race, best_distortion_history, no_bet_threshold=BEST_GATE_THRESHOLD)
+                )
+            top = top.loc[top.groupby('レースID')['pred_score'].idxmax()]
+            # top = top[top['pred_score'] * top['オッズ'] > 1.0]
 
             # ブートストラップ
             n_boot = 10000  # ブートストラップ試行回数
@@ -3274,7 +3559,7 @@ if __name__ == '__main__':
                 
                 total_bet = len(sampled) * 100
                 # total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
-                total_return = sampled["単勝オッズ"].sum()
+                total_return = sampled["単勝オッズ"].sum()  # 的中時のみ払戻あり
                 
                 # hit_count = sampled["複勝_hit"].sum()
                 hit_count = sampled["is_win"].sum()
@@ -3295,10 +3580,56 @@ if __name__ == '__main__':
             roi_ci = np.percentile(roi_arr, [2.5, 97.5])
             acc_ci = np.percentile(acc_arr, [2.5, 97.5])
 
-            print(f"\n[ex評価結果test ブートストラップ評価]")
+            print(f"\n[top評価結果val(同率ソート無し) ブートストラップ評価]")
             print(f"レース数: {len(top)}")
             print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
             print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
+            # test_df['expected_value'] = test_df['pred_score'] * test_df['オッズ']
+
+            # test_df = test_df.sort_values(
+            #     ['レースID', 'expected_value', '馬番'],
+            #     ascending=[True, False, True]
+            # )
+
+            # top = test_df.loc[test_df.groupby('レースID')['expected_value'].idxmax()]
+
+            # # ブートストラップ
+            # n_boot = 10000  # ブートストラップ試行回数
+            # roi_list = []
+            # acc_list = []
+
+            # for _ in range(n_boot):
+            #     # レース単位でリサンプリング（復元抽出）
+            #     sampled = top.sample(frac=1.0, replace=True)
+                
+            #     total_bet = len(sampled) * 100
+            #     # total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
+            #     total_return = sampled["単勝オッズ"].sum()
+                
+            #     # hit_count = sampled["複勝_hit"].sum()
+            #     hit_count = sampled["is_win"].sum()
+            #     roi = total_return / total_bet
+            #     acc = hit_count / len(sampled)
+                
+            #     roi_list.append(roi)
+            #     acc_list.append(acc)
+
+            # roi_arr = np.array(roi_list)
+            # acc_arr = np.array(acc_list)
+
+            # # 点推定
+            # mean_roi = roi_arr.mean()
+            # mean_acc = acc_arr.mean()
+
+            # # 95%信頼区間
+            # roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+            # acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+            # print(f"\n[ex評価結果test ブートストラップ評価]")
+            # print(f"レース数: {len(top)}")
+            # print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+            # print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
             # ndcg = calc_mean_ndcg(test_df)
             # print(f"embedding_dim={emb_dim}, NDCG={ndcg:.4f}")
@@ -3390,6 +3721,57 @@ if __name__ == '__main__':
             # print(f"的中率: {hit_count / len(top):.2%}")
             # print(f"回収率: {roi:.2%}（{total_return:.0f}円 / {total_bet}円）")
 
+            
+
+            top = test_df.groupby('レースID', group_keys=False).apply(
+                    lambda df_race: compute_gate_for_race(df_race, best_distortion_history, no_bet_threshold=BEST_GATE_THRESHOLD)
+                )
+            top = top.loc[top.groupby('レースID')['pred_score'].idxmax()]
+            # top = top[top['pred_score'] * top['オッズ'] > 1.0]
+
+            # ブートストラップ
+            n_boot = 10000  # ブートストラップ試行回数
+            roi_list = []
+            acc_list = []
+
+            for _ in range(n_boot):
+                # レース単位でリサンプリング（復元抽出）
+                sampled = top.sample(frac=1.0, replace=True)
+                
+                total_bet = len(sampled) * 100
+                # total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
+                total_return = sampled["単勝オッズ"].sum()  # 的中時のみ払戻あり
+                
+                # hit_count = sampled["複勝_hit"].sum()
+                hit_count = sampled["is_win"].sum()
+                roi = total_return / total_bet
+                acc = hit_count / len(sampled)
+                
+                roi_list.append(roi)
+                acc_list.append(acc)
+
+            roi_arr = np.array(roi_list)
+            acc_arr = np.array(acc_list)
+
+            # 点推定
+            mean_roi = roi_arr.mean()
+            mean_acc = acc_arr.mean()
+
+            # 95%信頼区間
+            roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+            acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+            print(f"\n[top評価結果test(同率ソート無し) ブートストラップ評価]")
+            print(f"レース数: {len(top)}")
+            print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+            print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
+
+            test_df = test_df.sort_values(
+                ['レースID', 'pred_score', '馬番'],
+                ascending=[True, False, True]
+            )
+
             top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
             # top = top[top['pred_score'] * top['オッズ'] > 1.0]
 
@@ -3403,7 +3785,7 @@ if __name__ == '__main__':
                 sampled = top.sample(frac=1.0, replace=True)
                 
                 total_bet = len(sampled) * 100
-                total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
+                # total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
                 total_return = sampled["単勝オッズ"].sum()  # 的中時のみ払戻あり
                 
                 # hit_count = sampled["複勝_hit"].sum()
@@ -3449,10 +3831,11 @@ if __name__ == '__main__':
             # test_df.to_csv(f'./csv/{field}_result_ranknet_test_fuku_{fold}.csv', index=False)
             test_df.to_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv', index=False)
             # df_2025.to_csv(f'./csv/{field}_result_ranknet3_2025_{fold}.csv', index=False)
-            # if mean_roi > 1.0:
-            #     with open("log.txt", "a", encoding="utf-8") as f:
-            #         f.write(f"seed:{seed}")
-            #         f.write(f"roi:{mean_roi}")
+            if mean_roi > 1.0:
+                with open("log.txt", "a", encoding="utf-8") as f:
+                    f.write(f"field:{field}\n")
+                    f.write(f"seed:{seed}\n")
+                    f.write(f"roi:{mean_roi}\n")
             # with open("log.txt", "a", encoding="utf-8") as f:
             #     f.write(f"field:{field}\n")
             #     f.write(f"seed:{seed}\n")
@@ -3462,9 +3845,9 @@ if __name__ == '__main__':
                 # sys.exit()
                 # seed47
 
-
-            # モデルを保存
-            torch.save(model.state_dict(), f'./model/{field}_ranknet_{fold}.pth')
+            if save == True:
+                # モデルを保存
+                torch.save(model.state_dict(), f'./model/{field}_ranknet_{fold}.pth')
 
         # df_all = pd.concat([
         #     r['selected_returns'].assign(fold=r['fold'], policy='expected')

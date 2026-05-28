@@ -7,6 +7,8 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 # セルの文字列を省略せずに全部表示
 pd.set_option("display.max_colwidth", None)
+pd.set_option("display.float_format", "{:.0f}".format)
+
 
 def load_csv(path):
     # 学習データを読み込む
@@ -118,7 +120,15 @@ def add_race_condition_scores(
         dist_scores.append(s)
 
     # 距離適性（平均）
+    # arr = np.vstack(dist_scores)
+    # mean = np.nanmean(arr, axis=0)
+
+    # # 距離適性が全欠損な馬は「0（中立）」扱い
+    # mean[np.isnan(mean)] = 0.0
+
+    # df["距離適性スコア"] = mean
     df["距離適性スコア"] = np.vstack(dist_scores).mean(axis=0)
+
 
     # === 馬場適性スコア ===
     baba_scores = []
@@ -130,6 +140,14 @@ def add_race_condition_scores(
         # → 不一致時は0.5倍、一致で1倍（調整可）
         baba_scores.append(s)
 
+    # 距離適性（平均）
+    # arr = np.vstack(baba_scores)
+    # mean = np.nanmean(arr, axis=0)
+
+    # # 距離適性が全欠損な馬は「0（中立）」扱い
+    # mean[np.isnan(mean)] = 0.0
+
+    # df["馬場適性スコア"] = mean
     df["馬場適性スコア"] = np.vstack(baba_scores).mean(axis=0)
 
     # === フィールド適性（芝・ダート等） ===
@@ -139,6 +157,14 @@ def add_race_condition_scores(
         s = df[f"{i}{score_col}"] * (0.5 + 0.5 * same)
         field_scores.append(s)
 
+    # 距離適性（平均）
+    # arr = np.vstack(field_scores)
+    # mean = np.nanmean(arr, axis=0)
+
+    # # 距離適性が全欠損な馬は「0（中立）」扱い
+    # mean[np.isnan(mean)] = 0.0
+
+    # df["フィールド適性スコア"] = mean
     df["フィールド適性スコア"] = np.vstack(field_scores).mean(axis=0)
 
     return df
@@ -293,6 +319,8 @@ def add_past_diff_features(df, baseline, n_past=5):
     # 正規化
     weights = weights / weights.sum()
 
+    # score_vals = score_df.fillna(0).values
+    # df2["past_score_ewm"] = (score_vals * weights).sum(axis=1)
     df2["past_score_ewm"] = (score_df.values * weights).sum(axis=1)
 
     score_cols.extend(["past_score_mean", "past_score_max", "past_score_min", "past_score_sum", "past_score_ewm"])
@@ -460,7 +488,7 @@ feature_cols.extend(cols_rank)
 # print(feature_cols)
 # print(df.columns.values)
 # feature_cols = feature_cols + past_cols
-df = df[feature_cols]
-print(df[feature_cols].columns.values.tolist())
+# df = df[feature_cols]
+# print(df[feature_cols].columns.values.tolist())
 
-df.to_csv(f'./csv/df_all_{field}_2025_add.csv', index=True)
+df.to_csv(f"./csv/df_all_{field}_2025_add.csv", index=True)
