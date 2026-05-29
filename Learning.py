@@ -32,7 +32,7 @@ import category_encoders as ce
 import random
 import seaborn as sns
 
-import Listwise
+from src import Listwise
 
 def save_csv(path, df_all):
     df_all.to_csv(path, na_rep='NaN')

@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 import torch
 import Learning
-import Listwise
+from src import Listwise
 import joblib
 from bs4 import BeautifulSoup
 import re

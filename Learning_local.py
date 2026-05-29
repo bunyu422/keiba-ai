@@ -33,7 +33,7 @@ import category_encoders as ce
 import random
 import seaborn as sns
 
-import Listwise
+from src import Listwise
 
 def normalize_racename(name):
     # 全角→半角（英数字のみ変換、かなはそのまま）

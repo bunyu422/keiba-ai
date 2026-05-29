@@ -15,7 +15,7 @@ from selenium.webdriver.common.by import By
 from sklearn.discriminant_analysis import StandardScaler
 import torch
 import Learning
-import Listwise
+from src import Listwise
 import Listwise_test
 
 warnings.simplefilter('ignore')

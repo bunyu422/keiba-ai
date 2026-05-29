@@ -13,8 +13,8 @@ import optuna
 import pandas as pd
 from sklearn.discriminant_analysis import StandardScaler
 
-import Listwise
-from config import FIELD_MAPPING
+from src import Listwise
+from src.config import FIELD_MAPPING
 from preprocessing import (
     create_label_gain,
     df_big_past_processing,

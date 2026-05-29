@@ -17,9 +17,9 @@ import time
 import schedule
 from sklearn.discriminant_analysis import StandardScaler
 import torch
-import Listwise
+from src import Listwise
 import Listwise_func
-import betting
+from betting import betting
 import function
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup

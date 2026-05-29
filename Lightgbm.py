@@ -25,7 +25,7 @@ import optuna.integration.lightgbm as lgb
 import optuna
 import lightgbm as lgbm
 from sklearn.model_selection import StratifiedGroupKFold
-import Listwise as lw
+from src import Listwise as lw
 import seaborn as sns
 from scipy.stats import entropy, wasserstein_distance
 
