@@ -8,7 +8,7 @@ from datetime import timedelta
 import datetime
 import logging
 
-import Lgihtgbm_func as lf
+import predictor as lf
 import function
 
 from selenium import webdriver

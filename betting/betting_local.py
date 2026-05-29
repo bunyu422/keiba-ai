@@ -10,7 +10,7 @@ import logging
 
 import Listwise_func
 import function
-import Lgihtgbm_func as lf
+import predictor as lf
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
