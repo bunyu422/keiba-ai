@@ -302,6 +302,17 @@ def utility_aware_ranking_loss_roi(
     normalize_values=False,
     eps=1e-8
 ):
+    '''
+    阪神：分割seed1, モデルseed22, fold0
+    pairwise='logistic',
+    weight_mode='roi'
+    loss: uar単独
+
+    中京：分割seed1, モデルseed4, fold2
+    pairwise:squared_hinge
+    weight_mode:ev_i
+    roi:1.0983656962025317
+    '''
     """
     効用（value）× 配当（payout）でペアワイズ損失を重み付けする汎用損失。
 
