@@ -17,7 +17,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-import Learning
+# import Learning
 import torch.nn.functional as F
 import optuna.integration.lightgbm as lgb
 import optuna
@@ -3003,10 +3003,10 @@ if __name__ == '__main__':
             test_df = race_feature_test(test_df, map_dict)
             df_2025 = race_feature_test(df_2025, map_dict)
 
-            train_df = train_df.round(13)
-            val_df = val_df.round(13)
-            test_df = test_df.round(13)
-            df_2025 = df_2025.round(13)
+            # train_df = train_df.round(13)
+            # val_df = val_df.round(13)
+            # test_df = test_df.round(13)
+            # df_2025 = df_2025.round(13)
 
             # 保存
             # joblib.dump(map_dict, f"./pickle-dict/category_mappings_{field}_fold{fold}.pkl")
@@ -3403,7 +3403,7 @@ if __name__ == '__main__':
                 sampled = top.sample(frac=1.0, replace=True)
                 
                 total_bet = len(sampled) * 100
-                total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
+                # total_return = sampled["複勝払戻"].sum()  # 的中時のみ払戻あり
                 total_return = sampled["単勝オッズ"].sum()  # 的中時のみ払戻あり
                 
                 # hit_count = sampled["複勝_hit"].sum()
