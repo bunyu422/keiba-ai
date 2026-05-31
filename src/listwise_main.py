@@ -20,7 +20,7 @@ from matplotlib import pyplot as plt
 import os
 
 # === 分割モジュールの読み込み（ファイル単位）===
-from src.listwise import (
+from listwise import (
     model_config as cfg,
     models,
     dataset,
@@ -381,6 +381,33 @@ if __name__ == '__main__':
             print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
             print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
+            # === 14b. pred_score で top-1 選択 + ブートストラップ評価 ===
+            top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
+
+            roi_list = []
+            acc_list = []
+            for _ in range(n_boot):
+                sampled = top.sample(frac=1.0, replace=True)
+                total_bet = len(sampled) * 100
+                total_return = sampled["単勝オッズ"].sum()
+                hit_count = sampled["is_win"].sum()
+                roi = total_return / total_bet
+                acc = hit_count / len(sampled)
+                roi_list.append(roi)
+                acc_list.append(acc)
+
+            roi_arr = np.array(roi_list)
+            acc_arr = np.array(acc_list)
+            mean_roi = roi_arr.mean()
+            mean_acc = acc_arr.mean()
+            roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+            acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+            print(f"\n[top評価結果test ブートストラップ評価]")
+            print(f"レース数: {len(top)}")
+            print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+            print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
             # === 15. 結果保存 ===
             test_df.to_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv', index=False)
             if mean_roi > 1.0:
@@ -391,3 +418,10 @@ if __name__ == '__main__':
 
             if save:
                 torch.save(model.state_dict(), f'./model/{field}_ranknet_{fold}.pth')
+
+"""
+[top評価結果test ブートストラップ評価]
+レース数: 1106
+的中率: 23.42%（95%CI: 20.89% ～ 25.95%）
+回収率: 171.45%（95%CI: 138.71% ～ 208.92%）
+"""
