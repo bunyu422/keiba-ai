@@ -433,14 +433,26 @@ def utility_aware_ranking_loss_roi(
     return (sum_loss / sum_weights).mean()
 
 
+# def combined_loss(preds, labels, odds, is_win, pairwise, weight_mode, k=3, alpha=0.05):
+#     """
+#     ランク損失 + ROI 損失の混合用ラッパー。
+#     現在は listnet_loss のみ返すが、コメントアウト部に
+#     様々な組み合わせパターンの実験跡が残っている。
+#     """
+#     loss_rank = listnet_loss(preds, labels)
+#     return loss_rank
+
+# BEGIN: 中京完成時の combined_loss（UAR単独）
 def combined_loss(preds, labels, odds, is_win, pairwise, weight_mode, k=3, alpha=0.05):
-    """
-    ランク損失 + ROI 損失の混合用ラッパー。
-    現在は listnet_loss のみ返すが、コメントアウト部に
-    様々な組み合わせパターンの実験跡が残っている。
-    """
-    loss_rank = listnet_loss(preds, labels)
-    return loss_rank
+    # 1) EV の計算
+    ev = is_win * odds - 1.0
+
+    # 2) uar_loss を計算（margin=0 固定）
+    uar = utility_aware_ranking_loss_roi(preds, ev, odds * is_win,
+                                    margin=0, pairwise=pairwise,
+                                    weight_mode=weight_mode)
+    return uar
+# END: 中京完成時の combined_loss
 
 
 # =============================================================================

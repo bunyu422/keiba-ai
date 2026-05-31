@@ -47,7 +47,15 @@ context_cat_cols = ['フィールド', '馬場']
 context_num_cols = ['距離']
 
 scale_cols = ['フィールド適性スコア', '馬場適性スコア', '距離適性スコア', '間隔', '1クラス差', '1ペース差', '父馬_te', '騎手_te',
-              '1後3F_diff_rank', '1後3F_diff_rel', '1後3F_diff_z', '1タイム_diff_rank', '1タイム_diff_rel', '1タイム_diff_z', '1スピード指数_diff_rank', '1スピード指数_diff_rel', '1スピード指数_diff_z', '1馬体重_diff_rank', '1馬体重_diff_rel', '1馬体重_diff_z', '1コーナー通過順_diff_rank', '1コーナー通過順_diff_rel', '1コーナー通過順_diff_z', '1馬番_diff_rank', '1馬番_diff_rel', '1馬番_diff_z', '1斤量_diff_rank', '1斤量_diff_rel', '1斤量_diff_z', '2後3F_diff_rank', '2後3F_diff_rel', '2後3F_diff_z', '2タイム_diff_rank', '2タイム_diff_rel', '2タイム_diff_z', '2スピード指数_diff_rank', '2スピード指数_diff_rel', '2スピード指数_diff_z', '2馬体重_diff_rank', '2馬体重_diff_rel', '2馬体重_diff_z', '2コーナー通過順_diff_rank', '2コーナー通過順_diff_rel', '2コーナー通過順_diff_z', '2馬番_diff_rank', '2馬番_diff_rel', '2馬番_diff_z', '2斤量_diff_rank', '2斤量_diff_rel', '2斤量_diff_z', '3後3F_diff_rank', '3後3F_diff_rel', '3後3F_diff_z', '3タイム_diff_rank', '3タイム_diff_rel', '3タイム_diff_z', '3スピード指数_diff_rank', '3スピード指数_diff_rel', '3スピード指数_diff_z', '3馬体重_diff_rank', '3馬体重_diff_rel', '3馬体重_diff_z', '3コーナー通過順_diff_rank', '3コーナー通過順_diff_rel', '3コーナー通過順_diff_z', '3馬番_diff_rank', '3馬番_diff_rel', '3馬番_diff_z', '3斤量_diff_rank', '3斤量_diff_rel', '3斤量_diff_z', '4後3F_diff_rank', '4後3F_diff_rel', '4後3F_diff_z', '4タイム_diff_rank', '4タイム_diff_rel', '4タイム_diff_z', '4スピード指数_diff_rank', '4スピード指数_diff_rel', '4スピード指数_diff_z', '4馬体重_diff_rank', '4馬体重_diff_rel', '4馬体重_diff_z', '4コーナー通過順_diff_rank', '4コーナー通過順_diff_rel', '4コーナー通過順_diff_z', '4馬番_diff_rank', '4馬番_diff_rel', '4馬番_diff_z', '4斤量_diff_rank', '4斤量_diff_rel', '4斤量_diff_z', '5後3F_diff_rank', '5後3F_diff_rel', '5後3F_diff_z', '5タイム_diff_rank', '5タイム_diff_rel', '5タイム_diff_z', '5スピード指数_diff_rank', '5スピード指数_diff_rel', '5スピード指数_diff_z', '5馬体重_diff_rank', '5馬体重_diff_rel', '5馬体重_diff_z', '5コーナー通過順_diff_rank', '5コーナー通過順_diff_rel', '5コーナー通過順_diff_z', '5馬番_diff_rank', '5馬番_diff_rel', '5馬番_diff_z', '5斤量_diff_rank', '5斤量_diff_rel', '5斤量_diff_z', '1_past_score_rank', '1_past_score_rel', '1_past_score_z', '2_past_score_rank', '2_past_score_rel', '2_past_score_z', '3_past_score_rank', '3_past_score_rel', '3_past_score_z', '4_past_score_rank', '4_past_score_rel', '4_past_score_z', '5_past_score_rank', '5_past_score_rel', '5_past_score_z']
+              '1後3F_diff_rank', '1後3F_diff_rel', '1後3F_diff_z', '1タイム_diff_rank', '1タイム_diff_rel', '1タイム_diff_z', '1スピード指数_diff_rank', '1スピード指数_diff_rel', '1スピード指数_diff_z', '1馬体重_diff_rank', '1馬体重_diff_rel', '1馬体重_diff_z', '1コーナー通過順_diff_rank', '1コーナー通過順_diff_rel', '1コーナー通過順_diff_z', '1馬番_diff_rank', '1馬番_diff_rel', '1馬番_diff_z', '1斤量_diff_rank', '1斤量_diff_rel', '1斤量_diff_z', '2後3F_diff_rank', '2後3F_diff_rel', '2後3F_diff_z', '2タイム_diff_rank', '2タイム_diff_rel', '2タイム_diff_z', '2スピード指数_diff_rank', '2スピード指数_diff_rel', '2スピード指数_diff_z', '2馬体重_diff_rank', '2馬体重_diff_rel', '2馬体重_diff_z', '2コーナー通過順_diff_rank', '2コーナー通過順_diff_rel', '2コーナー通過順_diff_z', '2馬番_diff_rank', '2馬番_diff_rel', '2馬番_diff_z', '2斤量_diff_rank', '2斤量_diff_rel', '2斤量_diff_z', '3後3F_diff_rank', '3後3F_diff_rel', '3後3F_diff_z', '3タイム_diff_rank', '3タイム_diff_rel', '3タイム_diff_z', '3スピード指数_diff_rank', '3スピード指数_diff_rel', '3スピード指数_diff_z', '3馬体重_diff_rank', '3馬体重_diff_rel', '3馬体重_diff_z', '3コーナー通過順_diff_rank', '3コーナー通過順_diff_rel', '3コーナー通過順_diff_z', '3馬番_diff_rank', '3馬番_diff_rel', '3馬番_diff_z', '3斤量_diff_rank', '3斤量_diff_rel', '3斤量_diff_z', '4後3F_diff_rank', '4後3F_diff_rel', '4後3F_diff_z', '4タイム_diff_rank', '4タイム_diff_rel', '4タイム_diff_z', '4スピード指数_diff_rank', '4スピード指数_diff_rel', '4スピード指数_diff_z', '4馬体重_diff_rank', '4馬体重_diff_rel', '4馬体重_diff_z', '4コーナー通過順_diff_rank', '4コーナー通過順_diff_rel', '4コーナー通過順_diff_z', '4馬番_diff_rank', '4馬番_diff_rel', '4馬番_diff_z', '4斤量_diff_rank', '4斤量_diff_rel', '4斤量_diff_z', '5後3F_diff_rank', '5後3F_diff_rel', '5後3F_diff_z', '5タイム_diff_rank', '5タイム_diff_rel', '5タイム_diff_z', '5スピード指数_diff_rank', '5スピード指数_diff_rel', '5スピード指数_diff_z', '5馬体重_diff_rank', '5馬体重_diff_rel', '5馬体重_diff_z', '5コーナー通過順_diff_rank', '5コーナー通過順_diff_rel', '5コーナー通過順_diff_z', '5馬番_diff_rank', '5馬番_diff_rel', '5馬番_diff_z', '5斤量_diff_rank', '5斤量_diff_rel', '5斤量_diff_z',               '1_past_score_rank', '1_past_score_rel', '1_past_score_z', '2_past_score_rank', '2_past_score_rel', '2_past_score_z', '3_past_score_rank', '3_past_score_rel', '3_past_score_z', '4_past_score_rank', '4_past_score_rel', '4_past_score_z', '5_past_score_rank', '5_past_score_rel', '5_past_score_z',
+              # BEGIN: 中京完成時の追加15列（past_score_mean/max/min/sum/ewm の rank/rel/z）
+              'past_score_mean_rank', 'past_score_mean_rel', 'past_score_mean_z',
+              'past_score_max_rank', 'past_score_max_rel', 'past_score_max_z',
+              'past_score_min_rank', 'past_score_min_rel', 'past_score_min_z',
+              'past_score_sum_rank', 'past_score_sum_rel', 'past_score_sum_z',
+              'past_score_ewm_rank', 'past_score_ewm_rel', 'past_score_ewm_z',
+              # END: 追加15列
+]
 
 inversion_cols = []
 common_cols = ['場所','距離','フィールド','馬場','騎手','馬番','1距離','1場所','1フィールド']
@@ -57,7 +65,7 @@ feature_category = ['父馬', '騎手', '性', '齢']
 embedding_cols = feature_category
 
 # === 3. ファイルパス ===
-field = 'hanshin'
+field = 'chukyo'  # 中京完成時の設定
 csv_path = f'./csv/df_all_{field}_2025_add.csv'
 
 # === 4. データ読み込み・初期カラム設定 ===
@@ -83,8 +91,8 @@ cfg.common_cols = common_cols
 
 # ペアワイズ損失関数の候補（コメントアウトは試行済み）
 pairwise_list = [
-    # 'squared_hinge',
-    'logistic',
+    'squared_hinge',
+    # 'logistic',  # ← 旧設定
     # 'hinge',
     # 'bpr',
     # 'exp',
@@ -94,10 +102,10 @@ pairwise_list = [
 
 # ペア重み付けモードの候補（コメントアウトは試行済み）
 weight_mode_list = [
-    # 'ev_i',
+    'ev_i',
+    # 'roi',  # ← 旧設定
     # 'softmax_ev',
     # 'value_i',
-    'roi',
     # 'abs_value_diff',
     # 'rank_focus',
     # 'focal_roi',
@@ -109,7 +117,7 @@ if __name__ == '__main__':
     save = False
     print(device)
 
-    seed = 22
+    seed = 4  # 中京完成時は seed=4
     features.set_seed(seed)
     fold_results = []
 
@@ -135,8 +143,8 @@ if __name__ == '__main__':
     for pairwise, weight_mode in itertools.product(pairwise_list, weight_mode_list):
         print("seed:", seed)
         for fold, (train_idx, val_idx, test_idx) in enumerate(splits_list):
-            # fold 0 のみ実行（1回の学習・評価）
-            if fold != 0:
+            # fold 2 のみ実行（中京完成時は fold=2）
+            if fold != 2:
                 continue
 
             train_df = df.loc[train_idx]
@@ -248,16 +256,16 @@ if __name__ == '__main__':
             optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-4)
 
             # === 11. 学習ループ ===
-            DIST_HIST_SIZE = 500
-            distortion_history = deque(maxlen=DIST_HIST_SIZE)
-            patience = 5
+            # DIST_HIST_SIZE = 500  ← 中京完成時は不使用
+            # distortion_history = deque(maxlen=DIST_HIST_SIZE)
+            patience = 10  # 中京完成時は patience=10
             best_val_loss = float('inf')
             best_roi = 0
             best_ndcg = 0
             no_improve_count = 0
             best_model_weights = None
-            mse_loss_fn = nn.MSELoss()
-            alpha = 0
+            # mse_loss_fn = nn.MSELoss()  ← 中京完成時は不使用
+            # alpha = 0
             val_records = val_df.copy()
             for epoch in range(num_epochs):
                 model.train()
@@ -266,35 +274,11 @@ if __name__ == '__main__':
                     X, y, cat_X, context_X, context_cat_X, win_labels, odds, winner = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), win_labels[0].to(device), odds[0].to(device), winner[0].to(device)
                     y_sum = y.detach().cpu().numpy().sum()
                     preds = model(X, cat_X, context_X, context_cat_X)
-
-                    # --- market distortion による gate 制御 ---
-                    with torch.no_grad():
-                        distortion = losses.market_distortion_score(preds.detach(), odds, mask=None)
-                        distortion_history.append(distortion.item())
-                        if len(distortion_history) > 50:
-                            mu = np.mean(distortion_history)
-                            sigma = np.std(distortion_history) + 1e-8
-                            dist_z = (distortion.item() - mu) / sigma
-                        else:
-                            dist_z = 0.0
-
-                    gate = losses.distortion_gate(dist_z)
-                    gate = gate ** 2
-
-                    # --- ランク損失（ListNet） + ROI損失の混合 ---
-                    loss_rank = losses.listnet_loss(preds, y)
-
-                    loss_roi  = losses.roi_weighted_loss(preds, odds, win_labels)
-                    ROI_SCALE = loss_rank.detach().mean().item()
-                    loss_roi_scaled = loss_roi * (ROI_SCALE / (loss_roi.detach().abs().mean().item() + 1e-8))
-                    loss_roi_scaled = torch.tanh(loss_roi_scaled / 5.0)
-
-                    loss = (1 - gate) * loss_rank + gate * loss_roi_scaled
+                    loss = losses.combined_loss(preds, y, odds, win_labels, pairwise, weight_mode)
 
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-
                     total_loss += loss.item()
 
                 # === 12. バリデーション ===
@@ -306,8 +290,7 @@ if __name__ == '__main__':
                         X, y, cat_X, context_X, context_cat_X, win_labels, gain, winner = X[0].to(device), y[0].to(device), cat_X[0].to(device), context_X[0].to(device), context_cat_X[0].to(device), win_labels[0].to(device), gain[0].to(device), winner[0].to(device)
                         preds = model(X, cat_X, context_X, context_cat_X)
                         box.append(preds.squeeze().cpu().numpy())
-
-                        loss = losses.listnet_loss(preds, y)
+                        loss = losses.combined_loss(preds, y, gain, win_labels, pairwise, weight_mode)
                         val_loss += loss.item()
 
                 val_records['pred_score'] = np.concatenate(box)
@@ -317,11 +300,10 @@ if __name__ == '__main__':
 
                 print(f"Epoch {epoch+1}: Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
 
-                # Early Stopping（val_loss が 0.01 以上改善しなければ patience 回で打ち切り）
-                if avg_val_loss < best_val_loss - 0.01:
+                # Early Stopping（中京完成時: 改善閾値 0.1, patience=10）
+                if avg_val_loss < best_val_loss - 0.1:
                     best_val_loss = avg_val_loss
                     best_model_weights = copy.deepcopy(model.state_dict())
-                    best_distortion_history = copy.deepcopy(distortion_history)
                     no_improve_count = 0
                 else:
                     no_improve_count += 1
@@ -364,48 +346,9 @@ if __name__ == '__main__':
             val_df['pred_score'] = np.concatenate(val_preds)
             df_2025['pred_score'] = np.concatenate(test_2025_scores)
 
-            # === 14. ゲート閾値最適化（val で最高 ROI の閾値を探索）===
-            val_df = losses.compute_gate(
-                val_df,
-                best_distortion_history,
-                no_bet_threshold=0.1
-            )
-
-            top = val_df.loc[
-                val_df.groupby("レースID")["pred_score"].idxmax()
-            ]
-
-            thresholds = np.linspace(0.0, 0.5, 51)
-
-            results = []
-
-            for th in thresholds:
-                bet = top[top["gate"] > th]
-                if len(bet) < 50:
-                    continue
-
-                roi = (bet["is_win"] * bet["オッズ"]).sum() / len(bet)
-                hit = bet["is_win"].mean()
-
-                results.append({
-                    "th": th,
-                    "roi": roi,
-                    "hit": hit,
-                    "n": len(bet)
-                })
-
-            best = max(
-                results,
-                key=lambda r: min(r["roi"], 1.0) * np.log(r["n"])
-            )
-            BEST_GATE_THRESHOLD = best["th"]
-            print("BEST_GATE_THRESHOLD", BEST_GATE_THRESHOLD)
-
-            # === 15. ブートストラップ評価（val）===
-            top = val_df.groupby('レースID', group_keys=False).apply(
-                    lambda df_race: losses.compute_gate_for_race(df_race, best_distortion_history, no_bet_threshold=BEST_GATE_THRESHOLD)
-                )
-            top = top.loc[top.groupby('レースID')['pred_score'].idxmax()]
+            # === 14. 評価（中京完成時: expected_value で top-1 選択 + ブートストラップ）===
+            test_df['expected_value'] = test_df['pred_score'] * test_df['オッズ']
+            top = test_df.loc[test_df.groupby('レースID')['expected_value'].idxmax()]
 
             n_boot = 10000
             roi_list = []
@@ -433,88 +376,12 @@ if __name__ == '__main__':
             roi_ci = np.percentile(roi_arr, [2.5, 97.5])
             acc_ci = np.percentile(acc_arr, [2.5, 97.5])
 
-            print(f"\n[top評価結果val(同率ソート無し) ブートストラップ評価]")
+            print(f"\n[ex評価結果test ブートストラップ評価]")
             print(f"レース数: {len(top)}")
             print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
             print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
-            # === 16. ブートストラップ評価（test、同率ソート無し）===
-            top = test_df.groupby('レースID', group_keys=False).apply(
-                    lambda df_race: losses.compute_gate_for_race(df_race, best_distortion_history, no_bet_threshold=BEST_GATE_THRESHOLD)
-                )
-            top = top.loc[top.groupby('レースID')['pred_score'].idxmax()]
-
-            n_boot = 10000
-            roi_list = []
-            acc_list = []
-
-            for _ in range(n_boot):
-                sampled = top.sample(frac=1.0, replace=True)
-
-                total_bet = len(sampled) * 100
-                total_return = sampled["単勝オッズ"].sum()
-
-                hit_count = sampled["is_win"].sum()
-                roi = total_return / total_bet
-                acc = hit_count / len(sampled)
-
-                roi_list.append(roi)
-                acc_list.append(acc)
-
-            roi_arr = np.array(roi_list)
-            acc_arr = np.array(acc_list)
-
-            mean_roi = roi_arr.mean()
-            mean_acc = acc_arr.mean()
-
-            roi_ci = np.percentile(roi_arr, [2.5, 97.5])
-            acc_ci = np.percentile(acc_arr, [2.5, 97.5])
-
-            print(f"\n[top評価結果test(同率ソート無し) ブートストラップ評価]")
-            print(f"レース数: {len(top)}")
-            print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
-            print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
-
-            # === 17. ブートストラップ評価（test、馬番→pred_score でソート済み）===
-            test_df = test_df.sort_values(
-                ['レースID', 'pred_score', '馬番'],
-                ascending=[True, False, True]
-            )
-
-            top = test_df.loc[test_df.groupby('レースID')['pred_score'].idxmax()]
-
-            n_boot = 10000
-            roi_list = []
-            acc_list = []
-
-            for _ in range(n_boot):
-                sampled = top.sample(frac=1.0, replace=True)
-
-                total_bet = len(sampled) * 100
-                total_return = sampled["単勝オッズ"].sum()
-
-                hit_count = sampled["is_win"].sum()
-                roi = total_return / total_bet
-                acc = hit_count / len(sampled)
-
-                roi_list.append(roi)
-                acc_list.append(acc)
-
-            roi_arr = np.array(roi_list)
-            acc_arr = np.array(acc_list)
-
-            mean_roi = roi_arr.mean()
-            mean_acc = acc_arr.mean()
-
-            roi_ci = np.percentile(roi_arr, [2.5, 97.5])
-            acc_ci = np.percentile(acc_arr, [2.5, 97.5])
-
-            print(f"\n[top評価結果test ブートストラップ評価]")
-            print(f"レース数: {len(top)}")
-            print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
-            print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
-
-            # === 18. 結果保存 ===
+            # === 15. 結果保存 ===
             test_df.to_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv', index=False)
             if mean_roi > 1.0:
                 with open("log.txt", "a", encoding="utf-8") as f:
