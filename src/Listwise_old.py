@@ -19,7 +19,7 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 # import Learning
 import torch.nn.functional as F
-import optuna.integration.lightgbm as lgb
+# import optuna.integration.lightgbm as lgb
 import optuna
 import lightgbm as lgbm
 from sklearn.model_selection import StratifiedGroupKFold
@@ -1724,101 +1724,101 @@ def make_label_gain(n_bins=18, mode='sqrt'):
     return list(range(0, n_bins+1))
 
 
-def labmdarank_lgb(train_df, val_df, test_df, feature_cols, target_col, embedding_cols, fold):
-    train_df = train_df.copy()
-    val_df = val_df.copy()
-    test_df = test_df.copy()
+# def labmdarank_lgb(train_df, val_df, test_df, feature_cols, target_col, embedding_cols, fold):
+#     train_df = train_df.copy()
+#     val_df = val_df.copy()
+#     test_df = test_df.copy()
 
-    # パラメータ設定
-    rate = 0.01
-    seed=42
-    gain_list = make_label_gain()
-    group_train = train_df.groupby("レースID").size().to_list()
-    group_val = val_df.groupby("レースID").size().to_list()
+#     # パラメータ設定
+#     rate = 0.01
+#     seed=42
+#     gain_list = make_label_gain()
+#     group_train = train_df.groupby("レースID").size().to_list()
+#     group_val = val_df.groupby("レースID").size().to_list()
 
-    lgb_train = lgb.Dataset(train_df[feature_cols], label=train_df[target_col], categorical_feature=embedding_cols, group=group_train)
-    lgb_eval = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], categorical_feature=embedding_cols, reference=lgb_train, group=group_val)
+#     lgb_train = lgb.Dataset(train_df[feature_cols], label=train_df[target_col], categorical_feature=embedding_cols, group=group_train)
+#     lgb_eval = lgb.Dataset(val_df[feature_cols], label=val_df[target_col], categorical_feature=embedding_cols, reference=lgb_train, group=group_val)
 
-    params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        'objective': 'lambdarank',  # ←ここでランキング学習と指定！
-        'metric': 'ndcg',   # for lambdarank
-        'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-        'ndcg_eval_at': [1,3,5,10,18],  # 3連単を予測したい
-        'label_gain': gain_list,
-        'learning_rate': rate,
-        'random_state': seed,
-        'verbose_eval': 20,
-        'early_stopping_round': 20,
-        'num_boost_round': 10000
-    }
-    ####################################################################################
+#     params = {
+#         'task': 'train',
+#         'boosting_type': 'gbdt',
+#         'objective': 'lambdarank',  # ←ここでランキング学習と指定！
+#         'metric': 'ndcg',   # for lambdarank
+#         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
+#         'ndcg_eval_at': [1,3,5,10,18],  # 3連単を予測したい
+#         'label_gain': gain_list,
+#         'learning_rate': rate,
+#         'random_state': seed,
+#         'verbose_eval': 20,
+#         'early_stopping_round': 20,
+#         'num_boost_round': 10000
+#     }
+#     ####################################################################################
 
-    # '''
-    # クロスバリデーションによるハイパーパラメータの探索 3fold
-    tuner = lgb.LightGBMTunerCV(params,
-                                lgb_train,
-                                folds=GroupKFold(n_splits=3),
-                                # categorical_feature = cat_list,
-                                return_cvbooster=True,
-                                verbose_eval=False
-                                )
+#     # '''
+#     # クロスバリデーションによるハイパーパラメータの探索 3fold
+#     tuner = lgb.LightGBMTunerCV(params,
+#                                 lgb_train,
+#                                 folds=GroupKFold(n_splits=3),
+#                                 # categorical_feature = cat_list,
+#                                 return_cvbooster=True,
+#                                 verbose_eval=False
+#                                 )
 
-    # # ハイパーパラメータ探索の実行
-    tuner.run()
+#     # # ハイパーパラメータ探索の実行
+#     tuner.run()
 
-    # # サーチしたパラメータの表示
-    best_params = tuner.best_params
-    print("  Params: ")
-    for key, value in best_params.items():
-        print("    {}: {}".format(key, value))
+#     # # サーチしたパラメータの表示
+#     best_params = tuner.best_params
+#     print("  Params: ")
+#     for key, value in best_params.items():
+#         print("    {}: {}".format(key, value))
 
-    print(tuner.best_score)
+#     print(tuner.best_score)
     
-    params = {
-        'task': 'train',
-        'boosting_type': 'gbdt',
-        'objective': 'lambdarank',  # ←ここでランキング学習と指定！
-        'metric': 'ndcg',   # for lambdarank
-        'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
-        'ndcg_eval_at': [1,3,5,10,18],  # 3連単を予測したい
-        'label_gain': gain_list,
-        'learning_rate': rate,
-        'random_state': seed,
-        'verbose_eval': 20,
-        'early_stopping_round': 20,
-        'num_boost_round': 10000,
-        'feature_pre_filter': best_params['feature_pre_filter'],
-        'lambda_l1': best_params['lambda_l1'],
-        'lambda_l2': best_params['lambda_l2'],
-        'num_leaves': best_params['num_leaves'],
-        'feature_fraction': best_params['feature_fraction'],
-        'bagging_fraction': best_params['bagging_fraction'],
-        'bagging_freq':  best_params['bagging_freq'],
-        'min_child_samples': best_params['min_child_samples'],
-    }
+#     params = {
+#         'task': 'train',
+#         'boosting_type': 'gbdt',
+#         'objective': 'lambdarank',  # ←ここでランキング学習と指定！
+#         'metric': 'ndcg',   # for lambdarank
+#         'verbose': -1,  # これを指定しないと`No further splits with positive gain, best gain: -inf`というWarningが表示される
+#         'ndcg_eval_at': [1,3,5,10,18],  # 3連単を予測したい
+#         'label_gain': gain_list,
+#         'learning_rate': rate,
+#         'random_state': seed,
+#         'verbose_eval': 20,
+#         'early_stopping_round': 20,
+#         'num_boost_round': 10000,
+#         'feature_pre_filter': best_params['feature_pre_filter'],
+#         'lambda_l1': best_params['lambda_l1'],
+#         'lambda_l2': best_params['lambda_l2'],
+#         'num_leaves': best_params['num_leaves'],
+#         'feature_fraction': best_params['feature_fraction'],
+#         'bagging_fraction': best_params['bagging_fraction'],
+#         'bagging_freq':  best_params['bagging_freq'],
+#         'min_child_samples': best_params['min_child_samples'],
+#     }
 
-    evals_result = {}
-    model = lgbm.train(params,
-                    lgb_train,  # トレーニングデータの指定
-                    valid_names=['valid', 'train'],    # 学習経過で表示する名称
-                    valid_sets=[lgb_eval, lgb_train],  # 先頭が early stopping 判定対象
-                    # categorical_feature = cat_list,
-                    callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=False),
-                                lgbm.record_evaluation(evals_result)]
-                    )
+#     evals_result = {}
+#     model = lgbm.train(params,
+#                     lgb_train,  # トレーニングデータの指定
+#                     valid_names=['valid', 'train'],    # 学習経過で表示する名称
+#                     valid_sets=[lgb_eval, lgb_train],  # 先頭が early stopping 判定対象
+#                     # categorical_feature = cat_list,
+#                     callbacks=[lgbm.early_stopping(stopping_rounds=20, verbose=False),
+#                                 lgbm.record_evaluation(evals_result)]
+#                     )
 
-    # pklファイルとしてモデルを保存
-    with open(f"./model/tokyo_lambdarank_{fold}.pickle", "wb") as mk:
-        pickle.dump(model, mk)
+#     # pklファイルとしてモデルを保存
+#     with open(f"./model/tokyo_lambdarank_{fold}.pickle", "wb") as mk:
+#         pickle.dump(model, mk)
 
-    # テストデータの予測 (予測クラスを返す)
-    val_df['pred_score'] = model.predict(val_df[feature_cols], num_iteration=model.best_iteration)
-    test_df['pred_score'] = model.predict(test_df[feature_cols], num_iteration=model.best_iteration)
+#     # テストデータの予測 (予測クラスを返す)
+#     val_df['pred_score'] = model.predict(val_df[feature_cols], num_iteration=model.best_iteration)
+#     test_df['pred_score'] = model.predict(test_df[feature_cols], num_iteration=model.best_iteration)
 
-    val_df.to_csv(f'./csv/tokyo_result_lambdarank_val_{fold}.csv', index=False)
-    test_df.to_csv(f'./csv/tokyo_result_lambdarank_test_{fold}.csv', index=False)
+#     val_df.to_csv(f'./csv/tokyo_result_lambdarank_val_{fold}.csv', index=False)
+#     test_df.to_csv(f'./csv/tokyo_result_lambdarank_test_{fold}.csv', index=False)
 
 
 

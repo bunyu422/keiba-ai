@@ -9,7 +9,7 @@ import datetime
 import logging
 
 import predictor as lf
-import function
+# import function
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
