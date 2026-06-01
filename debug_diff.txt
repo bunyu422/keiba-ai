@@ -1,0 +1,50 @@
+=== Race 202207040111 === スクレイプ vs テストCSV
+scrape行数=10, test行数=10
+
+
+[END]
+=== Race 202207040112 === スクレイプ vs テストCSV
+scrape行数=16, test行数=16
+
+
+[END]
+=== Race 202207040201 === スクレイプ vs テストCSV
+scrape行数=9, test行数=9
+
+
+[END]
+=== Race 202207040202 === スクレイプ vs テストCSV
+scrape行数=14, test行数=14
+
+
+[END]
+=== Race 202207040203 === スクレイプ vs テストCSV
+scrape行数=13, test行数=13
+
+
+[END]
+=== Race 202207040204 === スクレイプ vs テストCSV
+scrape行数=16, test行数=16
+
+
+[END]
+=== Race 202207040206 === スクレイプ vs テストCSV
+scrape行数=16, test行数=16
+
+
+[END]
+=== Race 202207040207 === スクレイプ vs テストCSV
+scrape行数=12, test行数=12
+
+
+[END]
+=== Race 202207040208 === スクレイプ vs テストCSV
+scrape行数=15, test行数=15
+
+
+[END]
+=== Race 202207040209 === スクレイプ vs テストCSV
+scrape行数=8, test行数=8
+
+
+[END]

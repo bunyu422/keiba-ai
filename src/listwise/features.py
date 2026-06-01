@@ -7,9 +7,9 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 import torch
 import torch.nn as nn
-from listwise import model_config as cfg
-from common import transform
-from common.transform import (
+from src.listwise import model_config as cfg
+from src.common import transform
+from src.common.transform import (
     softmax, softmax_neg_rank, make_smooth_relevance_labels,
     make_rank_labels, make_label_gain, init_weights, set_seed,
     pick_top_random, fill_nan,

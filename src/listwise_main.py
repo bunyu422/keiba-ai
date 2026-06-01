@@ -19,8 +19,10 @@ import sys
 from matplotlib import pyplot as plt
 import os
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 # === 分割モジュールの読み込み（ファイル単位）===
-from listwise import (
+from src.listwise import (
     model_config as cfg,
     models,
     dataset,
@@ -114,7 +116,7 @@ weight_mode_list = [
 
 if __name__ == '__main__':
     # === 6. 全体設定 ===
-    save = False
+    save = True
     print(device)
 
     seed = 4  # 中京完成時は seed=4
@@ -174,7 +176,7 @@ if __name__ == '__main__':
             df_2025['騎手_te'] = df_2025['騎手'].map(j_mapping).fillna(-1)
 
             # 学習に使わないカラムを feature_cols から除外
-            feature_cols[:] = [col for col in df.columns if col not in ['オッズ',"複勝_hit_max", "複勝払戻_max", "複勝払戻", "複勝_hit", '人気', '馬番', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
+            feature_cols[:] = [col for col in df.columns if col not in ['オッズ', '払い戻し金額', "複勝_hit_max", "複勝払戻_max", "複勝払戻", "複勝_hit", '人気', '馬番', 'Unnamed: 0', 'レースID', 'rank_label', '着順', 'rank', 'smooth_rel', 'pred_rank', 'num_horses_bin', '単勝オッズ', '馬単', 'score', 'win_flag', 'win_prob', 'is_win', 'win_prob_by_rank']]
 
             # === 7.2 標準化 ===
             scaler = StandardScaler()
@@ -408,8 +410,64 @@ if __name__ == '__main__':
             print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
             print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
 
+            # === 14c. val 評価（expected_value で top-1 選択 + ブートストラップ）===
+            val_df['expected_value'] = val_df['pred_score'] * val_df['オッズ']
+            top_val = val_df.loc[val_df.groupby('レースID')['expected_value'].idxmax()]
+
+            roi_list = []
+            acc_list = []
+            for _ in range(n_boot):
+                sampled = top_val.sample(frac=1.0, replace=True)
+                total_bet = len(sampled) * 100
+                total_return = sampled["単勝オッズ"].sum()
+                hit_count = sampled["is_win"].sum()
+                roi = total_return / total_bet
+                acc = hit_count / len(sampled)
+                roi_list.append(roi)
+                acc_list.append(acc)
+
+            roi_arr = np.array(roi_list)
+            acc_arr = np.array(acc_list)
+            mean_roi = roi_arr.mean()
+            mean_acc = acc_arr.mean()
+            roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+            acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+            print(f"\n[ex評価結果val ブートストラップ評価]")
+            print(f"レース数: {len(top_val)}")
+            print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+            print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
+            # === 14d. val 評価（pred_score で top-1 選択 + ブートストラップ）===
+            top_val = val_df.loc[val_df.groupby('レースID')['pred_score'].idxmax()]
+
+            roi_list = []
+            acc_list = []
+            for _ in range(n_boot):
+                sampled = top_val.sample(frac=1.0, replace=True)
+                total_bet = len(sampled) * 100
+                total_return = sampled["単勝オッズ"].sum()
+                hit_count = sampled["is_win"].sum()
+                roi = total_return / total_bet
+                acc = hit_count / len(sampled)
+                roi_list.append(roi)
+                acc_list.append(acc)
+
+            roi_arr = np.array(roi_list)
+            acc_arr = np.array(acc_list)
+            mean_roi = roi_arr.mean()
+            mean_acc = acc_arr.mean()
+            roi_ci = np.percentile(roi_arr, [2.5, 97.5])
+            acc_ci = np.percentile(acc_arr, [2.5, 97.5])
+
+            print(f"\n[top評価結果val ブートストラップ評価]")
+            print(f"レース数: {len(top_val)}")
+            print(f"的中率: {mean_acc:.2%}（95%CI: {acc_ci[0]:.2%} ～ {acc_ci[1]:.2%}）")
+            print(f"回収率: {mean_roi:.2%}（95%CI: {roi_ci[0]:.2%} ～ {roi_ci[1]:.2%}）")
+
             # === 15. 結果保存 ===
             test_df.to_csv(f'./csv/{field}_result_ranknet_test_{fold}.csv', index=False)
+            val_df.to_csv(f'./csv/{field}_result_ranknet_val_{fold}.csv', index=False)
             if mean_roi > 1.0:
                 with open("log.txt", "a", encoding="utf-8") as f:
                     f.write(f"field:{field}\n")

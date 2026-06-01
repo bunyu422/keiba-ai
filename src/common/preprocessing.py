@@ -170,7 +170,7 @@ def _process_one_past(df_all, df_orig, sou, col, jockey_mapping, field_num):
     df_split[f'{sou}コーナー通過順'] = (
         df_split[f'{sou}コーナー通過順']
         .str[-4:-1]
-        .apply(lambda x: x if x.strip() else None)
+        .apply(lambda x: x if isinstance(x, str) and x.strip() else None)
         .astype(float)
         .abs()
     )
@@ -183,7 +183,7 @@ def _process_one_past(df_all, df_orig, sou, col, jockey_mapping, field_num):
         )
 
     # 各列のマッピング
-    from config import PLACE_MAPPING
+    from src.common.config import PLACE_MAPPING
     df_split[f'{sou}場所'] = df_split[f'{sou}場所'].map(PLACE_MAPPING)
     df_split[f'{sou}フィールド'] = df_split[f'{sou}フィールド'].map(FIELD_MAPPING)
     df_split[f'{sou}馬場'] = df_split[f'{sou}馬場'].map(CONDITION_MAPPING)
@@ -313,11 +313,15 @@ def df_end_processing(df_all, mode='推論'):
 
     past_cols_diff = [f'{i}着差' for i in range(1, 6)]
     past_cols_spd = [f'{i}スピード指数' for i in range(1, 6)]
+    past_cols_3f = [f'{i}後3F' for i in range(1, 6)]
 
     df_all['best着差'] = df_all[past_cols_diff].astype(float).min(axis=1)
     df_all['bestスピード指数'] = df_all[past_cols_spd].max(axis=1)
     df_all['av着差'] = df_all[past_cols_diff].astype(float).mean(axis=1)
     df_all['avスピード指数'] = df_all[past_cols_spd].mean(axis=1)
+    df_all['best後3F'] = df_all[past_cols_3f].astype(float).min(axis=1)
+    df_all['av後3F'] = df_all[past_cols_3f].astype(float).mean(axis=1)
+    df_all['払い戻し金額'] = np.nan
 
     df_all = df_all.drop(
         ['前走', '2走', '3走', '4走', '5走', 'レース名', '勝率'],
