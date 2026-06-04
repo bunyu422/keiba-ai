@@ -1,20 +1,26 @@
 # プロジェクト進捗ログ
 
-## 2026-06-04 - listwise/predictor バグ修正（カラム名・history_features）
+## 2026-06-04 - listwise/predictor バグ修正・損失関数改善
 
 ### 修正内容
 - `騎手_馬場_te` → `騎手_フィールド_te`（model_config.py, lightgbm_lambda_main.py）
   - TE実装は `['騎手', 'フィールド']` から `騎手_フィールド_te` を生成するが、scale_cols に `騎手_馬場_te` と書いてあり KeyError 原因に
 - `add_history_features` から不要な `cfg.extend` 3行を削除（features.py）
   - `build_dataset.py` が既にCSVに履歴列を含めているため、`feature_cols`/`scale_cols`/`feature_category` への登録は不要で副作用のみ
-- predictor.py に `add_history_features` 呼び出しを追加
-  - CSV由来の `同距離過去数` 等6列が pickle に保存されているが、predictor はスクレイプデータなので自力で生成する必要があった
+- predictor.py に `add_history_features` 呼び出しを追加、log2.txt廃止・print表示に変更
+- 損失関数改善（losses.py）: `squared_hinge`+`margin=0`+`ev_i` → `logistic`+`margin=0`+`value_i`
+  - 従来は全馬同じスコアに収束して勾配消失していた
+  - `logistic` は softplus(-diff) で常に勾配が残るため安定
+- `src/lightgbm/__init__.py` 削除（不要なパッケージ化）
 
 ### 変更ファイル
 - `src/listwise/model_config.py` (カラム名修正)
 - `src/lightgbm_lambda_main.py` (カラム名修正)
 - `src/listwise/features.py` (不要なcfg.extend削除)
-- `betting/predictor.py` (add_history_features呼び出し追加)
+- `betting/predictor.py` (add_history_features呼び出し追加, log出力→print)
+- `src/listwise/losses.py` (pairwise/logistic, weight_mode/value_i)
+- `src/lightgbm/__init__.py` (削除)
+- `README.md` (新規作成・ポートフォリオ用)
 
 ## 2026-06-03 - 新規6特徴量を実装 + lightgbm_lambda_main対応
 

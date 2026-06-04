@@ -1,3 +1,4 @@
 .venv/
 venv/
-betting/config.json
+AGENTS.md
+.clinerule
