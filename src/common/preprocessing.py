@@ -69,7 +69,7 @@ def df_first_processing(df, name, mode='推論'):
         )
 
     # 不要列を削除
-    drop_cols = ['枠_x', '枠_y', '馬名_x', '馬名_y', 'コーナー通過順', '厩舎',
+    drop_cols = ['馬名_x', '馬名_y', 'コーナー通過順',
                  'タイム', '騎手斤量', '着差', '後3F', '印', '馬名 オッズ',
                  '馬名  オッズ', '馬名']
     df = df.drop(drop_cols, axis=1, errors='ignore')
@@ -98,8 +98,8 @@ def df_first_processing(df, name, mode='推論'):
         jockey_mapping = load_pickle(jockey_path)
     df['騎手'] = df['騎手'].map(jockey_mapping)
 
-    # 不要列を削除
-    df = df.drop(['性齢', '馬体重(増減)', '馬体重', '体重増減'], axis=1)
+    # 不要列を削除（馬体重, 体重増減, 枠番, 厩舎は特徴量として保持）
+    df = df.drop(['性齢', '馬体重(増減)'], axis=1)
 
     return convert_to_float(df)
 

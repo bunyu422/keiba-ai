@@ -122,10 +122,6 @@ def add_history_features(df):
     df["同場所過去3着内数"] = df.apply(count_top3_same_location, axis=1)
     df['同場所過去率'] = df['同場所過去3着内数'] / (df['同場所過去数'] + 1e-12)
 
-    cfg.feature_cols.extend(['同距離過去率', '同場所過去率'])
-    cfg.scale_cols.extend(['同距離過去率', '同場所過去率'])
-    cfg.feature_category.extend(['同距離過去数', '同距離過去3着内数', '同場所過去数', '同場所過去3着内数'])
-
     return df
 
 # 過去のLightGBMランクモデルでスコア予測（評価用）
@@ -185,7 +181,7 @@ def group_by_race(df_part):
 
     for _, g in df_part.groupby(cfg.group_col):
         X = g[cfg.feature_cols].values.astype(np.float32)
-        y = g[cfg.target_col].values.astype(np.float32)
+        y = g['smooth_rel'].values.astype(np.float32)
         is_win = g["is_win"].values.astype(np.float32)
         payout = g["オッズ"].values.astype(np.float32) - 1.0
         cat_X = g[cfg.embedding_cols].values.astype(np.int64)
@@ -364,6 +360,12 @@ def add_past_diff_features(df, baseline, n_past=5):
     df2 = df.copy()
     diff_cols = []
     score_cols = []
+    convert_cols = []
+
+    for n in range(1, n_past + 1):
+        convert_cols.extend([f"{n}場所", f"{n}距離", f"{n}フィールド", f"{n}クラス", f"{n}馬場"])
+
+    df2[convert_cols] = df2[convert_cols].astype(float)
 
     for n in range(1, n_past + 1):
         key_cols = [f"{n}場所", f"{n}距離", f"{n}フィールド", f"{n}クラス", f"{n}馬場"]
@@ -419,6 +421,119 @@ def add_fuku_payout(df_pred, df_payout, race_col="レースID"):
     merged["複勝_hit"] = merged["払い戻し金額"].notna().astype(int)
     merged["複勝払戻"] = merged["払い戻し金額"].fillna(0)
     return merged
+
+
+# ============================================================ #
+# 新規6特徴量
+# ============================================================ #
+
+# --- 距離グループマッピング ---
+def _distance_group(dist):
+    if dist <= 1400:
+        return 0  # 短距離
+    elif dist <= 1800:
+        return 1  # マイル
+    elif dist <= 2400:
+        return 2  # 中距離
+    else:
+        return 3  # 長距離
+
+# --- Feature 1~3: 交互作用TE (fold内で使用) ---
+def add_interaction_te_fold(train_df, val_df, test_df, df_2025, group_cols, target='着順', alpha=20):
+    """fold内で interaction TE を計算（内部5-fold CV）し train/val/test に適用"""
+    col_name = '_'.join(group_cols) + '_te'
+    global_mean = train_df[target].mean()
+    train_df = train_df.copy()
+
+    # 内部5-fold CVで train の TE を計算（リーク防止）
+    from sklearn.model_selection import KFold
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    train_df[col_name] = np.nan
+    for train_cv_idx, val_cv_idx in kf.split(train_df):
+        cv_train = train_df.iloc[train_cv_idx]
+        cv_val = train_df.iloc[val_cv_idx]
+        stats = cv_train.groupby(group_cols)[target].agg(['mean', 'count'])
+        stats['smooth'] = (stats['mean'] * stats['count'] + alpha * global_mean) / (stats['count'] + alpha)
+        cv_mapping = stats['smooth'].to_dict()
+        def _cv_map(row):
+            return cv_mapping.get(tuple(row[g] for g in group_cols), global_mean)
+        train_df.iloc[val_cv_idx, train_df.columns.get_loc(col_name)] = cv_val.apply(_cv_map, axis=1).values
+
+    # 全 train からマッピングを構築 → val/test に適用
+    stats = train_df.groupby(group_cols)[target].agg(['mean', 'count'])
+    stats['smooth'] = (stats['mean'] * stats['count'] + alpha * global_mean) / (stats['count'] + alpha)
+    mapping = stats['smooth'].to_dict()
+    def _map_row(row):
+        return mapping.get(tuple(row[g] for g in group_cols), global_mean)
+
+    val_df = val_df.copy()
+    test_df = test_df.copy()
+    df_2025 = df_2025.copy()
+    val_df[col_name] = val_df.apply(_map_row, axis=1)
+    test_df[col_name] = test_df.apply(_map_row, axis=1)
+    df_2025[col_name] = df_2025.apply(_map_row, axis=1)
+
+    return train_df, val_df, test_df, df_2025, col_name, mapping
+
+
+# --- Feature 4: 出走間隔クラス ---
+def add_interval_class(df):
+    """出走間隔（週数）をカテゴリ化"""
+    df = df.copy()
+    def _classify(x):
+        if pd.isna(x) or x == 0:
+            return 0  # 連闘
+        elif x <= 2:
+            return 1  # 中1週
+        elif x <= 4:
+            return 2  # 中2週
+        elif x <= 8:
+            return 3  # 休み明け
+        else:
+            return 4  # 長期休養
+    df['間隔クラス'] = df['間隔'].apply(_classify)
+    return df
+
+
+# --- Feature 5: 上がり3F レース内ランク ---
+def add_last3f_race_rank(df):
+    """各馬の前走の上がり3F（1後3F）をレース内で順位付け"""
+    df = df.copy()
+    df['前走後3F_レース内順位'] = df.groupby('レースID')['1後3F'].rank(ascending=True, method='dense')
+    return df
+
+
+# --- Feature 6: 馬体重トレンド傾き ---
+def add_weight_trend_slope(df, n_past=5):
+    """過去 n_past 走の馬体重の線形回帰傾き"""
+    df = df.copy()
+    weight_cols = [f'{i}馬体重' for i in range(1, n_past + 1)]
+    def _calc_slope(row):
+        weights = row[weight_cols].values.astype(float)
+        mask = ~np.isnan(weights)
+        if mask.sum() < 2:
+            return 0.0
+        x = np.arange(n_past)[mask]
+        slope, _ = np.polyfit(x, weights[mask], 1)
+        return slope
+    df['馬体重_trend_slope'] = df.apply(_calc_slope, axis=1)
+    return df
+
+
+# --- 距離グループ列を追加 ---
+def add_distance_group(df):
+    """距離を4グループに分類"""
+    df = df.copy()
+    df['距離グループ'] = df['距離'].apply(_distance_group)
+    return df
+
+
+def add_common_cols_extended():
+    """common_cols に距離グループを追加"""
+    if '距離グループ' not in cfg.common_cols:
+        cfg.common_cols.append('距離グループ')
+    if '間隔クラス' not in cfg.common_cols:
+        cfg.common_cols.append('間隔クラス')
 
 
 def add_fuku_payout_maxonly(df_pred, df_payout, race_col="レースID"):

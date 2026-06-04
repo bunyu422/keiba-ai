@@ -442,17 +442,12 @@ def utility_aware_ranking_loss_roi(
 #     loss_rank = listnet_loss(preds, labels)
 #     return loss_rank
 
-# BEGIN: 中京完成時の combined_loss（UAR単独）
-def combined_loss(preds, labels, odds, is_win, pairwise, weight_mode, k=3, alpha=0.05):
-    # 1) EV の計算
-    ev = is_win * odds - 1.0
-
-    # 2) uar_loss を計算（margin=0 固定）
-    uar = utility_aware_ranking_loss_roi(preds, ev, odds * is_win,
-                                    margin=0, pairwise=pairwise,
-                                    weight_mode=weight_mode)
-    return uar
-# END: 中京完成時の combined_loss
+def combined_loss(preds, labels, odds_loader, pairwise='logistic', weight_mode='value_i'):
+    payouts = torch.log1p(odds_loader)
+    return utility_aware_ranking_loss_roi(
+        preds, labels, payouts,
+        margin=0, pairwise=pairwise, weight_mode=weight_mode
+    )
 
 
 # =============================================================================

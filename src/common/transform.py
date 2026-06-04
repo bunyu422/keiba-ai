@@ -97,6 +97,13 @@ def make_rank_labels(df, group_col='レースID', pos_col='着順', n_bins=18):
     return df
 
 
+def make_top2_labels(df, pos_col='着順'):
+    """3-level label for wide optimization: 1st=2, 2nd=1, else=0"""
+    df = df.copy()
+    df['rank_label'] = df[pos_col].map(lambda x: 2 if x == 1 else (1 if x == 2 else 0))
+    return df
+
+
 def make_label_gain(n_bins=18, mode='sqrt'):
     """ランクラベルに対応する利得（DCG 用）。"""
     if mode == 'linear':

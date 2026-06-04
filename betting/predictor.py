@@ -60,11 +60,8 @@ def get_race_predict(race_id, field, odds):
     
     df = df.sort_values('pred_score', ascending=False)
 
-    # 予測結果の上位2件を log2.txt に追記
-    top2 = df.head(2)
-    with open("log2.txt", "a", encoding="utf-8") as f:
-        for i, (_, row) in enumerate(top2.iterrows(), 1):
-            f.write(f"[predict] {i}: 馬番={int(row['馬番'])}, pred_score={row['pred_score']:.6f}\n")
+    print(f"\n=== Race {race_id} ===")
+    print(df[['馬番', 'pred_score', 'オッズ']].to_string(index=False))
 
     if field == "tokyo":
         df = select_top_with_odds(df)
@@ -325,12 +322,19 @@ def get_race_info(race_id, field, field_num, odds, central, fold):
 
     return df
 
-def mapping(df, target, path):
+def mapping(df, col_or_cols, path):
+    """Apply saved TE mapping (単一列または複数列のタプルキーに対応)"""
     df = df.copy()
     with open(path, "rb") as f:
         mapping = pickle.load(f)
-    df[f'{target}_te'] = df[target].map(mapping).fillna(-1)
-
+    if isinstance(col_or_cols, str):
+        col_name = col_or_cols + '_te'
+        df[col_name] = df[col_or_cols].map(mapping).fillna(-1)
+    else:
+        col_name = '_'.join(col_or_cols) + '_te'
+        def _map_row(row):
+            return mapping.get(tuple(row[c] for c in col_or_cols), -1.0)
+        df[col_name] = df.apply(_map_row, axis=1)
     return df
 
 def _debug_compare_features(df_scrape, race_id, field, fold, feature_cols, context_num_cols, context_cat_cols, embedding_cols):
@@ -384,17 +388,30 @@ def predict_listnet(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # 新規特徴量（fold前、訓練と同じ順序）
+    df = features.add_distance_group(df)
+    df = features.add_interval_class(df)
+    df = features.add_last3f_race_rank(df)
+    df = features.add_weight_trend_slope(df)
+
     # 適性スコア
-    df = add_race_condition_scores(df)
+    df = features.add_race_condition_scores(df)
 
     # 過去のレベル
     baseline = pd.read_csv(f"./csv/{field}_winner_baseline.csv")
-    df, diff_cols, score_cols = add_past_diff_features(df, baseline, n_past=5)
-    df, _ = add_race_relative_features(df, diff_cols+score_cols)
+    df, diff_cols, score_cols = features.add_past_diff_features(df, baseline, n_past=5)
+    df, _ = features.add_race_relative_features(df, diff_cols+score_cols)
 
-    # target encoding
+    # 過去同距離・同場所実績（build_dataset 時点で CSV に含まれる列）
+    df = features.add_history_features(df)
+
+    # target encoding（保存済みマッピングを読み込み）
     df = mapping(df, '父馬', f'./pickle-dict/sire_dict_{field}_fold{fold}.pkl')
     df = mapping(df, '騎手', f'./pickle-dict/jwin_dict_{field}_fold{fold}.pkl')
+    # 交互作用TE
+    for group_cols in [['距離グループ', '父馬'], ['騎手', '距離'], ['騎手', 'フィールド']]:
+        te_col = '_'.join(group_cols) + '_te'
+        df = mapping(df, group_cols, f'./pickle-dict/{te_col}_mapping_{field}_fold{fold}.pkl')
     
     # 標準化
     scaler = joblib.load(f"./model/scaler_{field}_fold{fold}.pkl")
@@ -644,219 +661,6 @@ def predict_lgb(dfs, field):
     #     f.write(top[['レースID', '馬番', 'pred_score']].to_string())
 
     return result_df
-
-def add_race_condition_scores(
-    df,
-    group_distance_col="距離",
-    group_field_col="フィールド",
-    group_baba_col="馬場",
-    n_past=5,
-    score_col="スピード指数",   # or 1後3F, 1タイム, 着差などに変更可能
-):
-    """
-    現在レース条件（距離・馬場・フィールド）と
-    過去走条件の一致度に基づく適性スコアを自動生成する。
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-    group_distance_col, group_field_col, group_baba_col : str
-        現在のレース条件を表すカラム
-    n_past : int
-        過去走の数（1〜n の仕様に合わせる）
-    score_col : str
-        過去走の能力を表すカラム（スピード指数など）
-
-    Returns
-    -------
-    df : pd.DataFrame
-    """
-
-    df = df.copy()
-
-    # === 距離適性スコア ===
-    dist_scores = []
-    for i in range(1, n_past+1):
-        past_dist = df[f"{i}距離"]
-        # 距離差（小さいほど良い）→ マイナスでペナルティ
-        diff = (past_dist - df[group_distance_col]).abs()
-
-        # 能力 × 距離ペナルティ
-        s = df[f"{i}{score_col}"] / (1 + diff / 200)  # 200m 差で 50% 減衰
-        dist_scores.append(s)
-
-    # 距離適性（平均）
-    df["距離適性スコア"] = np.vstack(dist_scores).mean(axis=0)
-
-    # === 馬場適性スコア ===
-    baba_scores = []
-    for i in range(1, n_past+1):
-        # 完全一致：1.0
-        same = (df[f"{i}馬場"] == df[group_baba_col]).astype(float)
-        # 該当走のスコア × 一致度
-        s = df[f"{i}{score_col}"] * (0.5 + 0.5 * same)
-        # → 不一致時は0.5倍、一致で1倍（調整可）
-        baba_scores.append(s)
-
-    df["馬場適性スコア"] = np.vstack(baba_scores).mean(axis=0)
-
-    # === フィールド適性（芝・ダート等） ===
-    field_scores = []
-    for i in range(1, n_past+1):
-        same = (df[f"{i}フィールド"] == df[group_field_col]).astype(float)
-        s = df[f"{i}{score_col}"] * (0.5 + 0.5 * same)
-        field_scores.append(s)
-
-    df["フィールド適性スコア"] = np.vstack(field_scores).mean(axis=0)
-
-    return df
-
-def add_past_diff_features(df, baseline, n_past=5):
-    """
-    各馬の1〜5走前と baseline の差分（context特徴） +
-    走ごとの過去走スコア +
-    派生特徴量（平均・最大・最小・指数加重平均）
-    """
-    df2 = df.copy()
-    diff_cols = []
-    score_cols = []
-    convert_cols = []
-
-    for n in range(1, n_past + 1):
-        convert_cols.extend([f"{n}場所", f"{n}距離", f"{n}フィールド", f"{n}クラス", f"{n}馬場"])
-
-    df2[convert_cols] = df2[convert_cols].astype(float)
-
-    for n in range(1, n_past + 1):
-        key_cols = [f"{n}場所", f"{n}距離", f"{n}フィールド", f"{n}クラス", f"{n}馬場"]
-
-        merged = df2.merge(
-            baseline,
-            left_on=key_cols,
-            right_on=["場所_base", "距離_base", "フィールド_base", "クラス_base", "馬場_base"],
-            how="left",
-            suffixes=("", "_base")
-        )
-
-        feature_list = ["後3F", "タイム", "スピード指数", "馬体重", "コーナー通過順", "馬番", "斤量"]
-        score_items = []
-
-        df2 = df2.reset_index(drop=True)
-
-        for col in feature_list:
-            diff_col = f"{n}{col}_diff"
-            df2[diff_col] = merged[f"{n}{col}"] - merged[f"{col}_base"]
-            diff_cols.append(diff_col)
-
-            diff_val = df2[diff_col]
-
-            # diff → score に変換
-            if col in ["後3F", "タイム"]:
-                score = -diff_val
-            elif col in ["スピード指数", "斤量"]:
-                score = diff_val
-            elif col in ["馬体重", "コーナー通過順", "馬番"]:
-                score = diff_val.abs()
-            else:
-                score = 0
-
-            score_items.append(score)
-
-        # 個別スコア → 走ごとの総合スコア
-        score_col = f"{n}_past_score"
-        df2[score_col] = sum(score_items)
-        score_cols.append(score_col)
-
-    # ===============================
-    # ここから派生特徴量
-    # ===============================
-
-    # 過去走スコアがそろったら集約
-    score_df = df2[score_cols]
-
-    # 平均・最大・最小・合計
-    df2["past_score_mean"] = score_df.mean(axis=1)
-    df2["past_score_max"] = score_df.max(axis=1)
-    df2["past_score_min"] = score_df.min(axis=1)
-    df2["past_score_sum"] = score_df.sum(axis=1)
-
-    # 指数加重平均（最近重視）
-    # 1走前: 重み=1.0, 2走前=exp(-α), 3走前=exp(-2α)...
-    alpha = 0.7
-    weights = np.array([np.exp(-alpha * (i)) for i in range(n_past)])
-
-    # 正規化
-    weights = weights / weights.sum()
-
-    df2["past_score_ewm"] = (score_df.values * weights).sum(axis=1)
-
-    score_cols.extend(["past_score_mean", "past_score_max", "past_score_min", "past_score_sum", "past_score_ewm"])
-
-    return df2, diff_cols, score_cols
-
-def add_race_relative_features(
-    df,
-    cols,
-    group_col="レースID",
-    add_rank=True,
-    add_relative=True,
-    add_zscore=True,
-):
-    """
-    レース内での rank / relative / z-score を一括生成する。
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        入力データ
-    cols : list of str
-        特徴量カラム名のリスト（数値カラム）
-    group_col : str
-        レースID の列名
-    add_rank : bool
-        レース内順位特徴量を追加するか
-    add_relative : bool
-        平均からの差分特徴量を追加するか
-    add_zscore : bool
-        z-score（相対差 / 標準偏差）を追加するか
-
-    Returns
-    -------
-    df : pd.DataFrame
-        特徴量追加後の DataFrame
-    """
-
-    df = df.copy()
-    col_list = []
-    rank_cols = {}
-
-    # グループごとの平均・標準偏差を事前に計算
-    grouped = df.groupby(group_col)
-
-    # 平均
-    means = grouped[cols].transform('mean')
-    # 標準偏差（0除算を避ける）
-    stds = grouped[cols].transform('std').replace(0, np.nan)
-
-    for col in cols:
-        # rank：数値が大きいほど上位（ascending=False）
-        if add_rank:
-            rank_cols[f"{col}_rank"] = grouped[col].rank(ascending=False, method="dense")
-            col_list.append(f"{col}_rank")
-
-        # relative：平均との差
-        if add_relative:
-            rank_cols[f"{col}_rel"] = df[col] - means[col]
-            col_list.append(f"{col}_rel")
-
-        # zscore：相対値 / 標準偏差
-        if add_zscore:
-            rank_cols[f"{col}_z"] = (df[col] - means[col]) / stds[col]
-            col_list.append(f"{col}_z")
-
-    df = pd.concat([df, pd.DataFrame(rank_cols, index=df.index)], axis=1)
-
-    return df, col_list
 
 def predict_new_data(model, df_new, feature_cols, cat_features, context_num_features, context_cat_features, device="cuda"):
     """
