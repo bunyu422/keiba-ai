@@ -2,3 +2,10 @@
 venv/
 AGENTS.md
 .clinerule
+.vscode
+csv/
+model/
+pickle-dict/
+pickle-tuner/
+__pycache__/
+old_file/
