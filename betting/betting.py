@@ -86,23 +86,7 @@ def job(n1, n2, n3):
 
         _common.wait_and_click(driver, By.LINK_TEXT, "続けて通常投票")
 
-        # 中京は高オッズ時に複勝も買う
-        if field == "chukyo":
-            if float(odds[umaban-1]) >= 20:
-                _common.wait_and_click(driver, By.PARTIAL_LINK_TEXT, n1)
-                _common.wait_and_click(driver, By.PARTIAL_LINK_TEXT, f"{n2}R")
-                _common.wait_and_click(driver, By.PARTIAL_LINK_TEXT, "複勝")
-
-                driver.find_element(By.CLASS_NAME, "selectHorse").find_elements(By.CLASS_NAME, "ui-link")[umaban-1].click()
-                _common.wait_and_type(driver, By.CLASS_NAME, "ui-input-text", "1")
-                _common.wait_and_click(driver, By.LINK_TEXT, "セット")
-                _common.wait_and_click(driver, By.LINK_TEXT, "入力終了")
-                _common.wait_and_type(driver, By.ID, "sum", "100")
-                _common.wait_and_click(driver, By.LINK_TEXT, "投票")
-
-                _common.wait_alert_and_accept(driver)
-
-                _common.wait_and_click(driver, By.LINK_TEXT, "続けて通常投票")
+        
 
     # ワイド投票
     if buyList_wide is not None:
