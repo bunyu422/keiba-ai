@@ -168,7 +168,7 @@ Target Encoding は K-fold CV 内で計算し、リーディングを防止<br>
 
 ### Interaction TE
 
-`['距離グループ', '父馬']`、`['騎手', '距離']`、`['騎手', 'フィールド']` の3つの交互作用に対して Target Encoding を適用<br>
+`['距離グループ', '父馬']`、`['騎手', '距離']`、`['騎手', 'フィールド']` の3つの交互作用に対して Target Encoding を適用、
 fold 内で計算することでリークを防止
 
 ### Pairwise Ranking Loss
