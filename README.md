@@ -15,7 +15,36 @@
 * **初期実装**: レースIDを手動入力することで購入フローが走る仕組み。
 * **現在の実装**: プログラムを一度起動すれば、システムが自動で時間を監視。各レースの締め切り直前にリアルタイムで予想から購入までを完全自動で完結させる仕組みへアップデート。
 
+### 自動購入フロー
+
+```
+betting.py 起動
+    │
+    ├─ 1. netkeiba.com から本日の開催情報をスクレイピング
+    │   （競馬場・レース時刻・レースID・新馬除く）
+    │
+    ├─ 2. JRA-IPAT に Selenium で自動ログイン
+    │   （config.json の会員情報を使用）
+    │
+    ├─ 3. 各レースの発走3分前にジョブをスケジュール
+    │   （Python schedule ライブラリ）
+    │
+    ├─ 4. 各レース実行:
+    │   ├─ 出走表から馬名・オッズをスクレイピング
+    │   ├─ predictor.py で予測確率を計算
+    │   ├─ 単勝推奨馬がいる場合 → 単勝投票
+    │   └─ ワイド推奨馬がいる場合 → ワイドながし投票
+    │
+    ├─ 5. エラー発生時は自動リトライ（+ スクリーンショット保存）
+    │
+    └─ 6. 全レース終了後、自動ログアウト
+```
+
+全て Selenium によるブラウザ操作で完結しており、`betting.py` を起動するだけでユーザーの操作は一切不要です。
+
 現在はCLI（コマンドライン）環境での実行に留まっていますが、将来的には誰もが直感的に使えるWebサービスとしての展開（GUI化）を見据えています。そのためのインフラ基盤を設計できるよう、**AWS SAA（ソリューションアーキテクト – アソシエイト）**の資格も取得しました。
+
+> 実際の購入画面のスクリーンショットは `docs/` 以下に配置予定です。
 
 ## Engineering Philosophy
 
@@ -91,6 +120,7 @@ keibaAI/
 │       ├── utils.py          # 汎用ユーティリティ
 │       ├── scraping.py       # スクレイピング
 │       └── bandit.py         # バンディットアルゴリズム
+├── docs/                     # スクリーンショット・資料
 ├── betting/
 │   ├── predictor.py          # 推論パイプライン
 │   ├── betting.py            # 馬券購入
@@ -112,17 +142,20 @@ keibaAI/
 
 ### Target Encoding
 
-Target Encoding は K-fold CV 内で計算し、リーディングを防止。平滑化（smoothing）により稀少カテゴリの過学習を抑制。
+Target Encoding は K-fold CV 内で計算し、リーディングを防止
+平滑化（smoothing）により稀少カテゴリの過学習を抑制
 
 ### Interaction TE
 
-`['距離グループ', '父馬']`、`['騎手', '距離']`、`['騎手', 'フィールド']` の3つの交互作用に対して Target Encoding を適用。fold 内で計算することでリークを防止。
+`['距離グループ', '父馬']`、`['騎手', '距離']`、`['騎手', 'フィールド']` の3つの交互作用に対して Target Encoding を適用
+fold 内で計算することでリークを防止
 
 ### Pairwise Ranking Loss
 
-`utility_aware_ranking_loss_roi` — 柔軟なペアワイズ損失関数。`pairwise` の種類（hinge / logistic / bpr / exp 等）と `weight_mode`（value_i / roi / ev_i / rank_focus 等）を組み合わせて多様な学習戦略を取れる。
+`utility_aware_ranking_loss_roi` — 柔軟なペアワイズ損失関数
+`pairwise` の種類（hinge / logistic / bpr / exp 等）と `weight_mode`（value_i / roi / ev_i / rank_focus 等）を組み合わせて多様な学習戦略を取れます。
 
-現在は `logistic`（常に滑らかな勾配） + `value_i`（関連度が高い馬を重視）の安定した組み合わせを使用。
+現在は `logistic`（常に滑らかな勾配） + `value_i`（関連度が高い馬を重視）の安定した組み合わせを使用しています。
 
 ### Feature Engineering
 
@@ -135,7 +168,8 @@ Target Encoding は K-fold CV 内で計算し、リーディングを防止。�
 
 ### Benter Calibration
 
-予測スコアを α-β 較正で確率に変換。fold 間の中央値 α, β を固定値として使うことで安定した ROI を達成。
+予測スコアを α-β 較正で確率に変換
+fold 間の中央値 α, β を固定値として使うことで安定した ROI を達成
 
 ### Odds-Free Modeling
 
@@ -203,3 +237,14 @@ python -c "from betting.predictor import get_race_predict; get_race_predict('202
 - pandas, numpy, scikit-learn
 - selenium, beautifulsoup4, requests
 - joblib
+
+## Setup
+
+```bash
+# インストール
+pip install -r requirements.txt
+
+# ログイン設定（自動購入に必要）
+cp betting/config.example.json betting/config.json
+# → betting/config.json に userid, password, pars を記入
+```
