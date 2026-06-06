@@ -146,9 +146,7 @@ keibaAI/
 ├── docs/                     # スクリーンショット・資料
 ├── betting/
 │   ├── predictor.py          # 推論パイプライン
-│   ├── betting.py            # 馬券購入
-│   ├── betting_local.py      # ローカル馬券購入
-│   └── bet_test.py           # 馬券テスト
+│   └── betting.py            # 馬券購入
 ├── csv/                      # データファイル
 ├── model/                    # 学習済みモデル
 └── pickle-dict/              # 各種マッピング・設定
