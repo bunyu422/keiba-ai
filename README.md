@@ -20,7 +20,7 @@
 ```
 betting.py 起動
     │
-    ├─ 1. netkeiba.com から本日の開催情報をスクレイピング
+    ├─ 1. [netkeiba.com](https://race.netkeiba.com/top/?rf=navi) から本日の開催情報をスクレイピング
     │   （競馬場・レース時刻・レースID・新馬除く）
     │
     ├─ 2. JRA-IPAT に Selenium で自動ログイン
@@ -48,7 +48,7 @@ betting.py 起動
 
 まず、`betting.py` を実行します。
 
-プログラムは netkeiba から開催場所、予想対象レース、レース発走時間などを取得します。
+プログラムは [netkeiba](https://race.netkeiba.com/top/?rf=navi) から開催場所、予想対象レース、レース発走時間などを取得します。
 
 その後、プログラムは待機状態に入ります。
 
